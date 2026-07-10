@@ -1,26 +1,20 @@
 // ─── Joining Letter Models (backend aligned) ─────────────────────────────────
 
-export type JoiningLetterStatus =
-  | 'JOINING_LETTER_SENT'
-  | 'TRAINING_IN_PROGRESS'
-  | 'JOINING_ON_HOLD';
-
 export interface JoiningLetter {
   id: number;
   applicationId: number;
+  batchId?: number;
+  batchCode?: string;
+  employeeCode?: string;
   jobTitle: string;
   content: string;
+  pdfFileId?: number;
   joiningDate: string;
   locationName: string;
   status: string;
   holdReason?: string;
+  generatedAt?: string;
   sentByName?: string;
   sentAt?: string;
   respondedAt?: string;
-}
-
-export interface SendJoiningLetterRequest {
-  content: string;
-  joiningDate: string;
-  locationId: number;
 }

@@ -20,10 +20,12 @@ import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.compon
 
 // ─── Candidate Portal Components ─────────────────────────────────────────────
 import { CandidateProfileComponent } from './modules/candidate/profile/candidate-profile.component';
+import { CandidateProfileStepperComponent } from './modules/candidate/profile/candidate-profile-stepper.component';
 import { ChangePasswordComponent } from './modules/candidate/change-password/change-password.component';
 import { CandidateDashboardComponent } from './modules/candidate/dashboard/candidate-dashboard.component';
 import { CandidateApplicationsComponent } from './modules/candidate/applications/candidate-applications.component';
 import { CandidateOffersComponent } from './modules/candidate/offers/candidate-offers.component';
+import { CandidateBackgroundCheckComponent } from './modules/candidate/background-check/candidate-background-check.component';
 import { JobsListComponent } from './modules/candidate/jobs-list/jobs-list.component';
 import { JobDetailsComponent } from './modules/candidate/job-details/job-details.component';
 import { ApplicationFormComponent } from './modules/candidate/application-form/application-form.component';
@@ -36,7 +38,7 @@ import { ApplicationsManagementComponent } from './modules/applications/applicat
 import { AssessmentsManagementComponent } from './modules/assessments/assessments.component';
 import { OfferLettersManagementComponent } from './modules/offer-letters/offer-letters.component';
 import { BgvManagementComponent } from './modules/bgv/bgv.component';
-import { SelectedCandidatesComponent } from './modules/selected/selected.component';
+import { JoiningBatchesComponent } from './modules/joining-batches/joining-batches.component';
 import { TraineesManagementComponent } from './modules/trainees/trainees.component';
 import { AssetsManagementComponent } from './modules/assets/assets.component';
 import { ReleasedCandidatesComponent } from './modules/released/released.component';
@@ -68,10 +70,12 @@ import { NotFoundComponent } from './modules/errors/not-found.component';
     AdminLayoutComponent,
     // Candidate Portal
     CandidateProfileComponent,
+    CandidateProfileStepperComponent,
     ChangePasswordComponent,
     CandidateDashboardComponent,
     CandidateApplicationsComponent,
     CandidateOffersComponent,
+    CandidateBackgroundCheckComponent,
     JobsListComponent,
     JobDetailsComponent,
     ApplicationFormComponent,
@@ -83,7 +87,7 @@ import { NotFoundComponent } from './modules/errors/not-found.component';
     AssessmentsManagementComponent,
     OfferLettersManagementComponent,
     BgvManagementComponent,
-    SelectedCandidatesComponent,
+    JoiningBatchesComponent,
     TraineesManagementComponent,
     AssetsManagementComponent,
     ReleasedCandidatesComponent,

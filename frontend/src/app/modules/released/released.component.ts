@@ -123,8 +123,8 @@ import { ToastService } from '../../shared/services/toast.service';
         }
       }
       .column-card {
-        border-radius: 12px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        border-radius: var(--radius-card) !important;
+        box-shadow: var(--shadow-card) !important;
         padding: 16px;
         height: fit-content;
       }

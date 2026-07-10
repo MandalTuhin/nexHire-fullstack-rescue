@@ -28,6 +28,11 @@ public class ActivityLog {
     @Column(nullable = false)
     private String description;
 
+    /** Optional entity classification (e.g. "APPLICATION", "BGC_CASE") to support filtering/audit tabs. */
+    private String entityType;
+
+    private Long entityId;
+
     @Column(nullable = false)
     private LocalDateTime timestamp;
 }

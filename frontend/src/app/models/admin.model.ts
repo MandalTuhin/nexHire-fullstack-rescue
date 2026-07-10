@@ -19,33 +19,52 @@ export interface CreateAdminRequest {
 // ─── Dashboard Stats Model ────────────────────────────────────────────────────
 
 export interface DashboardStats {
-  totalUsers: number;
-  totalJobs: number;
   totalApplications: number;
-  pendingApplications: number;
-  shortlistedApplications: number;
-  assessmentsAssigned: number;
-  assessmentsPassed: number;
-  assessmentsFailed: number;
-  offersSent: number;
-  offersAccepted: number;
-  offersRejected: number;
-  bgvPending: number;
-  bgvCleared: number;
+  profileCompletedCandidates: number;
+
+  assessmentAssignedCount: number;
+  assessmentScoreUploadedCount: number;
+  assessmentPassedCount: number;
+  assessmentFailedCount: number;
+
+  offerLettersGenerated: number;
+  offerLettersSent: number;
+  offerAcceptedCount: number;
+  offerRejectedCount: number;
+
+  bgcInitiatedCount: number;
+  bgcDocumentsSubmittedCount: number;
+  bgcClearedCount: number;
+  bgcFailedCount: number;
+
   employeesCreated: number;
-  selectedCandidates: number;
-  traineesActive: number;
-  trainingCompleted: number;
-  assetsAssigned: number;
+  selectedUsersCreated: number;
+
+  joiningBatchesCreated: number;
+  joiningLettersSent: number;
+  joiningAcceptedCount: number;
+
+  trainingBatchesAssigned: number;
+  lapCandidates: number;
+  passedTrainees: number;
+  failedTrainees: number;
   releasedCandidates: number;
-  projectsActive: number;
-  candidatesAllocated: number;
-  totalBudgetUsed?: number;
-  totalBudgetAvailable?: number;
-  totalVacancyUsed?: number;
-  totalVacancyAvailable?: number;
-  totalEmployees?: number;
-  totalAdmins?: number;
+
+  projectAllocatedCandidates: number;
+
+  totalVacancyUsed: number;
+  totalVacancyAvailable: number;
+  totalBudgetUsed: number;
+  totalBudgetAvailable: number;
+}
+
+export interface PendingActions {
+  candidatesEligibleForAssessment: number;
+  offersPendingSend: number;
+  candidatesPendingBgcDocuments: number;
+  candidatesEligibleForBatch: number;
+  trainingBatchesRequiringResultUpload: number;
+  lapCandidatesRequiringReview: number;
 }
 
 export interface ChartData {

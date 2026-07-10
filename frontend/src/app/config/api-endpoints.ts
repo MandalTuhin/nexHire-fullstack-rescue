@@ -44,6 +44,21 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number) => `${BASE}/api/applications/${id}`,
     START_ASSESSMENT: (id: number) =>
       `${BASE}/api/applications/${id}/start-assessment`,
+    // HR: high-volume search/filter/sort/pagination + bulk pipeline actions
+    SEARCH: `${BASE}/api/applications/search`,
+    BULK_ASSIGN_ASSESSMENT: `${BASE}/api/applications/bulk/assign-assessment`,
+    BULK_REJECT: `${BASE}/api/applications/bulk/reject`,
+    BULK_SHORTLIST: `${BASE}/api/applications/bulk/shortlist`,
+    EXPORT: `${BASE}/api/applications/export`,
+  },
+
+  // ─── Candidate Profile (personal/academic/skills/resume/location prefs) ─────
+  CANDIDATE_PROFILE: {
+    ME: `${BASE}/api/candidate/profile`,
+    RESUME: `${BASE}/api/candidate/profile/resume`,
+    BY_USER: (userId: number) => `${BASE}/api/candidate/profile/${userId}`,
+    RESUME_BY_USER: (userId: number) =>
+      `${BASE}/api/candidate/profile/${userId}/resume`,
   },
 
   // ─── Assessments ───────────────────────────────────────────────────────────
@@ -54,28 +69,58 @@ export const API_ENDPOINTS = {
       `${BASE}/api/assessments/${applicationId}/qualify`,
     REJECT: (applicationId: number) =>
       `${BASE}/api/assessments/${applicationId}/reject`,
+    EXCEL_TEMPLATE: `${BASE}/api/assessments/excel/template`,
+    EXCEL_VALIDATE: `${BASE}/api/assessments/excel/validate`,
+    EXCEL_COMMIT: `${BASE}/api/assessments/excel/commit`,
+    EXCEL_HISTORY: `${BASE}/api/assessments/excel/history`,
   },
 
   // ─── Offer Letters ─────────────────────────────────────────────────────────
   OFFERS: {
+    BASE: `${BASE}/api/offers`,
     SEND: (applicationId: number) => `${BASE}/api/offers/${applicationId}`,
+    BULK_SEND: `${BASE}/api/offers/bulk/send`,
     MY: `${BASE}/api/offers/my`,
+    PDF: (offerId: number) => `${BASE}/api/offers/${offerId}/pdf`,
     ACCEPT: (id: number) => `${BASE}/api/offers/${id}/accept`,
     REJECT: (id: number) => `${BASE}/api/offers/${id}/reject`,
   },
 
   // ─── Joining Letters ───────────────────────────────────────────────────────
   JOINING_LETTERS: {
-    SEND: (applicationId: number) =>
-      `${BASE}/api/joining-letters/${applicationId}`,
     MY: `${BASE}/api/joining-letters/my`,
+    PDF: (id: number) => `${BASE}/api/joining-letters/${id}/pdf`,
     ACCEPT: (id: number) => `${BASE}/api/joining-letters/${id}/accept`,
+    REJECT: (id: number) => `${BASE}/api/joining-letters/${id}/reject`,
+  },
+  JOINING_BATCHES: {
+    BASE: `${BASE}/api/joining-batches`,
+    ELIGIBLE: (joiningLocationId: number) =>
+      `${BASE}/api/joining-batches/eligible?joiningLocationId=${joiningLocationId}`,
+    BY_ID: (id: number) => `${BASE}/api/joining-batches/${id}`,
+    AUTO_CREATE: `${BASE}/api/joining-batches/auto-create`,
+    GENERATE_LETTERS: (id: number) => `${BASE}/api/joining-batches/${id}/generate-letters`,
+    SEND_LETTERS: (id: number) => `${BASE}/api/joining-batches/${id}/send-letters`,
+  },
+  TRAINING_BATCHES: {
+    BASE: `${BASE}/api/training-batches`,
+    PROGRAMS: `${BASE}/api/training-batches/programs`,
+    BY_ID: (id: number) => `${BASE}/api/training-batches/${id}`,
+    ASSIGN_TRAINING: (id: number) => `${BASE}/api/training-batches/${id}/assign-training`,
+    COMPLETE: (id: number) => `${BASE}/api/training-batches/${id}/complete`,
+    MOVE_TO_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/lap`,
+    REMOVE_FROM_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/remove-lap`,
+    EXCEL_TEMPLATE: `${BASE}/api/training-batches/excel/template`,
+    EXCEL_VALIDATE: (id: number) => `${BASE}/api/training-batches/${id}/excel/validate`,
+    EXCEL_COMMIT: (id: number) => `${BASE}/api/training-batches/${id}/excel/commit`,
+    EXCEL_HISTORY: (id: number) => `${BASE}/api/training-batches/${id}/excel/history`,
   },
 
   // ─── Locations (budget + seats) ──────────────────────────────────────────────
   LOCATIONS: {
     BASE: `${BASE}/api/locations`,
     BY_ID: (id: number) => `${BASE}/api/locations/${id}`,
+    NAMES: `${BASE}/api/locations/names`,
   },
 
   // ─── Background Verification (Phase B) ───────────────────────────────────────
@@ -86,6 +131,22 @@ export const API_ENDPOINTS = {
       `${BASE}/api/bgv/application/${applicationId}`,
     INITIATE: (applicationId: number) => `${BASE}/api/bgv/${applicationId}`,
     UPDATE_STATUS: (id: number) => `${BASE}/api/bgv/${id}/status`,
+    DETAIL: (id: number) => `${BASE}/api/bgv/${id}/detail`,
+    UPLOAD_DOCUMENT: (applicationId: number) =>
+      `${BASE}/api/bgv/${applicationId}/documents`,
+    MY_DOCUMENTS: (applicationId: number) =>
+      `${BASE}/api/bgv/${applicationId}/documents/my`,
+    CASE_DOCUMENTS: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/documents`,
+    REVIEW_DOCUMENT: (documentId: number) =>
+      `${BASE}/api/bgv/documents/${documentId}/review`,
+    DOWNLOAD_DOCUMENT: (documentId: number) =>
+      `${BASE}/api/bgv/documents/${documentId}/download`,
+    SEND_TO_VENDOR: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/vendor-request`,
+    VENDOR_REQUESTS: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/vendor-requests`,
+    EXCEL_TEMPLATE: `${BASE}/api/bgv/excel/template`,
+    EXCEL_VALIDATE: `${BASE}/api/bgv/excel/validate`,
+    EXCEL_COMMIT: `${BASE}/api/bgv/excel/commit`,
+    EXCEL_HISTORY: `${BASE}/api/bgv/excel/history`,
   },
 
   // ─── Trainees / Training (Phase B) ───────────────────────────────────────────
@@ -214,6 +275,7 @@ export const API_ENDPOINTS = {
   },
   DASHBOARD: {
     STATS: `${BASE}/api/dashboard/stats`,
+    PENDING_ACTIONS: `${BASE}/api/dashboard/pending-actions`,
     CHARTS: `${BASE}/api/dashboard/charts`,
     APPLICATION_CHART: `${BASE}/api/dashboard/charts/applications`,
     ASSESSMENT_CHART: `${BASE}/api/dashboard/charts/assessments`,

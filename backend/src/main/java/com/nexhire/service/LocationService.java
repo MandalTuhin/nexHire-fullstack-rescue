@@ -1,5 +1,6 @@
 package com.nexhire.service;
 
+import com.nexhire.dto.LocationNameResponse;
 import com.nexhire.dto.LocationResponse;
 import com.nexhire.dto.LocationUpdateRequest;
 import com.nexhire.entity.HiringBudget;
@@ -26,6 +27,13 @@ public class LocationService {
     public List<LocationResponse> getAllLocations() {
         return locationRepository.findAll().stream()
                 .map(this::toResponse)
+                .toList();
+    }
+
+    public List<LocationNameResponse> getLocationNames() {
+        return locationRepository.findAll().stream()
+                .map(l -> LocationNameResponse.builder()
+                        .id(l.getId()).name(l.getName()).city(l.getCity()).build())
                 .toList();
     }
 

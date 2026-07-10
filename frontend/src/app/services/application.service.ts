@@ -7,8 +7,11 @@ import {
   ApplyRequest,
   UpdateApplicationStatusRequest,
   ApplicationFilter,
+  ApplicationFilterRequest,
+  ApplicationBulkActionResult,
   ApplicationStatus,
 } from '../models/application.model';
+import { PagedResponse } from '../models/api-response.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { BaseService } from './base.service';
 
@@ -24,6 +27,8 @@ interface BackendApplication {
   holdReason?: string;
   holdCreatedAt?: string;
   holdResolvedAt?: string;
+  bgvStatus?: string;
+  passoutYear?: number;
   appliedAt: string;
   updatedAt?: string;
 }
@@ -82,7 +87,7 @@ export class ApplicationService extends BaseService {
       .pipe(map((a) => this.toApplication(a)));
   }
 
-  /** Explicit: move APPLIED -> ASSESSMENT_PENDING. */
+  /** Explicit: move APPLIED -> ASSESSMENT_ASSIGNED. */
   startAssessment(id: number): Observable<Application> {
     return this.http
       .put<BackendApplication>(
@@ -90,6 +95,49 @@ export class ApplicationService extends BaseService {
         {},
       )
       .pipe(map((a) => this.toApplication(a)));
+  }
+
+  /** HR: server-side search/filter/sort/pagination — the Applications page data source. */
+  search(filter: ApplicationFilterRequest): Observable<PagedResponse<Application>> {
+    return this.http
+      .post<PagedResponse<BackendApplication>>(
+        API_ENDPOINTS.APPLICATIONS.SEARCH,
+        filter,
+      )
+      .pipe(
+        map((page) => ({
+          ...page,
+          content: page.content.map((a) => this.toApplication(a)),
+        })),
+      );
+  }
+
+  bulkAssignAssessment(applicationIds: number[]): Observable<ApplicationBulkActionResult> {
+    return this.http.post<ApplicationBulkActionResult>(
+      API_ENDPOINTS.APPLICATIONS.BULK_ASSIGN_ASSESSMENT,
+      { applicationIds },
+    );
+  }
+
+  bulkReject(applicationIds: number[], reason?: string): Observable<ApplicationBulkActionResult> {
+    return this.http.post<ApplicationBulkActionResult>(
+      API_ENDPOINTS.APPLICATIONS.BULK_REJECT,
+      { applicationIds, reason },
+    );
+  }
+
+  bulkShortlist(applicationIds: number[]): Observable<ApplicationBulkActionResult> {
+    return this.http.post<ApplicationBulkActionResult>(
+      API_ENDPOINTS.APPLICATIONS.BULK_SHORTLIST,
+      { applicationIds },
+    );
+  }
+
+  /** HR: export ALL rows matching the current filter (not just the current page) as .xlsx. */
+  exportExcel(filter: ApplicationFilterRequest): Observable<Blob> {
+    return this.http.post(API_ENDPOINTS.APPLICATIONS.EXPORT, filter, {
+      responseType: 'blob',
+    });
   }
 
   // ─── Mapping ──────────────────────────────────────────────────────────────
@@ -107,6 +155,8 @@ export class ApplicationService extends BaseService {
       holdReason: b.holdReason,
       holdCreatedAt: b.holdCreatedAt,
       holdResolvedAt: b.holdResolvedAt,
+      bgvStatus: b.bgvStatus,
+      passoutYear: b.passoutYear,
     };
   }
 

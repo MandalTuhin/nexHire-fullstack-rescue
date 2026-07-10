@@ -1,9 +1,11 @@
 package com.nexhire.repository;
 
 import com.nexhire.entity.BackgroundVerification;
+import com.nexhire.enums.BgvStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +17,8 @@ public interface BackgroundVerificationRepository extends JpaRepository<Backgrou
     List<BackgroundVerification> findByApplicationUserId(Long userId);
 
     boolean existsByApplicationId(Long applicationId);
+
+    long countByStatus(BgvStatus status);
+
+    long countByStatusNotIn(Collection<BgvStatus> statuses);
 }

@@ -408,12 +408,6 @@ export class HrLayoutComponent implements OnInit {
       permission: 'VIEW_ASSESSMENTS',
     },
     {
-      label: 'Selected Candidates',
-      icon: 'person_add',
-      route: '/hr/selected',
-      permission: 'VIEW_SELECTED_CANDIDATES',
-    },
-    {
       label: 'Offer Letters',
       icon: 'drafts',
       route: '/hr/offers',
@@ -424,6 +418,12 @@ export class HrLayoutComponent implements OnInit {
       icon: 'verified_user',
       route: '/hr/bgv',
       permission: 'VIEW_BGV',
+    },
+    {
+      label: 'Joining Batches',
+      icon: 'groups',
+      route: '/hr/joining-batches',
+      permission: 'VIEW_JOINING_BATCHES',
     },
     {
       label: 'Trainees',

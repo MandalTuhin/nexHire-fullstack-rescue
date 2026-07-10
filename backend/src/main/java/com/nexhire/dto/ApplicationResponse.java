@@ -24,6 +24,7 @@ public class ApplicationResponse {
     private LocalDateTime holdCreatedAt;
     private LocalDateTime holdResolvedAt;
     private String bgvStatus;
+    private Integer passoutYear;
     private LocalDateTime appliedAt;
     private LocalDateTime updatedAt;
 }

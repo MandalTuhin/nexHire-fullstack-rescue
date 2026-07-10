@@ -2,61 +2,76 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DashboardService } from '../../../services/dashboard.service';
 import { CurrentUserService } from '../../../core/auth/current-user.service';
-import { DashboardStats } from '../../../models/admin.model';
+import { DashboardStats, PendingActions } from '../../../models/admin.model';
 
-/** HR Dashboard - mirrors the existing dashboard.component but scoped to HR portal */
+interface MetricTile {
+  label: string;
+  value: number;
+}
+
+interface MetricSection {
+  title: string;
+  icon: string;
+  accent: string;
+  tiles: MetricTile[];
+}
+
+interface PendingActionRow {
+  label: string;
+  count: number;
+  icon: string;
+  route: string;
+}
+
+/** HR Dashboard — every card is a live count computed by DashboardService (see context.md's
+ *  "HR DASHBOARD" card list). Grouped into pipeline-stage sections rather than one flat grid
+ *  of ~25 cards, since a flat grid at that count stops being scannable. */
 @Component({
   selector: 'app-hr-dashboard',
   template: `
     <div class="dashboard-overview">
       <app-page-header
         title="HR Dashboard"
-        subtitle="Real-time recruitment metrics & corporate training statuses"
+        subtitle="Real-time recruitment, BGC, joining and training pipeline metrics"
       ></app-page-header>
 
-      <!-- Stats Grid -->
-      <div class="stats-grid" *ngIf="stats">
-        <mat-card class="stat-card">
+      <!-- Pending Actions -->
+      <mat-card class="pending-card" *ngIf="pending">
+        <mat-card-header>
+          <mat-card-title>Pending Actions</mat-card-title>
+          <mat-card-subtitle>Queues that need HR attention right now</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="pending-grid">
+            <div
+              class="pending-row"
+              *ngFor="let action of pendingRows"
+              [class.zero]="action.count === 0"
+              [routerLink]="action.route"
+            >
+              <mat-icon>{{ action.icon }}</mat-icon>
+              <span class="pending-label">{{ action.label }}</span>
+              <span class="pending-count">{{ action.count }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Metric sections -->
+      <div class="sections-grid" *ngIf="stats">
+        <mat-card class="section-card" *ngFor="let section of sections">
+          <mat-card-header>
+            <div class="section-icon" [ngClass]="section.accent">
+              <mat-icon>{{ section.icon }}</mat-icon>
+            </div>
+            <mat-card-title>{{ section.title }}</mat-card-title>
+          </mat-card-header>
           <mat-card-content>
-            <div class="stat-icon-wrapper blue">
-              <mat-icon>people</mat-icon>
-            </div>
-            <div class="stat-data">
-              <span class="stat-number">{{ stats.totalUsers }}</span>
-              <span class="stat-label">Total Users</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-        <mat-card class="stat-card">
-          <mat-card-content>
-            <div class="stat-icon-wrapper green">
-              <mat-icon>assignment</mat-icon>
-            </div>
-            <div class="stat-data">
-              <span class="stat-number">{{ stats.totalApplications }}</span>
-              <span class="stat-label">Applications</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-        <mat-card class="stat-card">
-          <mat-card-content>
-            <div class="stat-icon-wrapper purple">
-              <mat-icon>fact_check</mat-icon>
-            </div>
-            <div class="stat-data">
-              <span class="stat-number">{{ stats.assessmentsPassed }}</span>
-              <span class="stat-label">Passed Tests</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-        <mat-card class="stat-card">
-          <mat-card-content>
-            <div class="stat-icon-wrapper orange">
-              <mat-icon>domain</mat-icon>
-            </div>
-            <div class="stat-data">
-              <span class="stat-number">{{ stats.traineesActive }}</span>
-              <span class="stat-label">Active Trainees</span>
+            <div class="tile-grid">
+              <div class="tile" *ngFor="let tile of section.tiles">
+                <span class="tile-value">{{ tile.value }}</span>
+                <span class="tile-label">{{ tile.label }}</span>
+              </div>
             </div>
           </mat-card-content>
         </mat-card>
@@ -76,33 +91,24 @@ import { DashboardStats } from '../../../models/admin.model';
               </div>
               <div
                 class="funnel-stage stage-shortlisted"
-                [style.width.%]="
-                  (stats.shortlistedApplications / stats.totalApplications) *
-                  100
-                "
+                [style.width.%]="widthPct(stats.assessmentPassedCount)"
               >
-                <span class="stage-name">Shortlisted</span>
-                <span class="stage-val">{{
-                  stats.shortlistedApplications
-                }}</span>
+                <span class="stage-name">Passed Assessment</span>
+                <span class="stage-val">{{ stats.assessmentPassedCount }}</span>
               </div>
               <div
                 class="funnel-stage stage-offered"
-                [style.width.%]="
-                  (stats.offersSent / stats.totalApplications) * 100
-                "
+                [style.width.%]="widthPct(stats.offerLettersSent)"
               >
                 <span class="stage-name">Offered</span>
-                <span class="stage-val">{{ stats.offersSent }}</span>
+                <span class="stage-val">{{ stats.offerLettersSent }}</span>
               </div>
               <div
                 class="funnel-stage stage-accepted"
-                [style.width.%]="
-                  (stats.offersAccepted / stats.totalApplications) * 100
-                "
+                [style.width.%]="widthPct(stats.releasedCandidates)"
               >
-                <span class="stage-name">Accepted</span>
-                <span class="stage-val">{{ stats.offersAccepted }}</span>
+                <span class="stage-name">Released</span>
+                <span class="stage-val">{{ stats.releasedCandidates }}</span>
               </div>
             </div>
           </mat-card-content>
@@ -110,30 +116,26 @@ import { DashboardStats } from '../../../models/admin.model';
 
         <mat-card class="chart-card">
           <mat-card-header>
-            <mat-card-title>Infrastructure Vacancy</mat-card-title>
+            <mat-card-title>Training Capacity</mat-card-title>
           </mat-card-header>
           <mat-card-content class="vacancy-overview">
             <div class="vacancy-circle">
-              <span class="circle-num">{{
-                stats.totalVacancyAvailable || 0
-              }}</span>
-              <span class="circle-lbl">Open Blocks Vacancy</span>
+              <span class="circle-num">{{ stats.totalVacancyAvailable || 0 }}</span>
+              <span class="circle-lbl">Open Training Seats</span>
             </div>
             <div class="vacancy-meta">
               <div class="meta-item">
                 <span class="dot green-dot"></span>
                 <span
-                  >Used capacity:
-                  <strong>{{ stats.totalVacancyUsed || 0 }}</strong> slots</span
+                  >Occupied seats:
+                  <strong>{{ stats.totalVacancyUsed || 0 }}</strong></span
                 >
               </div>
               <div class="meta-item">
                 <span class="dot blue-dot"></span>
                 <span
                   >Available budget:
-                  <strong
-                    >₹{{ stats.totalBudgetAvailable || 0 | number }}</strong
-                  ></span
+                  <strong>₹{{ stats.totalBudgetAvailable || 0 | number }}</strong></span
                 >
               </div>
             </div>
@@ -147,34 +149,80 @@ import { DashboardStats } from '../../../models/admin.model';
       .dashboard-overview {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--space-5);
       }
-      .stats-grid {
+
+      .pending-card {
+        border-radius: var(--radius-card) !important;
+        box-shadow: var(--shadow-card) !important;
+      }
+      .pending-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 20px;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: var(--space-3);
       }
-      .stat-card {
-        border-radius: 12px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-      }
-      mat-card-content {
+      .pending-row {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 16px !important;
+        gap: var(--space-3);
+        padding: var(--space-3) 14px;
+        border-radius: var(--radius-control);
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        cursor: pointer;
+        transition: background 0.15s;
       }
-      .stat-icon-wrapper {
-        width: 48px;
-        height: 48px;
-        border-radius: 8px;
+      .pending-row:hover {
+        background: #ffedd5;
+      }
+      .pending-row.zero {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+      }
+      .pending-row mat-icon {
+        color: #ea580c;
+        flex-shrink: 0;
+      }
+      .pending-row.zero mat-icon {
+        color: #94a3b8;
+      }
+      .pending-label {
+        flex: 1;
+        font-size: 13px;
+        color: #475569;
+        font-weight: 500;
+      }
+      .pending-count {
+        font-size: 16px;
+        font-weight: 700;
+        color: #9a3412;
+      }
+      .pending-row.zero .pending-count {
+        color: #64748b;
+      }
+
+      .sections-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--space-4);
+      }
+      .section-card {
+        border-radius: var(--radius-card) !important;
+        box-shadow: var(--shadow-card) !important;
+      }
+      .section-card mat-card-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-control);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-      }
-      .stat-icon-wrapper mat-icon {
-        font-size: 24px;
       }
       .blue {
         background-color: #3b82f6;
@@ -188,33 +236,50 @@ import { DashboardStats } from '../../../models/admin.model';
       .orange {
         background-color: #f97316;
       }
-      .stat-data {
+      .indigo {
+        background-color: #6366f1;
+      }
+      .teal {
+        background-color: #14b8a6;
+      }
+      .tile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: var(--space-3);
+        margin-top: var(--space-2);
+      }
+      .tile {
         display: flex;
         flex-direction: column;
+        gap: 2px;
       }
-      .stat-number {
-        font-size: 24px;
+      .tile-value {
+        font-size: 22px;
         font-weight: 700;
         color: #1e293b;
       }
-      .stat-label {
-        font-size: 13px;
+      .tile-label {
+        font-size: 11px;
         color: #64748b;
         font-weight: 500;
       }
+
       .charts-container {
         display: grid;
         grid-template-columns: 2fr 1fr;
-        gap: 20px;
+        gap: var(--space-4);
       }
       @media (max-width: 900px) {
         .charts-container {
           grid-template-columns: 1fr;
         }
+        .sections-grid {
+          grid-template-columns: 1fr;
+        }
       }
       .chart-card {
-        border-radius: 12px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        border-radius: var(--radius-card) !important;
+        box-shadow: var(--shadow-card) !important;
         padding: 16px;
       }
       .chart-content {
@@ -312,17 +377,159 @@ import { DashboardStats } from '../../../models/admin.model';
 })
 export class HrDashboardComponent implements OnInit {
   stats: DashboardStats | null = null;
+  pending: PendingActions | null = null;
+  sections: MetricSection[] = [];
+  pendingRows: PendingActionRow[] = [];
+
   constructor(
     private dashboardService: DashboardService,
     private currentUserService: CurrentUserService,
     private router: Router,
   ) {}
+
   ngOnInit(): void {
     // RMG doesn't need the HR dashboard — redirect straight to allocation.
     if (this.currentUserService.getRole()?.toUpperCase() === 'RMG') {
       this.router.navigate(['/hr/released']);
       return;
     }
-    this.dashboardService.getStats().subscribe((s) => (this.stats = s));
+    this.dashboardService.getStats().subscribe((s) => {
+      this.stats = s;
+      this.sections = this.buildSections(s);
+    });
+    this.dashboardService.getPendingActions().subscribe((p) => {
+      this.pending = p;
+      this.pendingRows = this.buildPendingRows(p);
+    });
+  }
+
+  widthPct(value: number): number {
+    if (!this.stats || !this.stats.totalApplications) return 0;
+    return Math.min(100, (value / this.stats.totalApplications) * 100);
+  }
+
+  private buildSections(s: DashboardStats): MetricSection[] {
+    return [
+      {
+        title: 'Applications & Profile',
+        icon: 'assignment',
+        accent: 'blue',
+        tiles: [
+          { label: 'Total Applications', value: s.totalApplications },
+          { label: 'Profile Completed', value: s.profileCompletedCandidates },
+        ],
+      },
+      {
+        title: 'Assessment',
+        icon: 'fact_check',
+        accent: 'purple',
+        tiles: [
+          { label: 'Assigned', value: s.assessmentAssignedCount },
+          { label: 'Score Uploaded', value: s.assessmentScoreUploadedCount },
+          { label: 'Passed', value: s.assessmentPassedCount },
+          { label: 'Failed', value: s.assessmentFailedCount },
+        ],
+      },
+      {
+        title: 'Offer Letters',
+        icon: 'mail',
+        accent: 'indigo',
+        tiles: [
+          { label: 'Generated', value: s.offerLettersGenerated },
+          { label: 'Sent', value: s.offerLettersSent },
+          { label: 'Accepted', value: s.offerAcceptedCount },
+          { label: 'Rejected', value: s.offerRejectedCount },
+        ],
+      },
+      {
+        title: 'Background Verification',
+        icon: 'verified_user',
+        accent: 'teal',
+        tiles: [
+          { label: 'Initiated', value: s.bgcInitiatedCount },
+          { label: 'Docs Submitted', value: s.bgcDocumentsSubmittedCount },
+          { label: 'Cleared', value: s.bgcClearedCount },
+          { label: 'Failed', value: s.bgcFailedCount },
+        ],
+      },
+      {
+        title: 'Selection',
+        icon: 'badge',
+        accent: 'green',
+        tiles: [
+          { label: 'Employees Created', value: s.employeesCreated },
+          { label: 'Selected Users', value: s.selectedUsersCreated },
+        ],
+      },
+      {
+        title: 'Joining',
+        icon: 'groups',
+        accent: 'blue',
+        tiles: [
+          { label: 'Batches Created', value: s.joiningBatchesCreated },
+          { label: 'Letters Sent', value: s.joiningLettersSent },
+          { label: 'Accepted', value: s.joiningAcceptedCount },
+        ],
+      },
+      {
+        title: 'Training',
+        icon: 'school',
+        accent: 'orange',
+        tiles: [
+          { label: 'Batches Assigned', value: s.trainingBatchesAssigned },
+          { label: 'LAP', value: s.lapCandidates },
+          { label: 'Passed', value: s.passedTrainees },
+          { label: 'Failed', value: s.failedTrainees },
+          { label: 'Released', value: s.releasedCandidates },
+        ],
+      },
+      {
+        title: 'Project Allocation',
+        icon: 'work',
+        accent: 'purple',
+        tiles: [{ label: 'Allocated', value: s.projectAllocatedCandidates }],
+      },
+    ];
+  }
+
+  private buildPendingRows(p: PendingActions): PendingActionRow[] {
+    return [
+      {
+        label: 'Candidates eligible for assessment',
+        count: p.candidatesEligibleForAssessment,
+        icon: 'fact_check',
+        route: '/hr/applications',
+      },
+      {
+        label: 'Offers generated, pending send',
+        count: p.offersPendingSend,
+        icon: 'mail',
+        route: '/hr/offers',
+      },
+      {
+        label: 'Candidates pending BGC documents',
+        count: p.candidatesPendingBgcDocuments,
+        icon: 'description',
+        route: '/hr/bgv',
+      },
+      {
+        label: 'Candidates eligible for joining batch',
+        count: p.candidatesEligibleForBatch,
+        icon: 'groups',
+        route: '/hr/joining-batches',
+      },
+      {
+        label: 'Training batches requiring result upload',
+        count: p.trainingBatchesRequiringResultUpload,
+        icon: 'upload_file',
+        route: '/hr/joining-batches',
+      },
+      {
+        label: 'LAP candidates requiring review',
+        count: p.lapCandidatesRequiringReview,
+        icon: 'support',
+        route: '/hr/joining-batches',
+      },
+    ];
   }
 }

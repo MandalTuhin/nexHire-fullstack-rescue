@@ -19,6 +19,7 @@ interface BackendJob {
   requirements: string;
   locationName: string;
   locationId: number;
+  driveDate?: string;
   active: boolean;
   createdAt: string;
 }
@@ -64,6 +65,7 @@ export class JobService extends BaseService {
       requiredSkills: b.requirements ?? '',
       location: b.locationName ?? '',
       locationId: b.locationId,
+      driveDate: b.driveDate,
       status: (b.active ? 'ACTIVE' : 'CLOSED') as JobStatus,
       postedDate: b.createdAt,
       companyName: 'NexHire',

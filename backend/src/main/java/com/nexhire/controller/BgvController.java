@@ -1,15 +1,21 @@
 package com.nexhire.controller;
 
-import com.nexhire.dto.BgvResponse;
-import com.nexhire.dto.BgvUpdateRequest;
+import com.nexhire.dto.*;
+import com.nexhire.service.BgcExcelService;
 import com.nexhire.service.BgvService;
+import com.nexhire.service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -20,25 +26,24 @@ import java.util.Map;
 public class BgvController {
 
     private final BgvService bgvService;
+    private final BgcExcelService bgcExcelService;
 
-    /** HR initiates BGV for an application. */
+    /** HR manual fallback — the normal flow auto-initiates on offer acceptance. */
     @PostMapping("/{applicationId}")
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<BgvResponse> initiate(
             @PathVariable Long applicationId,
             @RequestBody(required = false) Map<String, String> body) {
-        String vendor = body != null ? body.getOrDefault("vendorName", "ThirdParty BGV Inc.") : "ThirdParty BGV Inc.";
+        String vendor = body != null ? body.get("vendorName") : null;
         return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.initiate(applicationId, vendor));
     }
 
-    /** HR lists all BGV records. */
     @GetMapping
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<BgvResponse>> getAll() {
         return ResponseEntity.ok(bgvService.getAll());
     }
 
-    /** Candidate views own BGV records. */
     @GetMapping("/my")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<List<BgvResponse>> getMine(Authentication authentication) {
@@ -52,15 +57,124 @@ public class BgvController {
         return ResponseEntity.ok(bgvService.getByApplication(applicationId));
     }
 
-    /**
-     * Update BGV status. Represents the third-party vendor result being recorded.
-     * HR can trigger this; in a real system a vendor webhook would call it.
-     */
+    /** BGC Detail page: candidate/application/offer info + status + documents + vendor + audit history. */
+    @GetMapping("/{id}/detail")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<BgcCaseDetailResponse> getDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(bgvService.getDetail(id));
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<BgvResponse> updateStatus(
             @PathVariable Long id,
-            @Valid @RequestBody BgvUpdateRequest request) {
-        return ResponseEntity.ok(bgvService.updateStatus(id, request));
+            @Valid @RequestBody BgvUpdateRequest request,
+            Authentication authentication) {
+        Long hrId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgvService.updateStatus(id, request, hrId));
+    }
+
+    // ─── Documents ──────────────────────────────────────────────────────────────
+
+    @PostMapping(value = "/{applicationId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<BgcDocumentResponse> uploadDocument(
+            @PathVariable Long applicationId,
+            @RequestParam("documentType") String documentType,
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bgvService.uploadDocument(applicationId, documentType, file, userId));
+    }
+
+    @GetMapping("/{applicationId}/documents/my")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<List<BgcDocumentResponse>> getMyDocuments(
+            @PathVariable Long applicationId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgvService.getMyDocuments(userId, applicationId));
+    }
+
+    @GetMapping("/{bgcCaseId}/documents")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<List<BgcDocumentResponse>> getDocuments(@PathVariable Long bgcCaseId) {
+        return ResponseEntity.ok(bgvService.getDocuments(bgcCaseId));
+    }
+
+    @PutMapping("/documents/{documentId}/review")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<BgcDocumentResponse> reviewDocument(
+            @PathVariable Long documentId,
+            @Valid @RequestBody BgcDocumentReviewRequest request,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgvService.reviewDocument(documentId, request, userId));
+    }
+
+    @GetMapping("/documents/{documentId}/download")
+    @PreAuthorize("hasAnyRole('HR', 'EMPLOYEE')")
+    public ResponseEntity<ByteArrayResource> downloadDocument(
+            @PathVariable Long documentId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        boolean isHr = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_HR"));
+        FileStorageService.StoredFileData data = bgvService.downloadDocument(documentId, userId, isHr);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(data.fileType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(data.fileName()).build().toString())
+                .body(new ByteArrayResource(data.data()));
+    }
+
+    // ─── Vendor requests ────────────────────────────────────────────────────────
+
+    @PostMapping("/{bgcCaseId}/vendor-request")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<BgcVendorRequestResponse> sendToVendor(
+            @PathVariable Long bgcCaseId,
+            @RequestBody BgcVendorRequestCreate request,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.sendToVendor(bgcCaseId, request, userId));
+    }
+
+    @GetMapping("/{bgcCaseId}/vendor-requests")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<List<BgcVendorRequestResponse>> getVendorRequests(@PathVariable Long bgcCaseId) {
+        return ResponseEntity.ok(bgvService.getVendorRequests(bgcCaseId));
+    }
+
+    // ─── Bulk Excel workflow (BGC results) ───────────────────────────────────────
+
+    @GetMapping("/excel/template")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<ByteArrayResource> template() {
+        byte[] bytes = bgcExcelService.template();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("bgc-results-template.xlsx").build().toString())
+                .body(new ByteArrayResource(bytes));
+    }
+
+    @PostMapping(value = "/excel/validate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<UploadSummaryResponse> validateExcel(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(bgcExcelService.validate(file));
+    }
+
+    @PostMapping(value = "/excel/commit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<UploadSummaryResponse> commitExcel(
+            @RequestParam("file") MultipartFile file, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgcExcelService.commit(file, userId));
+    }
+
+    @GetMapping("/excel/history")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<List<UploadSummaryResponse>> history() {
+        return ResponseEntity.ok(bgcExcelService.history());
     }
 }

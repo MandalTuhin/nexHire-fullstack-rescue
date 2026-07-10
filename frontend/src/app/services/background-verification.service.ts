@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
   BackgroundVerification,
+  BgcCaseDetail,
+  BgcDocument,
+  BgcDocumentReviewRequest,
+  BgcVendorRequest,
+  BgcVendorRequestCreate,
   UpdateBgvStatusRequest,
 } from '../models/background-verification.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
@@ -31,55 +36,87 @@ export class BackgroundVerificationService extends BaseService {
     super(http);
   }
 
-  /** HR: all BGV records. */
+  /** HR: all BGC cases. */
   getAll(): Observable<BackgroundVerification[]> {
     return this.http
       .get<BackendBgv[]>(API_ENDPOINTS.BGV.BASE)
       .pipe(map((list) => (list || []).map((b) => this.toModel(b))));
   }
 
-  /** Candidate: own BGV records. */
+  /** Candidate: own BGC cases. */
   getMine(): Observable<BackgroundVerification[]> {
     return this.http
       .get<BackendBgv[]>(`${API_ENDPOINTS.BGV.BASE}/my`)
       .pipe(map((list) => (list || []).map((b) => this.toModel(b))));
   }
 
-  /** HR: initiate BGV for an application. */
-  initiate(
-    applicationId: number,
-    vendorName?: string,
-  ): Observable<BackgroundVerification> {
+  getByApplication(applicationId: number): Observable<BackgroundVerification> {
     return this.http
-      .post<BackendBgv>(API_ENDPOINTS.BGV.INITIATE(applicationId), {
-        vendorName,
-      })
+      .get<BackendBgv>(API_ENDPOINTS.BGV.BY_APPLICATION(applicationId))
       .pipe(map((b) => this.toModel(b)));
   }
 
-  /** HR / third-party: update BGV status. `id` is the BGV id. */
-  updateStatus(
-    id: number,
-    request: UpdateBgvStatusRequest,
-  ): Observable<BackgroundVerification> {
+  /** HR manual fallback — the normal flow auto-initiates on offer acceptance. */
+  initiate(applicationId: number, vendorName?: string): Observable<BackgroundVerification> {
     return this.http
-      .put<BackendBgv>(API_ENDPOINTS.BGV.UPDATE_STATUS(id), {
-        status: request.status,
-        remarks: request.remarks,
-      })
+      .post<BackendBgv>(API_ENDPOINTS.BGV.INITIATE(applicationId), { vendorName })
       .pipe(map((b) => this.toModel(b)));
+  }
+
+  updateStatus(id: number, request: UpdateBgvStatusRequest): Observable<BackgroundVerification> {
+    return this.http.put<BackendBgv>(API_ENDPOINTS.BGV.UPDATE_STATUS(id), request)
+      .pipe(map((b) => this.toModel(b)));
+  }
+
+  getDetail(id: number): Observable<BgcCaseDetail> {
+    return this.http.get<BgcCaseDetail>(API_ENDPOINTS.BGV.DETAIL(id));
+  }
+
+  // ─── Documents ──────────────────────────────────────────────────────────────
+
+  uploadDocument(applicationId: number, documentType: string, file: File): Observable<BgcDocument> {
+    const form = new FormData();
+    form.append('documentType', documentType);
+    form.append('file', file);
+    return this.http.post<BgcDocument>(API_ENDPOINTS.BGV.UPLOAD_DOCUMENT(applicationId), form);
+  }
+
+  getMyDocuments(applicationId: number): Observable<BgcDocument[]> {
+    return this.http.get<BgcDocument[]>(API_ENDPOINTS.BGV.MY_DOCUMENTS(applicationId));
+  }
+
+  getCaseDocuments(bgcCaseId: number): Observable<BgcDocument[]> {
+    return this.http.get<BgcDocument[]>(API_ENDPOINTS.BGV.CASE_DOCUMENTS(bgcCaseId));
+  }
+
+  reviewDocument(documentId: number, request: BgcDocumentReviewRequest): Observable<BgcDocument> {
+    return this.http.put<BgcDocument>(API_ENDPOINTS.BGV.REVIEW_DOCUMENT(documentId), request);
+  }
+
+  downloadDocument(documentId: number): Observable<Blob> {
+    return this.http.get(API_ENDPOINTS.BGV.DOWNLOAD_DOCUMENT(documentId), { responseType: 'blob' });
+  }
+
+  // ─── Vendor requests ────────────────────────────────────────────────────────
+
+  sendToVendor(bgcCaseId: number, request: BgcVendorRequestCreate): Observable<BgcVendorRequest> {
+    return this.http.post<BgcVendorRequest>(API_ENDPOINTS.BGV.SEND_TO_VENDOR(bgcCaseId), request);
+  }
+
+  getVendorRequests(bgcCaseId: number): Observable<BgcVendorRequest[]> {
+    return this.http.get<BgcVendorRequest[]>(API_ENDPOINTS.BGV.VENDOR_REQUESTS(bgcCaseId));
   }
 
   private toModel(b: BackendBgv): BackgroundVerification {
     return {
       bgvId: b.id,
-      offerId: 0,
       applicationId: b.applicationId,
       userId: b.userId,
       candidateName: b.candidateName,
       candidateEmail: b.candidateEmail,
       jobTitle: b.jobTitle,
       status: b.status as any,
+      vendorName: b.vendorName,
       remarks: b.remarks,
       initiatedDate: b.initiatedAt,
       completedDate: b.completedAt,

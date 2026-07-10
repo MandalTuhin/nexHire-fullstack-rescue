@@ -1,5 +1,12 @@
 // ─── Location Budget & Seats (backend LocationResponse) ──────────────────────
 
+/** Minimal candidate-facing shape (backend LocationNameResponse) — no budget/seat figures. */
+export interface LocationName {
+  id: number;
+  name: string;
+  city: string;
+}
+
 export interface LocationBudget {
   id: number;
   name: string;

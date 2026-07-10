@@ -34,6 +34,7 @@ export interface Job {
   updatedAt?: string;
   // Backend-provided fields
   locationId?: number;
+  driveDate?: string;
 }
 
 export interface CreateJobRequest {

@@ -1,21 +1,80 @@
 /* You can add global styles to this file, and also import other style files */
 
+:root {
+  /* ─── Spacing scale — use these instead of ad-hoc pixel gaps ─────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* ─── Surface — the one card style every "card" surface in the app should use */
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);
+
+  /* ─── Palette — the slate/Tailwind-neutral scale already dominant across the app,
+     formalized so new/rewritten components pull from one place instead of
+     hardcoding hex values that drift over time. */
+  --color-text: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-faint: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-page-bg: #f1f5f9;
+  --color-primary: #4f46e5;
+  --color-success: #16a34a;
+  --color-warning: #ea580c;
+  --color-danger: #dc2626;
+
+  /* ─── Typography scale — h1-h6 + body/caption, so components stop inventing
+     their own font sizes. Values chosen from the most common sizes already in
+     use across the app (22/18/16/14/13/12/11px). */
+  --font-size-h1: 22px;
+  --font-size-h2: 18px;
+  --font-size-h3: 16px;
+  --font-size-body: 14px;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+  --font-size-label: 11px;
+}
+
 html, body {
   height: 100%;
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: #f1f5f9;
+  background-color: var(--color-page-bg);
 }
 
 body {
   margin: 0;
 }
 
+/* Shared card surface — adopt this instead of copy-pasting
+   "border-radius:12px!important;box-shadow:0 4px 20px rgba(0,0,0,.04)!important;"
+   into every feature component's own styles. */
+.app-card {
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* Shared page-level section stack — the consistent root gap every feature page
+   should use instead of picking its own ad-hoc 16/20/24px value. */
+.app-page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
 .table-container {
   width: 100%;
   overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
 }
 
 table {

@@ -1,36 +1,22 @@
 // ─── Offer Letter Models ──────────────────────────────────────────────────────
+// Aligned with backend com.nexhire.dto.OfferResponse. The offer PDF is auto-generated
+// once an application reaches ASSESSMENT_PASSED — there is no manual "create offer" step.
 
-export type OfferStatus =
-  | 'SENT'
-  | 'ACCEPTED'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'EXPIRED'
-  | 'WITHDRAWN';
+export type OfferStatus = 'GENERATED' | 'SENT' | 'ACCEPTED' | 'REJECTED';
 
 export interface OfferLetter {
   offerId: number;
-  assessmentId: number;
-  applicationId?: number;
+  applicationId: number;
   userId?: number;
-  // Populated joins
   candidateName?: string;
   candidateEmail?: string;
   jobTitle?: string;
-  designation?: string;
-  ctc?: number;
-  joiningDate?: string;
-  offerLetterUrl?: string;
+  assessmentScore?: number;
+  content?: string;
+  pdfFileId?: number;
   status: OfferStatus;
-  issuedDate?: string;
-  expiryDate?: string;
-  acceptedDate?: string;
-  rejectedDate?: string;
-  remarks?: string;
-  updatedAt?: string;
-}
-
-export interface UpdateOfferStatusRequest {
-  status: OfferStatus;
-  remarks?: string;
+  generatedAt?: string;
+  sentByName?: string;
+  sentAt?: string;
+  respondedAt?: string;
 }

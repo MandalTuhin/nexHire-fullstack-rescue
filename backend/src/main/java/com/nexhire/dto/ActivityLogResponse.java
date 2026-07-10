@@ -18,5 +18,7 @@ public class ActivityLogResponse {
     private String userName;
     private String actionType;
     private String description;
+    private String entityType;
+    private Long entityId;
     private LocalDateTime timestamp;
 }

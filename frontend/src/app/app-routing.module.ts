@@ -19,18 +19,20 @@ import { JobDetailsComponent } from './modules/candidate/job-details/job-details
 import { ApplicationFormComponent } from './modules/candidate/application-form/application-form.component';
 import { CandidateApplicationsComponent } from './modules/candidate/applications/candidate-applications.component';
 import { CandidateOffersComponent } from './modules/candidate/offers/candidate-offers.component';
+import { CandidateBackgroundCheckComponent } from './modules/candidate/background-check/candidate-background-check.component';
 import { CandidateJoiningComponent } from './modules/candidate/joining/candidate-joining.component';
 import { CandidateTrainingComponent } from './modules/candidate/training/candidate-training.component';
 import { CandidateProfileComponent } from './modules/candidate/profile/candidate-profile.component';
+import { CandidateProfileStepperComponent } from './modules/candidate/profile/candidate-profile-stepper.component';
 import { ChangePasswordComponent } from './modules/candidate/change-password/change-password.component';
 
 // ─── HR Portal Pages ─────────────────────────────────────────────────────────
 import { HrDashboardComponent } from './modules/dashboard/hr-dashboard/hr-dashboard.component';
 import { ApplicationsManagementComponent } from './modules/applications/applications.component';
 import { AssessmentsManagementComponent } from './modules/assessments/assessments.component';
-import { SelectedCandidatesComponent } from './modules/selected/selected.component';
 import { OfferLettersManagementComponent } from './modules/offer-letters/offer-letters.component';
 import { BgvManagementComponent } from './modules/bgv/bgv.component';
+import { JoiningBatchesComponent } from './modules/joining-batches/joining-batches.component';
 import { TraineesManagementComponent } from './modules/trainees/trainees.component';
 import { AssetsManagementComponent } from './modules/assets/assets.component';
 import { ProjectsComponent } from './modules/projects/projects.component';
@@ -83,9 +85,10 @@ const routes: Routes = [
       { path: 'apply/:id', component: ApplicationFormComponent },
       { path: 'applications', component: CandidateApplicationsComponent },
       { path: 'offers', component: CandidateOffersComponent },
+      { path: 'background-check', component: CandidateBackgroundCheckComponent },
       { path: 'joining', component: CandidateJoiningComponent },
       { path: 'training', component: CandidateTrainingComponent },
-      { path: 'profile', component: CandidateProfileComponent },
+      { path: 'profile', component: CandidateProfileStepperComponent },
       { path: 'change-password', component: ChangePasswordComponent },
     ],
   },
@@ -112,12 +115,9 @@ const routes: Routes = [
         canActivate: [PermissionGuard],
         data: { permissions: ['VIEW_ASSESSMENTS'] },
       },
-      {
-        path: 'selected',
-        component: SelectedCandidatesComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['VIEW_SELECTED_CANDIDATES'] },
-      },
+      // 'selected' retired: BGC-cleared candidate selection + training-batch assignment
+      // (its whole purpose) is now the real Joining Batches + Training Assignment flow.
+      { path: 'selected', redirectTo: 'joining-batches', pathMatch: 'full' },
       {
         path: 'offers',
         component: OfferLettersManagementComponent,
@@ -129,6 +129,12 @@ const routes: Routes = [
         component: BgvManagementComponent,
         canActivate: [PermissionGuard],
         data: { permissions: ['VIEW_BGV'] },
+      },
+      {
+        path: 'joining-batches',
+        component: JoiningBatchesComponent,
+        canActivate: [PermissionGuard],
+        data: { permissions: ['VIEW_JOINING_BATCHES'] },
       },
       {
         path: 'trainees',

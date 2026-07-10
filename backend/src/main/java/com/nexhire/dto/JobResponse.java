@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,6 +20,7 @@ public class JobResponse {
     private String requirements;
     private String locationName;
     private Long locationId;
+    private LocalDate driveDate;
     private Boolean active;
     private LocalDateTime createdAt;
 }

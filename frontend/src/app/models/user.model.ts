@@ -25,25 +25,17 @@ export interface User {
   updatedAt?: string;
 }
 
+/**
+ * Registration deliberately only collects account credentials. Personal/address
+ * details and academic background are captured later in the candidate profile
+ * (see CandidateProfileRequest), once the candidate is ready to apply to a drive.
+ */
 export interface RegisterRequest {
   fullName: string;
   email: string;
   phone: string;
   password: string;
-  confirmPassword?: string; // FE validation only
-  dateOfBirth?: string;
-  gender?: UserGender;
-  addressLine?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  pinCode?: string;
-  highestQualification?: string;
-  universityName?: string;
-  graduationYear?: number;
-  cgpa?: number;
-  resumeUrl?: string;
-  profilePhotoUrl?: string;
+  confirmPassword?: string; // FE validation only, never sent to backend
 }
 
 export interface LoginRequest {

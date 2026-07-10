@@ -1,0 +1,130 @@
+<div class="applications-mgmt">
+  <app-page-header
+    title="Applications"
+    subtitle="Search and track every candidate's status across the pipeline"
+  >
+    <button mat-stroked-button color="primary" [disabled]="exporting" (click)="exportToExcel()">
+      <mat-icon>download</mat-icon>
+      {{ exporting ? 'Exporting…' : 'Export' }}
+    </button>
+  </app-page-header>
+
+  <!-- Primary filters -->
+  <mat-card class="filter-card">
+    <mat-card-content>
+      <div class="filter-row">
+        <mat-form-field appearance="outline" class="filter-item search-item">
+          <mat-label>Search candidate</mat-label>
+          <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Name, email or phone" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Smart Filter</mat-label>
+          <mat-select [(ngModel)]="smartFilter" (selectionChange)="onSmartFilterChange()">
+            <mat-option [value]="''">None</mat-option>
+            <mat-option *ngFor="let sf of smartFilterOptions" [value]="sf.value">{{ sf.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Status</mat-label>
+          <mat-select [(ngModel)]="statuses" (selectionChange)="onFilterChange()" multiple>
+            <mat-optgroup *ngFor="let group of statusGroups" [label]="group.label">
+              <mat-option *ngFor="let s of group.statuses" [value]="s">{{ s }}</mat-option>
+            </mat-optgroup>
+          </mat-select>
+        </mat-form-field>
+
+        <button mat-button (click)="showMoreFilters = !showMoreFilters">
+          <mat-icon>{{ showMoreFilters ? 'expand_less' : 'tune' }}</mat-icon>
+          More Filters
+        </button>
+        <button mat-button color="warn" (click)="clearFilters()">
+          <mat-icon>filter_alt_off</mat-icon>
+          Clear
+        </button>
+      </div>
+
+      <div class="filter-row more-filters" *ngIf="showMoreFilters">
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Location Preference</mat-label>
+          <input matInput [(ngModel)]="locationPreference" (ngModelChange)="onFilterChange()" placeholder="e.g. Bangalore" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Qualification</mat-label>
+          <input matInput [(ngModel)]="qualification" (ngModelChange)="onFilterChange()" placeholder="e.g. B.Tech" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item small">
+          <mat-label>Score Min</mat-label>
+          <input matInput type="number" [(ngModel)]="scoreMin" (ngModelChange)="onFilterChange()" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item small">
+          <mat-label>Score Max</mat-label>
+          <input matInput type="number" [(ngModel)]="scoreMax" (ngModelChange)="onFilterChange()" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item small">
+          <mat-label>BGC Status</mat-label>
+          <mat-select [(ngModel)]="bgcStatus" (selectionChange)="onFilterChange()">
+            <mat-option value="">Any</mat-option>
+            <mat-option value="PENDING">Pending</mat-option>
+            <mat-option value="IN_PROGRESS">In Progress</mat-option>
+            <mat-option value="CLEARED">Cleared</mat-option>
+            <mat-option value="FAILED">Failed</mat-option>
+            <mat-option value="ON_HOLD">On Hold</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item small">
+          <mat-label>Profile Completed</mat-label>
+          <mat-select [(ngModel)]="profileCompleted" (selectionChange)="onFilterChange()">
+            <mat-option [value]="null">Any</mat-option>
+            <mat-option [value]="true">Complete</mat-option>
+            <mat-option [value]="false">Incomplete</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="table-card">
+    <mat-card-content>
+      <app-data-table
+        [columns]="columns"
+        [data]="rows"
+        [totalRecords]="totalRecords"
+        [pageSize]="size"
+        [loading]="loading"
+        emptyMessage="No applications match the current filters."
+        (sortChange)="onSort($event)"
+        (pageChange)="onPageChange($event)"
+      ></app-data-table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Cell templates -->
+  <ng-template #candidateCell let-row>
+    <div class="candidate-info">
+      <span class="name">{{ row.userFullName }}</span>
+      <span class="email">{{ row.userEmail }}</span>
+    </div>
+  </ng-template>
+
+  <ng-template #statusCell let-row>
+    <app-status-badge [status]="row.status"></app-status-badge>
+    <div *ngIf="row.holdReason" class="hold-reason">{{ row.holdReason }}</div>
+  </ng-template>
+
+  <ng-template #bgcCell let-row>
+    <app-status-badge *ngIf="row.bgvStatus" [status]="row.bgvStatus"></app-status-badge>
+    <span *ngIf="!row.bgvStatus" class="muted">—</span>
+  </ng-template>
+
+  <ng-template #dateCell let-value="value">
+    {{ value | date: 'mediumDate' }}
+  </ng-template>
+</div>

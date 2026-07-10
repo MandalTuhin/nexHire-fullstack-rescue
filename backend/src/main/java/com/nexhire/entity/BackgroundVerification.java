@@ -32,7 +32,7 @@ public class BackgroundVerification {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private BgvStatus status = BgvStatus.PENDING;
+    private BgvStatus status = BgvStatus.NOT_INITIATED;
 
     private String vendorName;
 

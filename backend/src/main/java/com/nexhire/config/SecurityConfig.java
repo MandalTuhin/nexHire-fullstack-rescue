@@ -56,8 +56,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**").authenticated()
                         // Training: HR manages, EMPLOYEE views own
                         .requestMatchers("/api/training/**").hasAnyRole("HR", "EMPLOYEE")
+                        // Locations: HR manages/views full detail; EMPLOYEE (candidates) can only
+                        // read the name-only list for the profile's Location Preferences dropdown —
+                        // this more specific matcher must come before the broader HR-only one below.
+                        .requestMatchers("/api/locations/names").hasAnyRole("HR", "EMPLOYEE")
                         .requestMatchers("/api/locations/**").hasRole("HR")
                         .requestMatchers("/api/applications/**").hasAnyRole("HR", "EMPLOYEE")
+                        // Candidate profile: EMPLOYEE manages own, HR/ADMIN review any (method-level refines)
+                        .requestMatchers("/api/candidate/**").hasAnyRole("EMPLOYEE", "HR", "ADMIN")
                         .requestMatchers("/api/assessments/**").hasRole("HR")
                         .requestMatchers("/api/offers/**").hasAnyRole("HR", "EMPLOYEE")
                         .requestMatchers("/api/joining-letters/**").hasAnyRole("HR", "EMPLOYEE")

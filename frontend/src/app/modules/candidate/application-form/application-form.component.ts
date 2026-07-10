@@ -3,9 +3,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApplicationService } from '../../../services/application.service';
 import { CurrentUserService } from '../../../core/auth/current-user.service';
 import { JobService } from '../../../services/job.service';
+import { CandidateProfileService } from '../../../services/candidate-profile.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { Job } from '../../../models/job.model';
 import { LoggedInUser } from '../../../models/user.model';
+import { CandidateProfileResponse } from '../../../models/candidate-profile.model';
+import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/eligibility.util';
 
 @Component({
   selector: 'app-application-form',
@@ -33,7 +36,9 @@ import { LoggedInUser } from '../../../models/user.model';
             <span class="tag"
               ><mat-icon>location_on</mat-icon> {{ job.location }}</span
             >
-            <span class="tag"><mat-icon>schedule</mat-icon> Full-time</span>
+            <span class="tag" *ngIf="job.driveDate"
+              ><mat-icon>event</mat-icon> {{ job.driveDate | date: 'mediumDate' }}</span
+            >
           </div>
 
           <div class="about-role">
@@ -41,7 +46,7 @@ import { LoggedInUser } from '../../../models/user.model';
             <p>{{ job.jobDescription }}</p>
           </div>
 
-          <div class="skills-section">
+          <div class="skills-section" *ngIf="job.requiredSkills">
             <h3>Required Skills</h3>
             <div class="skills-chips">
               <span
@@ -52,139 +57,108 @@ import { LoggedInUser } from '../../../models/user.model';
             </div>
           </div>
         </div>
-
-        <div class="skeleton-loader" *ngIf="loading">
-          <!-- Add skeleton if desired, or just show app-loader below -->
-        </div>
       </div>
 
-      <!-- Right side: Application Form -->
+      <!-- Right side: Application Review -->
       <div class="application-form-area">
         <mat-card class="premium-form-card">
           <mat-card-header>
-            <mat-card-title>Submit Your Application</mat-card-title>
+            <mat-card-title>Review &amp; Submit</mat-card-title>
             <mat-card-subtitle
-              >We're excited to learn more about you.</mat-card-subtitle
+              >We'll apply using the profile details below.</mat-card-subtitle
             >
           </mat-card-header>
 
           <mat-card-content>
-            <form #applicationForm="ngForm" (ngSubmit)="submitApplication()">
-              <div class="form-row two-cols">
-                <mat-form-field appearance="outline" class="premium-field">
-                  <mat-label>Full Name</mat-label>
-                  <input matInput [value]="user?.fullName" disabled />
-                  <mat-icon matSuffix class="disabled-icon">lock</mat-icon>
-                </mat-form-field>
+            <div class="form-row two-cols">
+              <mat-form-field appearance="outline" class="premium-field">
+                <mat-label>Full Name</mat-label>
+                <input matInput [value]="user?.fullName" disabled />
+                <mat-icon matSuffix class="disabled-icon">lock</mat-icon>
+              </mat-form-field>
 
-                <mat-form-field appearance="outline" class="premium-field">
-                  <mat-label>Email Address</mat-label>
-                  <input matInput [value]="user?.email" disabled />
-                  <mat-icon matSuffix class="disabled-icon">lock</mat-icon>
-                </mat-form-field>
-              </div>
+              <mat-form-field appearance="outline" class="premium-field">
+                <mat-label>Email Address</mat-label>
+                <input matInput [value]="user?.email" disabled />
+                <mat-icon matSuffix class="disabled-icon">lock</mat-icon>
+              </mat-form-field>
+            </div>
 
-              <!-- Resume Upload Zone -->
-              <div class="resume-upload-section">
-                <h3 class="section-title">
-                  Resume / CV <span class="required">*</span>
-                </h3>
-                <div
-                  class="upload-dropzone"
-                  [class.has-file]="resumeFile"
-                  (click)="resumeInput.click()"
-                >
-                  <input
-                    type="file"
-                    hidden
-                    #resumeInput
-                    (change)="onFileSelected($event)"
-                    accept=".pdf,.doc,.docx"
-                  />
-
-                  <div class="dropzone-content" *ngIf="!resumeFile">
-                    <div class="icon-circle">
-                      <mat-icon>cloud_upload</mat-icon>
-                    </div>
-                    <h4>Click to upload or drag and drop</h4>
-                    <p>PDF, DOC, DOCX (Max 5MB)</p>
-                  </div>
-
-                  <div class="dropzone-success" *ngIf="resumeFile">
-                    <mat-icon class="success-icon">task_alt</mat-icon>
-                    <div class="file-details">
-                      <span class="filename">{{ resumeFile.name }}</span>
-                      <span class="filesize"
-                        >{{
-                          (resumeFile.size / 1024 / 1024).toFixed(2)
-                        }}
-                        MB</span
-                      >
-                    </div>
-                    <button
-                      mat-icon-button
-                      class="remove-btn"
-                      (click)="removeFile($event)"
-                      matTooltip="Remove"
-                    >
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  </div>
+            <div class="profile-summary-section" *ngIf="profile">
+              <h3 class="section-title">Your Profile Summary</h3>
+              <div class="profile-summary-grid">
+                <div class="summary-item">
+                  <strong>Resume</strong>
+                  <span>{{ profile.resumeFileName || 'Not uploaded' }}</span>
                 </div>
-                <mat-error class="custom-error" *ngIf="submitted && !resumeFile"
-                  >Resume is required to apply.</mat-error
-                >
-              </div>
-
-              <div class="cover-letter-section">
-                <h3 class="section-title">
-                  Cover Letter <span class="required">*</span>
-                </h3>
-                <mat-form-field
-                  appearance="outline"
-                  class="premium-field full-width"
-                >
-                  <textarea
-                    matInput
-                    name="coverLetter"
-                    rows="6"
-                    [(ngModel)]="coverLetter"
-                    required
-                    placeholder="Tell us why you're a great fit for this role..."
-                  ></textarea>
-                  <mat-error *ngIf="submitted && !coverLetter?.trim()"
-                    >Please share a brief cover letter.</mat-error
+                <div class="summary-item">
+                  <strong>Graduation</strong>
+                  <span
+                    >{{ profile.graduationDegree || '—' }} ·
+                    {{ profile.graduationUniversity || '—' }}</span
                   >
-                </mat-form-field>
-              </div>
-
-              <div class="alert-box error" *ngIf="alreadyApplied">
-                <mat-icon>error_outline</mat-icon>
-                <div>
-                  <strong>Already Applied</strong>
-                  <p>
-                    You have already submitted an application for this role.
-                    Please check your dashboard for updates.
-                  </p>
+                </div>
+                <div class="summary-item">
+                  <strong>Primary Skills</strong>
+                  <span>{{ profile.primarySkills || '—' }}</span>
+                </div>
+                <div class="summary-item">
+                  <strong>Location Preferences</strong>
+                  <span>{{
+                    profile.locationPreferences?.length
+                      ? profile.locationPreferences.join(' > ')
+                      : '—'
+                  }}</span>
                 </div>
               </div>
+            </div>
 
-              <div class="form-actions">
-                <button
-                  mat-raised-button
-                  class="submit-btn"
-                  type="submit"
-                  [disabled]="isSubmitting || alreadyApplied"
-                >
-                  <span *ngIf="!isSubmitting">Submit Application</span>
-                  <mat-spinner
-                    diameter="20"
-                    *ngIf="isSubmitting"
-                    color="accent"
-                  ></mat-spinner>
-                </button>
+            <div class="alert-box error" *ngIf="alreadyApplied">
+              <mat-icon>error_outline</mat-icon>
+              <div>
+                <strong>Already Applied</strong>
+                <p>
+                  You have already submitted an application for this role.
+                  Please check your dashboard for updates.
+                </p>
               </div>
-            </form>
+            </div>
+
+            <div class="alert-box warning" *ngIf="!loading && !profileComplete">
+              <mat-icon>warning</mat-icon>
+              <div>
+                <strong>Profile Incomplete</strong>
+                <p>
+                  Please complete your profile before applying.
+                  <a (click)="goToProfile()">Complete it now</a>.
+                </p>
+              </div>
+            </div>
+
+            <div class="alert-box warning" *ngIf="!loading && profileComplete && !eligible">
+              <mat-icon>warning</mat-icon>
+              <div>
+                <strong>Not Eligible</strong>
+                <p>{{ ineligibleReason }}</p>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button
+                mat-raised-button
+                class="submit-btn"
+                type="button"
+                [disabled]="isSubmitting || alreadyApplied || !profileComplete || !eligible"
+                (click)="submitApplication()"
+              >
+                <span *ngIf="!isSubmitting">Submit Application</span>
+                <mat-spinner
+                  diameter="20"
+                  *ngIf="isSubmitting"
+                  color="accent"
+                ></mat-spinner>
+              </button>
+            </div>
           </mat-card-content>
         </mat-card>
       </div>
@@ -198,11 +172,12 @@ import { LoggedInUser } from '../../../models/user.model';
 export class ApplicationFormComponent implements OnInit {
   user: LoggedInUser | null = null;
   job: Job | null = null;
-  coverLetter = '';
-  resumeFile: File | null = null;
+  profile: CandidateProfileResponse | null = null;
+  profileComplete = false;
+  eligible = false;
+  ineligibleReason = '';
   loading = false;
   isSubmitting = false;
-  submitted = false;
   alreadyApplied = false;
   private jobId = 0;
 
@@ -212,6 +187,7 @@ export class ApplicationFormComponent implements OnInit {
     private currentUserService: CurrentUserService,
     private jobService: JobService,
     private appService: ApplicationService,
+    private profileService: CandidateProfileService,
     private toastService: ToastService,
   ) {}
 
@@ -220,10 +196,11 @@ export class ApplicationFormComponent implements OnInit {
       this.jobId = +params['id'];
       this.user = this.currentUserService.getUser();
       if (!this.user?.userId) {
-        this.router.navigate(['/dashboard/jobs']);
+        this.router.navigate(['/candidate/jobs']);
         return;
       }
       this.loadJob();
+      this.loadProfile();
       this.checkExistingApplication();
     });
   }
@@ -245,6 +222,20 @@ export class ApplicationFormComponent implements OnInit {
     });
   }
 
+  loadProfile(): void {
+    this.profileService.getMyProfile().subscribe({
+      next: (profile) => {
+        this.profile = profile;
+        this.profileComplete = !!profile.profileCompleted;
+        this.eligible = isEligibleToApply(profile);
+        this.ineligibleReason = eligibilityReason(profile);
+      },
+      error: () => {
+        this.profileComplete = false;
+      },
+    });
+  }
+
   checkExistingApplication(): void {
     if (!this.user?.userId) {
       return;
@@ -254,21 +245,8 @@ export class ApplicationFormComponent implements OnInit {
     });
   }
 
-  onFileSelected(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
-      this.resumeFile = file;
-    }
-  }
-
-  removeFile(event: Event): void {
-    event.stopPropagation();
-    this.resumeFile = null;
-  }
-
   submitApplication(): void {
-    this.submitted = true;
-    if (this.alreadyApplied || !this.coverLetter?.trim()) {
+    if (this.alreadyApplied || !this.profileComplete || !this.eligible) {
       return;
     }
     this.isSubmitting = true;
@@ -284,8 +262,6 @@ export class ApplicationFormComponent implements OnInit {
       .apply({
         jobId: this.jobId,
         userId,
-        coverLetter: this.coverLetter.trim(),
-        resumeUrl: this.resumeFile?.name,
       })
       .subscribe({
         next: () => {
@@ -303,6 +279,10 @@ export class ApplicationFormComponent implements OnInit {
           );
         },
       });
+  }
+
+  goToProfile(): void {
+    this.router.navigate(['/candidate/profile']);
   }
 
   goBack(): void {

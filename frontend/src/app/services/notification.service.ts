@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { BehaviorSubject, Observable, timer } from 'rxjs';
 import { switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { SKIP_LOADER } from '../core/interceptors/loader-context';
 
 const BASE = environment.apiBaseUrl;
 
@@ -23,18 +24,29 @@ export class NotificationService {
   readonly unreadCount$ = this._unreadCount$.asObservable();
   readonly notifications$ = this._notifications$.asObservable();
 
+  private polling = false;
+
   constructor(private http: HttpClient) {}
 
-  /** Start polling for unread count every 30 seconds. Call once after login. */
+  /** Start polling for unread count every 30 seconds. Call once after login.
+   *  Guarded against being started twice (e.g. layout re-init within a session). */
   startPolling(): void {
+    if (this.polling) {
+      return;
+    }
+    this.polling = true;
     timer(0, 30000)
       .pipe(switchMap(() => this.fetchUnreadCount()))
       .subscribe();
   }
 
+  /** Silent — deliberately skips the global loader overlay so this background poll
+   *  never flashes a full-screen "loading" state over the whole app. */
   fetchUnreadCount(): Observable<{ count: number }> {
     return this.http
-      .get<{ count: number }>(`${BASE}/api/notifications/unread-count`)
+      .get<{ count: number }>(`${BASE}/api/notifications/unread-count`, {
+        context: new HttpContext().set(SKIP_LOADER, true),
+      })
       .pipe(tap((res) => this._unreadCount$.next(res.count)));
   }
 

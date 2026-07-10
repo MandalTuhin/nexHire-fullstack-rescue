@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/nexhire
+    url: jdbc:postgresql://localhost:5432/nexhire?currentSchema=dev
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -15,10 +15,16 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_schema: dev
   jackson:
     property-naming-strategy: LOWER_CAMEL_CASE
     serialization:
       write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
 
 app:
   jwt:

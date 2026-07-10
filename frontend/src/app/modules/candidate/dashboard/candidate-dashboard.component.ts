@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ApplicationService } from '../../../services/application.service';
 import { OfferLetterService } from '../../../services/offer-letter.service';
+import { CandidateProfileService } from '../../../services/candidate-profile.service';
 import { CurrentUserService } from '../../../core/auth/current-user.service';
 import { Application } from '../../../models/application.model';
 import { OfferLetter } from '../../../models/offer-letter.model';
@@ -11,14 +12,23 @@ import { OfferLetter } from '../../../models/offer-letter.model';
     <div class="candidate-dashboard">
       <app-page-header title="Candidate Workspace" subtitle="Manage your applications, test schedules, and offer letters"></app-page-header>
 
+      <div class="profile-banner" *ngIf="profileLoaded && !profileCompleted">
+        <mat-icon>info</mat-icon>
+        <div class="banner-text">
+          <strong>Complete your profile to start applying</strong>
+          <span>Personal details, academics, skills, resume, and 3 location preferences are required.</span>
+        </div>
+        <button mat-raised-button color="primary" routerLink="/candidate/profile">Complete Profile</button>
+      </div>
+
       <!-- Welcome Card -->
       <mat-card class="welcome-card">
         <mat-card-content>
           <div class="welcome-grid">
             <div class="welcome-text">
               <h2>Welcome, {{ user?.fullName }}!</h2>
-              <p>NexHire streamlines your recruitment journey. Find new openings, view real-time assessment statuses, and check background verification updates all in one portal.</p>
-              <button mat-raised-button color="accent" routerLink="/candidate/jobs">Browse Active Jobs</button>
+              <p>NexHire streamlines your recruitment journey. Find new hiring drives, view real-time assessment statuses, and check background verification updates all in one portal.</p>
+              <button mat-raised-button color="accent" routerLink="/candidate/jobs">Browse Hiring Drives</button>
             </div>
             <div class="welcome-stats">
               <div class="stat-box">
@@ -69,8 +79,8 @@ import { OfferLetter } from '../../../models/offer-letter.model';
             <div class="recent-list" *ngIf="offers.length > 0">
               <div class="list-item pointer" *ngFor="let offer of offers" routerLink="/candidate/offers">
                 <div class="item-details">
-                  <h4>{{ offer.designation || 'Software Engineer' }}</h4>
-                  <span>CTC: ₹{{ offer.ctc | number }} • Joining: {{ offer.joiningDate | date }}</span>
+                  <h4>{{ offer.jobTitle }}</h4>
+                  <span *ngIf="offer.generatedAt">Generated {{ offer.generatedAt | date }}</span>
                 </div>
                 <app-status-badge [status]="offer.status"></app-status-badge>
               </div>
@@ -86,10 +96,30 @@ import { OfferLetter } from '../../../models/offer-letter.model';
       flex-direction: column;
       gap: 24px;
     }
+    .profile-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: #fef9c3;
+      border: 1px solid #fef08a;
+      border-radius: 12px;
+      color: #854d0e;
+    }
+    .profile-banner .banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      font-size: 13px;
+    }
+    .profile-banner .banner-text strong {
+      font-size: 14px;
+    }
     .welcome-card {
       background: linear-gradient(135deg, #3f51b5, #5c6bc0) !important;
       color: white !important;
-      border-radius: 12px !important;
+      border-radius: var(--radius-card) !important;
       overflow: hidden;
     }
     .welcome-grid {
@@ -147,8 +177,8 @@ import { OfferLetter } from '../../../models/offer-letter.model';
       gap: 24px;
     }
     .grid-card {
-      border-radius: 12px !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+      border-radius: var(--radius-card) !important;
+      box-shadow: var(--shadow-card) !important;
     }
     .recent-list {
       display: flex;
@@ -185,15 +215,19 @@ import { OfferLetter } from '../../../models/offer-letter.model';
   `],
     standalone: false
 })
+
 export class CandidateDashboardComponent implements OnInit {
   user: any = null;
   applications: Application[] = [];
   offers: OfferLetter[] = [];
+  profileCompleted = false;
+  profileLoaded = false;
 
   constructor(
     private currentUserService: CurrentUserService,
     private appService: ApplicationService,
-    private offerService: OfferLetterService
+    private offerService: OfferLetterService,
+    private profileService: CandidateProfileService
   ) {}
 
   ngOnInit(): void {
@@ -201,6 +235,15 @@ export class CandidateDashboardComponent implements OnInit {
     if (this.user?.userId) {
       this.appService.getByUser(this.user.userId).subscribe(apps => this.applications = apps);
       this.offerService.getByUser(this.user.userId).subscribe(offs => this.offers = offs);
+      this.profileService.getMyProfile().subscribe({
+        next: (profile) => {
+          this.profileCompleted = !!profile.profileCompleted;
+          this.profileLoaded = true;
+        },
+        error: () => {
+          this.profileLoaded = true;
+        },
+      });
     }
   }
 

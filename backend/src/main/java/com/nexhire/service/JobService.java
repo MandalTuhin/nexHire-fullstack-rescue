@@ -54,6 +54,7 @@ public class JobService {
                 .requirements(job.getRequirements())
                 .locationName(job.getLocation().getName())
                 .locationId(job.getLocation().getId())
+                .driveDate(job.getDriveDate())
                 .active(job.getActive())
                 .createdAt(job.getCreatedAt())
                 .build();

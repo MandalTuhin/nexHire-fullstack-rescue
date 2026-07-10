@@ -1,0 +1,272 @@
+<div class="bgv-mgmt">
+  <app-page-header title="Background Verification" subtitle="Review BGC cases, documents, vendor requests and bulk results"></app-page-header>
+
+  <div class="layout" [class.split]="selectedCase">
+    <div class="list-column">
+      <mat-card class="filter-card">
+        <mat-card-content class="filter-row">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Search candidate</mat-label>
+            <input matInput [(ngModel)]="search" (ngModelChange)="applyFilters()" placeholder="Name or email" />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Status</mat-label>
+            <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
+              <mat-option value="">All</mat-option>
+              <mat-option value="DOCUMENTS_PENDING">Documents Pending</mat-option>
+              <mat-option value="DOCUMENTS_SUBMITTED">Documents Submitted</mat-option>
+              <mat-option value="VERIFICATION_IN_PROGRESS">Verification In Progress</mat-option>
+              <mat-option value="CLEARED">Cleared</mat-option>
+              <mat-option value="FAILED">Failed</mat-option>
+              <mat-option value="RECHECK_REQUIRED">Recheck Required</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="table-card">
+        <mat-card-content>
+          <app-empty-state *ngIf="!loading && filteredCases.length === 0" icon="verified" title="No background checks" subtitle="Offer acceptance auto-initiates BGC."></app-empty-state>
+          <app-loader *ngIf="loading"></app-loader>
+
+          <div class="table-container" *ngIf="!loading && filteredCases.length > 0">
+            <table mat-table [dataSource]="filteredCases">
+              <ng-container matColumnDef="candidate">
+                <th mat-header-cell *matHeaderCellDef>Candidate</th>
+                <td mat-cell *matCellDef="let c">
+                  <div class="candidate-info">
+                    <span class="name">{{ c.candidateName }}</span>
+                    <span class="email">{{ c.candidateEmail }}</span>
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="jobTitle">
+                <th mat-header-cell *matHeaderCellDef>Role</th>
+                <td mat-cell *matCellDef="let c">{{ c.jobTitle }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let c">
+                  <app-status-badge [status]="c.status"></app-status-badge>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="vendor">
+                <th mat-header-cell *matHeaderCellDef>Vendor</th>
+                <td mat-cell *matCellDef="let c">{{ c.vendorName || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
+                <td mat-cell *matCellDef="let c" align="end">
+                  <button mat-stroked-button class="row-btn" (click)="openCase(c)">View</button>
+                  <ng-container *ngIf="c.status === 'VERIFICATION_IN_PROGRESS' || c.status === 'RECHECK_REQUIRED'">
+                    <button mat-icon-button color="primary" matTooltip="Mark Cleared" (click)="quickTransition(c, 'CLEARED')">
+                      <mat-icon>check_circle</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" matTooltip="Mark Failed" (click)="quickTransition(c, 'FAILED')">
+                      <mat-icon>cancel</mat-icon>
+                    </button>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns" (click)="openCase(row)" class="clickable-row"></tr>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Bulk Excel upload -->
+      <mat-card class="excel-card">
+        <mat-card-header>
+          <mat-card-title>Bulk BGC Result Upload (Excel)</mat-card-title>
+          <mat-card-subtitle>Upload the vendor's result file — CLEARED cases auto-create Employee + SelectedUser records</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="excel-actions-row">
+            <button mat-stroked-button color="primary" (click)="downloadTemplate()">
+              <mat-icon>download</mat-icon> Download Template
+            </button>
+            <button mat-stroked-button (click)="fileInput.click()">
+              <mat-icon>upload_file</mat-icon> {{ excelFile ? excelFile.name : 'Choose File' }}
+            </button>
+            <input type="file" hidden #fileInput accept=".xlsx,.xls" (change)="onFileSelected($event)" />
+            <button mat-raised-button color="primary" [disabled]="!excelFile || validating" (click)="validateFile()">
+              {{ validating ? 'Validating…' : 'Validate' }}
+            </button>
+            <button mat-raised-button color="accent" [disabled]="!excelFile || !preview || preview.successRows === 0 || committing" (click)="commitFile()">
+              {{ committing ? 'Committing…' : 'Commit Valid Rows' }}
+            </button>
+          </div>
+
+          <div class="preview-summary" *ngIf="preview">
+            <div class="summary-metrics">
+              <span>Total Rows: <strong>{{ preview.totalRows }}</strong></span>
+              <span class="success-text">Valid: <strong>{{ preview.successRows }}</strong></span>
+              <span class="error-text">Errors: <strong>{{ preview.failedRows }}</strong></span>
+              <span class="status-chip">{{ preview.status }}</span>
+            </div>
+            <div class="errors-table" *ngIf="preview.errors.length > 0">
+              <table>
+                <thead><tr><th>Row</th><th>Identifier</th><th>Error</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let err of preview.errors">
+                    <td>{{ err.rowNumber }}</td>
+                    <td>{{ err.identifier }}</td>
+                    <td>{{ err.errorMessage }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="history-toggle">
+            <button mat-button (click)="toggleHistory()">
+              <mat-icon>{{ showHistory ? 'expand_less' : 'history' }}</mat-icon>
+              {{ showHistory ? 'Hide' : 'Show' }} Upload History
+            </button>
+          </div>
+          <div class="history-table" *ngIf="showHistory">
+            <app-empty-state *ngIf="history.length === 0" icon="history" title="No uploads yet"></app-empty-state>
+            <table *ngIf="history.length > 0">
+              <thead><tr><th>File</th><th>Uploaded</th><th>Total</th><th>Success</th><th>Failed</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let h of history">
+                  <td>{{ h.fileName }}</td>
+                  <td>{{ h.uploadedAt | date: 'medium' }}</td>
+                  <td>{{ h.totalRows }}</td>
+                  <td>{{ h.successRows }}</td>
+                  <td>{{ h.failedRows }}</td>
+                  <td>{{ h.status }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Case detail panel -->
+    <mat-card class="detail-column" *ngIf="selectedCase">
+      <mat-card-content>
+        <div class="detail-header">
+          <h3>{{ selectedCase.candidateName }}</h3>
+          <button mat-icon-button (click)="closeDetail()"><mat-icon>close</mat-icon></button>
+        </div>
+
+        <app-loader *ngIf="loadingDetail"></app-loader>
+
+        <ng-container *ngIf="!loadingDetail && detail">
+          <div class="detail-section">
+            <div class="detail-grid">
+              <div class="detail-item"><span class="label">Email</span><span class="value">{{ detail.candidateEmail }}</span></div>
+              <div class="detail-item"><span class="label">Phone</span><span class="value">{{ detail.candidatePhone || '—' }}</span></div>
+              <div class="detail-item"><span class="label">Role</span><span class="value">{{ detail.jobTitle }}</span></div>
+              <div class="detail-item"><span class="label">Status</span><app-status-badge [status]="detail.status"></app-status-badge></div>
+              <div class="detail-item"><span class="label">Offer Accepted</span><span class="value">{{ detail.offerAcceptedAt | date: 'medium' }}</span></div>
+              <div class="detail-item"><span class="label">Vendor</span><span class="value">{{ detail.vendorName || '—' }}</span></div>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="detail-section">
+            <div class="section-head">
+              <h4>Documents</h4>
+            </div>
+            <app-empty-state *ngIf="detail.documents.length === 0" icon="description" title="No documents uploaded yet"></app-empty-state>
+            <div class="doc-row" *ngFor="let doc of detail.documents">
+              <div class="doc-info">
+                <span class="doc-type">{{ doc.documentType }}</span>
+                <span class="doc-file">{{ doc.fileName }}</span>
+                <app-status-badge [status]="doc.status"></app-status-badge>
+              </div>
+              <div class="doc-actions">
+                <button mat-icon-button matTooltip="Download" (click)="downloadDocument(doc.id)">
+                  <mat-icon>download</mat-icon>
+                </button>
+                <button mat-icon-button matTooltip="Review" *ngIf="doc.status === 'PENDING_REVIEW'" (click)="openReview(doc)">
+                  <mat-icon>rate_review</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="detail-section">
+            <div class="section-head">
+              <h4>Vendor Requests</h4>
+              <button
+                mat-stroked-button
+                color="primary"
+                *ngIf="detail.status === 'DOCUMENTS_SUBMITTED' || detail.status === 'RECHECK_REQUIRED'"
+                (click)="showVendorForm = !showVendorForm"
+              >
+                {{ showVendorForm ? 'Cancel' : 'Send to Vendor' }}
+              </button>
+            </div>
+
+            <div class="vendor-form" *ngIf="showVendorForm">
+              <mat-form-field appearance="outline" class="full"><mat-label>Vendor Name</mat-label><input matInput [(ngModel)]="vendorName" /></mat-form-field>
+              <mat-form-field appearance="outline" class="full"><mat-label>Vendor Link</mat-label><input matInput [(ngModel)]="vendorLink" /></mat-form-field>
+              <mat-form-field appearance="outline" class="full"><mat-label>Request Reference</mat-label><input matInput [(ngModel)]="vendorReference" /></mat-form-field>
+              <mat-form-field appearance="outline" class="full"><mat-label>Remarks</mat-label><input matInput [(ngModel)]="vendorRemarks" /></mat-form-field>
+              <button mat-raised-button color="primary" (click)="submitVendorRequest()">Send</button>
+            </div>
+
+            <app-empty-state *ngIf="detail.vendorRequests.length === 0 && !showVendorForm" icon="local_shipping" title="No vendor requests sent yet"></app-empty-state>
+            <div class="vendor-row" *ngFor="let vr of detail.vendorRequests">
+              <div class="vendor-info">
+                <span class="name">{{ vr.vendorName }}</span>
+                <span class="meta">Sent by {{ vr.sentByName }} on {{ vr.sentAt | date: 'medium' }}</span>
+                <span class="meta" *ngIf="vr.requestReference">Ref: {{ vr.requestReference }}</span>
+              </div>
+              <span class="status-chip">{{ vr.status }}</span>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="detail-section">
+            <h4>Audit History</h4>
+            <div class="audit-row" *ngFor="let a of detail.auditHistory">
+              <span class="audit-time">{{ a.timestamp | date: 'short' }}</span>
+              <span class="audit-desc">{{ a.description }}</span>
+              <span class="audit-user">{{ a.userName }}</span>
+            </div>
+          </div>
+        </ng-container>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Document review modal -->
+  <div class="modal-overlay" *ngIf="reviewDoc" (click)="reviewDoc = null">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Review Document</h3>
+      <p class="modal-sub">{{ reviewDoc.documentType }}</p>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Decision</mat-label>
+        <mat-select [(ngModel)]="reviewStatus">
+          <mat-option value="ACCEPTED">Accept</mat-option>
+          <mat-option value="REJECTED">Reject</mat-option>
+          <mat-option value="REUPLOAD_REQUIRED">Request Re-upload</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Remarks</mat-label>
+        <textarea matInput rows="2" [(ngModel)]="reviewRemarks"></textarea>
+      </mat-form-field>
+      <div class="modal-actions">
+        <button mat-button (click)="reviewDoc = null">Cancel</button>
+        <button mat-raised-button color="primary" (click)="submitReview()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>

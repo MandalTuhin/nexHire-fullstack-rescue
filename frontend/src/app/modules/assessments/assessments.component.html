@@ -1,0 +1,150 @@
+<div class="assessments-mgmt">
+  <app-page-header
+    title="Assessments"
+    subtitle="Upload results in bulk — passing candidates are moved to Offer Letters automatically"
+  ></app-page-header>
+
+  <!-- Bulk Score Upload (Excel) -->
+  <mat-card class="excel-card">
+    <mat-card-header>
+      <mat-card-title>Assessment Result Upload</mat-card-title>
+      <mat-card-subtitle>HR-set cutoff decides pass/fail when the Result column is left blank</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="excel-actions-row">
+        <button mat-stroked-button color="primary" (click)="downloadTemplate()">
+          <mat-icon>download</mat-icon> Download Template
+        </button>
+
+        <button mat-stroked-button (click)="fileInput.click()">
+          <mat-icon>upload_file</mat-icon> {{ excelFile ? excelFile.name : 'Choose File' }}
+        </button>
+        <input type="file" hidden #fileInput accept=".xlsx,.xls" (change)="onFileSelected($event)" />
+
+        <mat-form-field appearance="outline" class="cutoff-field">
+          <mat-label>Cutoff Score (optional)</mat-label>
+          <input matInput type="number" [(ngModel)]="cutoff" placeholder="e.g. 60" />
+          <mat-hint>Used only when a row's Result column is blank</mat-hint>
+        </mat-form-field>
+
+        <button mat-raised-button color="primary" [disabled]="!excelFile || validating" (click)="validateFile()">
+          {{ validating ? 'Validating…' : 'Validate' }}
+        </button>
+        <button
+          mat-raised-button
+          color="accent"
+          [disabled]="!excelFile || !preview || preview.successRows === 0 || committing"
+          (click)="commitFile()"
+        >
+          {{ committing ? 'Committing…' : 'Commit Valid Rows' }}
+        </button>
+      </div>
+
+      <div class="preview-summary" *ngIf="preview">
+        <div class="summary-metrics">
+          <span>Total Rows: <strong>{{ preview.totalRows }}</strong></span>
+          <span class="success-text">Valid: <strong>{{ preview.successRows }}</strong></span>
+          <span class="error-text">Errors: <strong>{{ preview.failedRows }}</strong></span>
+          <span class="status-chip">{{ preview.status }}</span>
+        </div>
+
+        <div class="errors-table" *ngIf="preview.errors.length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Identifier</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let err of preview.errors">
+                <td>{{ err.rowNumber }}</td>
+                <td>{{ err.identifier }}</td>
+                <td>{{ err.errorMessage }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="history-toggle">
+        <button mat-button (click)="toggleHistory()">
+          <mat-icon>{{ showHistory ? 'expand_less' : 'history' }}</mat-icon>
+          {{ showHistory ? 'Hide' : 'Show' }} Upload History
+        </button>
+      </div>
+
+      <div class="history-table" *ngIf="showHistory">
+        <app-empty-state *ngIf="history.length === 0" icon="history" title="No uploads yet"></app-empty-state>
+        <table *ngIf="history.length > 0">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Uploaded</th>
+              <th>Total</th>
+              <th>Success</th>
+              <th>Failed</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let h of history">
+              <td>{{ h.fileName }}</td>
+              <td>{{ h.uploadedAt | date: 'medium' }}</td>
+              <td>{{ h.totalRows }}</td>
+              <td>{{ h.successRows }}</td>
+              <td>{{ h.failedRows }}</td>
+              <td>{{ h.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Assessment Status -->
+  <mat-card class="status-card">
+    <mat-card-header>
+      <mat-card-title>Assessment Status</mat-card-title>
+      <mat-card-subtitle>Every candidate who has applied — result updates automatically once uploaded</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Search candidate</mat-label>
+        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Name or email" />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <app-data-table
+        [columns]="columns"
+        [data]="rows"
+        [totalRecords]="totalRecords"
+        [pageSize]="size"
+        [loading]="loading"
+        emptyMessage="No candidates yet."
+        (sortChange)="onSort($event)"
+        (pageChange)="onPageChange($event)"
+      ></app-data-table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Cell templates -->
+  <ng-template #candidateCell let-row>
+    <div class="candidate-info">
+      <span class="name">{{ row.userFullName }}</span>
+      <span class="email">{{ row.userEmail }}</span>
+    </div>
+  </ng-template>
+
+  <ng-template #statusCell let-row>
+    <span
+      class="assessment-status-chip"
+      [class.pending]="row.assessmentStatusLabel === 'Result in Progress'"
+      [class.passed]="row.assessmentStatusLabel === 'Passed'"
+      [class.failed]="row.assessmentStatusLabel === 'Failed'"
+    >
+      {{ row.assessmentStatusLabel }}
+    </span>
+  </ng-template>
+</div>

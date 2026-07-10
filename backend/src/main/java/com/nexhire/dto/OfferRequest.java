@@ -1,17 +1,17 @@
 package com.nexhire.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** The offer PDF is auto-generated already; this optional note is only used in the
+ *  candidate notification, not written into the offer letter document itself. */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class OfferRequest {
 
-    @NotBlank(message = "Offer content is required")
-    private String content;
+    private String note;
 }

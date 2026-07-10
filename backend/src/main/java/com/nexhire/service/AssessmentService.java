@@ -23,15 +23,16 @@ public class AssessmentService {
     private final AssessmentResultRepository assessmentResultRepository;
     private final JobApplicationRepository applicationRepository;
     private final UserRepository userRepository;
+    private final OfferGenerationService offerGenerationService;
 
     @Transactional
     public AssessmentResult enterScore(Long applicationId, AssessmentRequest request, Long evaluatorId) {
         JobApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
-        if (application.getStatus() != ApplicationStatus.ASSESSMENT_PENDING) {
+        if (application.getStatus() != ApplicationStatus.ASSESSMENT_ASSIGNED) {
             throw new InvalidStateTransitionException(
-                    "Cannot enter score: application status must be ASSESSMENT_PENDING, current is " + application.getStatus());
+                    "Cannot enter score: application status must be ASSESSMENT_ASSIGNED, current is " + application.getStatus());
         }
 
         User evaluator = userRepository.findById(evaluatorId)
@@ -45,23 +46,27 @@ public class AssessmentService {
                 .evaluatedAt(LocalDateTime.now())
                 .build();
 
-        application.setStatus(ApplicationStatus.ASSESSMENT_COMPLETED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_SCORE_UPLOADED);
         applicationRepository.save(application);
 
         return assessmentResultRepository.save(result);
     }
 
     @Transactional
-    public JobApplication qualify(Long applicationId) {
+    public JobApplication qualify(Long applicationId, Long actingUserId) {
         JobApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
-        if (application.getStatus() != ApplicationStatus.ASSESSMENT_COMPLETED) {
+        if (application.getStatus() != ApplicationStatus.ASSESSMENT_SCORE_UPLOADED) {
             throw new InvalidStateTransitionException(
-                    "Cannot qualify: application status must be ASSESSMENT_COMPLETED, current is " + application.getStatus());
+                    "Cannot qualify: application status must be ASSESSMENT_SCORE_UPLOADED, current is " + application.getStatus());
         }
 
-        application.setStatus(ApplicationStatus.QUALIFIED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_PASSED);
+        applicationRepository.save(application);
+
+        // Auto-generate the offer letter — HR should never have to do this one by one.
+        offerGenerationService.generateIfAbsent(application, actingUserId);
         return applicationRepository.save(application);
     }
 
@@ -70,12 +75,12 @@ public class AssessmentService {
         JobApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
-        if (application.getStatus() != ApplicationStatus.ASSESSMENT_COMPLETED) {
+        if (application.getStatus() != ApplicationStatus.ASSESSMENT_SCORE_UPLOADED) {
             throw new InvalidStateTransitionException(
-                    "Cannot reject: application status must be ASSESSMENT_COMPLETED, current is " + application.getStatus());
+                    "Cannot reject: application status must be ASSESSMENT_SCORE_UPLOADED, current is " + application.getStatus());
         }
 
-        application.setStatus(ApplicationStatus.REJECTED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_FAILED);
         return applicationRepository.save(application);
     }
 }

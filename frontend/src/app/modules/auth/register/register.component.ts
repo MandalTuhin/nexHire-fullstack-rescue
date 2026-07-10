@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { CustomValidators } from '../../../shared/validators/custom-validators';
 
 @Component({
     selector: 'app-register',
@@ -11,13 +12,11 @@ import { ToastService } from '../../../shared/services/toast.service';
       <mat-card class="register-card">
         <mat-card-header class="register-header">
           <mat-card-title>Candidate Registration</mat-card-title>
-          <mat-card-subtitle>Create an account to explore jobs and track applications</mat-card-subtitle>
+          <mat-card-subtitle>Create an account to browse hiring drives and track your applications. You can add your personal and academic details later, before applying to a drive.</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
-            <!-- Step 1: Account Info -->
             <div class="form-section">
-              <h3>Account Credentials</h3>
               <div class="form-row">
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Full Name</mat-label>
@@ -40,79 +39,51 @@ import { ToastService } from '../../../shared/services/toast.service';
                   <mat-error *ngIf="registerForm.get('phone')?.hasError('required')">Phone is required</mat-error>
                   <mat-error *ngIf="registerForm.get('phone')?.hasError('pattern')">Enter a valid 10-digit number</mat-error>
                 </mat-form-field>
+              </div>
 
+              <div class="form-row">
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Password</mat-label>
-                  <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password">
-                  <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button">
+                  <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" (focus)="passwordFocused = true">
+                  <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button" [attr.aria-label]="'Toggle password visibility'">
                     <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                   </button>
                   <mat-error *ngIf="registerForm.get('password')?.hasError('required')">Password is required</mat-error>
-                  <mat-error *ngIf="registerForm.get('password')?.hasError('minlength')">Must be at least 6 characters</mat-error>
-                </mat-form-field>
-              </div>
-            </div>
-
-            <!-- Step 2: Personal Info -->
-            <div class="form-section">
-              <h3>Personal Details</h3>
-              <div class="form-row">
-                <mat-form-field appearance="outline" class="third-width">
-                  <mat-label>Gender</mat-label>
-                  <mat-select formControlName="gender">
-                    <mat-option value="MALE">Male</mat-option>
-                    <mat-option value="FEMALE">Female</mat-option>
-                    <mat-option value="OTHER">Other</mat-option>
-                  </mat-select>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="third-width">
-                  <mat-label>City</mat-label>
-                  <input matInput formControlName="city" placeholder="Bangalore">
-                  <mat-error *ngIf="registerForm.get('city')?.hasError('required')">City is required</mat-error>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="third-width">
-                  <mat-label>Pin Code</mat-label>
-                  <input matInput formControlName="pinCode" placeholder="560001">
-                  <mat-error *ngIf="registerForm.get('pinCode')?.hasError('required')">Pin Code is required</mat-error>
-                  <mat-error *ngIf="registerForm.get('pinCode')?.hasError('pattern')">Must be a 6-digit number</mat-error>
-                </mat-form-field>
-              </div>
-            </div>
-
-            <!-- Step 3: Education Info -->
-            <div class="form-section">
-              <h3>Academic Background</h3>
-              <div class="form-row">
-                <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>Highest Qualification</mat-label>
-                  <input matInput formControlName="highestQualification" placeholder="e.g. B.Tech Computer Science">
-                  <mat-error *ngIf="registerForm.get('highestQualification')?.hasError('required')">Qualification is required</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>University Name</mat-label>
-                  <input matInput formControlName="universityName" placeholder="VTU">
-                  <mat-error *ngIf="registerForm.get('universityName')?.hasError('required')">University is required</mat-error>
+                  <mat-label>Confirm Password</mat-label>
+                  <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword">
+                  <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button" [attr.aria-label]="'Toggle confirm password visibility'">
+                    <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                  </button>
+                  <mat-error *ngIf="registerForm.get('confirmPassword')?.hasError('required')">Please confirm your password</mat-error>
+                  <mat-error *ngIf="registerForm.get('confirmPassword')?.hasError('mismatch')">Passwords do not match</mat-error>
                 </mat-form-field>
               </div>
 
-              <div class="form-row">
-                <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>Graduation Year</mat-label>
-                  <input matInput type="number" formControlName="graduationYear" placeholder="2025">
-                  <mat-error *ngIf="registerForm.get('graduationYear')?.hasError('required')">Year is required</mat-error>
-                  <mat-error *ngIf="registerForm.get('graduationYear')?.hasError('min')">Must be a valid year</mat-error>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>CGPA</mat-label>
-                  <input matInput type="number" step="0.01" formControlName="cgpa" placeholder="9.50">
-                  <mat-error *ngIf="registerForm.get('cgpa')?.hasError('required')">CGPA is required</mat-error>
-                  <mat-error *ngIf="registerForm.get('cgpa')?.hasError('min') || registerForm.get('cgpa')?.hasError('max')">CGPA must be between 0.00 and 10.00</mat-error>
-                </mat-form-field>
-              </div>
+              <ul class="password-checklist" *ngIf="passwordFocused">
+                <li [class.met]="!passwordErrors?.['minLength']">
+                  <mat-icon>{{ !passwordErrors?.['minLength'] ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                  At least 8 characters
+                </li>
+                <li [class.met]="!passwordErrors?.['upper']">
+                  <mat-icon>{{ !passwordErrors?.['upper'] ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                  One uppercase letter
+                </li>
+                <li [class.met]="!passwordErrors?.['lower']">
+                  <mat-icon>{{ !passwordErrors?.['lower'] ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                  One lowercase letter
+                </li>
+                <li [class.met]="!passwordErrors?.['digit']">
+                  <mat-icon>{{ !passwordErrors?.['digit'] ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                  One number
+                </li>
+                <li [class.met]="!passwordErrors?.['special']">
+                  <mat-icon>{{ !passwordErrors?.['special'] ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                  One special character
+                </li>
+              </ul>
             </div>
 
             <button mat-raised-button color="primary" type="submit" [disabled]="registerForm.invalid || isLoading" class="register-submit-btn">
@@ -167,18 +138,6 @@ import { ToastService } from '../../../shared/services/toast.service';
       display: flex;
       flex-direction: column;
       gap: 12px;
-      border-top: 1px solid #f1f5f9;
-      padding-top: 16px;
-    }
-    .form-section:first-of-type {
-      border-top: none;
-      padding-top: 0;
-    }
-    .form-section h3 {
-      margin: 0 0 8px 0;
-      font-size: 15px;
-      font-weight: 600;
-      color: #334155;
     }
     .form-row {
       display: flex;
@@ -189,9 +148,31 @@ import { ToastService } from '../../../shared/services/toast.service';
       flex: 1;
       min-width: 280px;
     }
-    .third-width {
-      flex: 1;
-      min-width: 180px;
+    .password-checklist {
+      list-style: none;
+      margin: -4px 0 4px;
+      padding: 12px 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 16px;
+    }
+    .password-checklist li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .password-checklist li.met {
+      color: #15803d;
+    }
+    .password-checklist li mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
     }
     .register-submit-btn {
       width: 100%;
@@ -221,7 +202,9 @@ import { ToastService } from '../../../shared/services/toast.service';
 export class RegisterComponent implements OnInit {
   registerForm!: FormGroup;
   hidePassword = true;
+  hideConfirmPassword = true;
   isLoading = false;
+  passwordFocused = false;
 
   constructor(
     private fb: FormBuilder,
@@ -235,15 +218,13 @@ export class RegisterComponent implements OnInit {
       fullName: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      gender: ['MALE', Validators.required],
-      city: ['', Validators.required],
-      pinCode: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
-      highestQualification: ['', Validators.required],
-      universityName: ['', Validators.required],
-      graduationYear: [2025, [Validators.required, Validators.min(1980)]],
-      cgpa: [8.50, [Validators.required, Validators.min(0), Validators.max(10)]],
-    });
+      password: ['', [Validators.required, CustomValidators.passwordComplexity()]],
+      confirmPassword: ['', Validators.required],
+    }, { validators: CustomValidators.passwordsMatch() });
+  }
+
+  get passwordErrors() {
+    return this.registerForm.get('password')?.errors;
   }
 
   onSubmit(): void {

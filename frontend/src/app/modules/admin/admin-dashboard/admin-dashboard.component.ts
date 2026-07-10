@@ -73,7 +73,7 @@ import { Component } from '@angular/core';
     styles: [`
     .admin-dash { display: flex; flex-direction: column; gap: 24px; }
     .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-    .admin-card { border-radius: 12px !important; box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important; }
+    .admin-card { border-radius: var(--radius-card) !important; box-shadow: var(--shadow-card) !important; }
     mat-card-content { display: flex; align-items: center; gap: 16px; padding: 16px !important; }
     .card-icon {
       width: 48px; height: 48px; border-radius: 10px;
@@ -87,7 +87,7 @@ import { Component } from '@angular/core';
     .card-body { display: flex; flex-direction: column; }
     .card-num { font-size: 26px; font-weight: 700; color: #1e293b; }
     .card-lbl { font-size: 13px; color: #64748b; font-weight: 500; }
-    .quick-links-card { border-radius: 12px !important; box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important; }
+    .quick-links-card { border-radius: var(--radius-card) !important; box-shadow: var(--shadow-card) !important; }
     .quick-links { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 12px; }
     .quick-links a { display: flex; align-items: center; gap: 8px; }
   `],

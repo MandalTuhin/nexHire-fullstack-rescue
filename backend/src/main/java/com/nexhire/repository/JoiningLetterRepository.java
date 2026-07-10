@@ -13,4 +13,6 @@ public interface JoiningLetterRepository extends JpaRepository<JoiningLetter, Lo
     Optional<JoiningLetter> findByApplicationId(Long applicationId);
 
     List<JoiningLetter> findByApplicationUserId(Long userId);
+
+    long countBySentAtIsNotNull();
 }

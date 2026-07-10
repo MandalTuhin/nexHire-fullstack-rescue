@@ -1,0 +1,64 @@
+.applications-mgmt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.filter-card,
+.table-card {
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.more-filters {
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.filter-item {
+  flex: 1;
+  min-width: 220px;
+}
+
+.filter-item.search-item {
+  min-width: 260px;
+  flex: 1.5;
+}
+
+.filter-item.small {
+  min-width: 140px;
+  flex: 0.6;
+}
+
+.candidate-info {
+  display: flex;
+  flex-direction: column;
+}
+.candidate-info .name {
+  font-weight: 600;
+  color: #1e293b;
+}
+.candidate-info .email {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.hold-reason {
+  font-size: 11px;
+  color: #c2410c;
+  margin-top: 4px;
+  max-width: 260px;
+}
+
+.muted {
+  color: #94a3b8;
+}

@@ -2,8 +2,8 @@
   position: relative;
   width: 100%;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .loading-overlay {
@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: center;
   z-index: 10;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
 }
 
 .table-wrapper {
@@ -118,7 +118,7 @@
 mat-paginator {
   border-top: 1px solid #e2e8f0;
   background-color: #f8fafc;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
 
   ::ng-deep {
     .mat-mdc-paginator-container {

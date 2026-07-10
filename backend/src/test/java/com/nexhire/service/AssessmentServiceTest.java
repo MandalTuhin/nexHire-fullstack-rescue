@@ -36,6 +36,8 @@ class AssessmentServiceTest {
     private JobApplicationRepository applicationRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private OfferGenerationService offerGenerationService;
 
     @InjectMocks
     private AssessmentService assessmentService;
@@ -49,12 +51,12 @@ class AssessmentServiceTest {
         User candidate = User.builder().id(1L).name("John").email("john@test.com").build();
         Job job = Job.builder().id(1L).title("Java Dev").description("Desc").location(location).build();
         application = JobApplication.builder().id(1L).user(candidate).job(job)
-                .status(ApplicationStatus.ASSESSMENT_PENDING).build();
+                .status(ApplicationStatus.ASSESSMENT_ASSIGNED).build();
         hrUser = User.builder().id(2L).name("HR").email("hr@test.com").role(UserRole.HR).build();
     }
 
     @Test
-    @DisplayName("Enter score from ASSESSMENT_PENDING succeeds")
+    @DisplayName("Enter score from ASSESSMENT_ASSIGNED succeeds")
     void enterScore_fromPending_succeeds() {
         AssessmentRequest request = AssessmentRequest.builder().score(85.0).remarks("Good").build();
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
@@ -69,7 +71,7 @@ class AssessmentServiceTest {
         AssessmentResult result = assessmentService.enterScore(1L, request, 2L);
 
         assertThat(result.getScore()).isEqualTo(85.0);
-        verify(applicationRepository).save(argThat(app -> app.getStatus() == ApplicationStatus.ASSESSMENT_COMPLETED));
+        verify(applicationRepository).save(argThat(app -> app.getStatus() == ApplicationStatus.ASSESSMENT_SCORE_UPLOADED));
     }
 
     @Test
@@ -84,27 +86,27 @@ class AssessmentServiceTest {
     }
 
     @Test
-    @DisplayName("Qualify from ASSESSMENT_COMPLETED succeeds")
+    @DisplayName("Qualify from ASSESSMENT_SCORE_UPLOADED succeeds")
     void qualify_fromCompleted_succeeds() {
-        application.setStatus(ApplicationStatus.ASSESSMENT_COMPLETED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_SCORE_UPLOADED);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
         when(applicationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        JobApplication result = assessmentService.qualify(1L);
+        JobApplication result = assessmentService.qualify(1L, 2L);
 
-        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.QUALIFIED);
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.ASSESSMENT_PASSED);
     }
 
     @Test
-    @DisplayName("Reject from ASSESSMENT_COMPLETED succeeds")
+    @DisplayName("Reject from ASSESSMENT_SCORE_UPLOADED succeeds")
     void reject_fromCompleted_succeeds() {
-        application.setStatus(ApplicationStatus.ASSESSMENT_COMPLETED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_SCORE_UPLOADED);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
         when(applicationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         JobApplication result = assessmentService.reject(1L);
 
-        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.REJECTED);
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.ASSESSMENT_FAILED);
     }
 
     @Test
@@ -113,7 +115,7 @@ class AssessmentServiceTest {
         application.setStatus(ApplicationStatus.APPLIED);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
 
-        assertThatThrownBy(() -> assessmentService.qualify(1L))
+        assertThatThrownBy(() -> assessmentService.qualify(1L, 2L))
                 .isInstanceOf(InvalidStateTransitionException.class);
     }
 }

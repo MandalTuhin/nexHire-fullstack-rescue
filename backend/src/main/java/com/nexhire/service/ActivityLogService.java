@@ -21,6 +21,13 @@ public class ActivityLogService {
                 .toList();
     }
 
+    /** HR/module-scoped audit history (e.g. for a BGC case or training batch detail tab). */
+    public List<ActivityLogResponse> getLogsForEntity(String entityType, Long entityId) {
+        return activityLogRepository.findByEntityTypeAndEntityIdOrderByTimestampDesc(entityType, entityId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     private ActivityLogResponse toResponse(ActivityLog log) {
         return ActivityLogResponse.builder()
                 .id(log.getId())
@@ -28,6 +35,8 @@ public class ActivityLogService {
                 .userName(log.getUser() != null ? log.getUser().getName() : null)
                 .actionType(log.getActionType())
                 .description(log.getDescription())
+                .entityType(log.getEntityType())
+                .entityId(log.getEntityId())
                 .timestamp(log.getTimestamp())
                 .build();
     }

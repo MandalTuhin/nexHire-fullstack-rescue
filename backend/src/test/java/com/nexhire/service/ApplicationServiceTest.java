@@ -1,6 +1,7 @@
 package com.nexhire.service;
 
 import com.nexhire.dto.ApplicationResponse;
+import com.nexhire.entity.CandidateProfile;
 import com.nexhire.entity.Job;
 import com.nexhire.entity.JobApplication;
 import com.nexhire.entity.Location;
@@ -11,6 +12,7 @@ import com.nexhire.enums.UserRole;
 import com.nexhire.exception.DuplicateResourceException;
 import com.nexhire.exception.InvalidStateTransitionException;
 import com.nexhire.repository.BackgroundVerificationRepository;
+import com.nexhire.repository.CandidateProfileRepository;
 import com.nexhire.repository.JobApplicationRepository;
 import com.nexhire.repository.JobRepository;
 import com.nexhire.repository.UserRepository;
@@ -40,6 +42,10 @@ class ApplicationServiceTest {
     private UserRepository userRepository;
     @Mock
     private BackgroundVerificationRepository bgvRepository;
+    @Mock
+    private CandidateProfileRepository candidateProfileRepository;
+    @Mock
+    private CandidateProfileService candidateProfileService;
 
     @InjectMocks
     private ApplicationService applicationService;
@@ -47,6 +53,7 @@ class ApplicationServiceTest {
     private User user;
     private Job job;
     private JobApplication application;
+    private CandidateProfile eligibleProfile;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +62,8 @@ class ApplicationServiceTest {
                 .lifecycleStatus(LifecycleStatus.CANDIDATE).active(true).build();
         job = Job.builder().id(1L).title("Java Dev").description("Desc").location(location).active(true).build();
         application = JobApplication.builder().id(1L).user(user).job(job).status(ApplicationStatus.APPLIED).build();
+        eligibleProfile = CandidateProfile.builder()
+                .tenthPercentage(75.0).twelfthPercentage(75.0).graduationCgpa(7.5).build();
     }
 
     @Test
@@ -62,6 +71,8 @@ class ApplicationServiceTest {
     void apply_shouldCreateWithAppliedStatus() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateProfileService.isProfileComplete(1L)).thenReturn(true);
+        when(candidateProfileRepository.findByUserId(1L)).thenReturn(Optional.of(eligibleProfile));
         when(applicationRepository.existsByUserIdAndJobId(1L, 1L)).thenReturn(false);
         when(applicationRepository.save(any(JobApplication.class))).thenReturn(application);
 
@@ -76,6 +87,8 @@ class ApplicationServiceTest {
     void apply_duplicate_shouldThrowException() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateProfileService.isProfileComplete(1L)).thenReturn(true);
+        when(candidateProfileRepository.findByUserId(1L)).thenReturn(Optional.of(eligibleProfile));
         when(applicationRepository.existsByUserIdAndJobId(1L, 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> applicationService.applyToJob(1L, 1L))
@@ -83,20 +96,35 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Start assessment transitions APPLIED to ASSESSMENT_PENDING")
+    @DisplayName("Apply rejects ineligible candidate (below 60% / CGPA 6.0)")
+    void apply_ineligible_shouldThrowException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateProfileService.isProfileComplete(1L)).thenReturn(true);
+        CandidateProfile ineligible = CandidateProfile.builder()
+                .tenthPercentage(55.0).twelfthPercentage(75.0).graduationCgpa(7.5).build();
+        when(candidateProfileRepository.findByUserId(1L)).thenReturn(Optional.of(ineligible));
+
+        assertThatThrownBy(() -> applicationService.applyToJob(1L, 1L))
+                .isInstanceOf(com.nexhire.exception.BusinessRuleException.class)
+                .hasMessageContaining("60%");
+    }
+
+    @Test
+    @DisplayName("Start assessment transitions APPLIED to ASSESSMENT_ASSIGNED")
     void startAssessment_validTransition() {
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
         when(applicationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ApplicationResponse response = applicationService.startAssessment(1L);
 
-        assertThat(response.getStatus()).isEqualTo("ASSESSMENT_PENDING");
+        assertThat(response.getStatus()).isEqualTo("ASSESSMENT_ASSIGNED");
     }
 
     @Test
     @DisplayName("Start assessment from wrong status throws exception")
     void startAssessment_invalidTransition() {
-        application.setStatus(ApplicationStatus.ASSESSMENT_COMPLETED);
+        application.setStatus(ApplicationStatus.ASSESSMENT_SCORE_UPLOADED);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.startAssessment(1L))

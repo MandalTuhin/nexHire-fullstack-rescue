@@ -13,4 +13,6 @@ public interface OfferLetterRepository extends JpaRepository<OfferLetter, Long> 
     Optional<OfferLetter> findByApplicationId(Long applicationId);
 
     List<OfferLetter> findByApplicationUserId(Long userId);
+
+    long countBySentAtIsNotNull();
 }

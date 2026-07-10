@@ -31,10 +31,26 @@
             <mat-icon>people</mat-icon>
             <span>{{ job.openings }} openings</span>
           </div>
+          <div class="meta-item" *ngIf="job.driveDate">
+            <mat-icon>event</mat-icon>
+            <span>Drive date: {{ job.driveDate | date: 'mediumDate' }}</span>
+          </div>
         </div>
-        <button mat-raised-button color="primary" class="apply-btn" (click)="applyForJob()">
-          Apply for this Job
+        <button
+          mat-raised-button
+          color="primary"
+          class="apply-btn"
+          [disabled]="!eligible"
+          (click)="applyForJob()"
+        >
+          Apply for this Drive
         </button>
+        <p class="profile-hint" *ngIf="!profileComplete">
+          <mat-icon>info</mat-icon> Complete your profile first — you'll be redirected automatically.
+        </p>
+        <p class="profile-hint" *ngIf="profileComplete && !eligible">
+          <mat-icon>info</mat-icon> {{ ineligibleReason }}
+        </p>
       </mat-card-content>
     </mat-card>
 
@@ -46,9 +62,9 @@
           <p>{{ job.jobDescription }}</p>
         </section>
 
-        <mat-divider></mat-divider>
+        <mat-divider *ngIf="job.requiredSkills"></mat-divider>
 
-        <section class="detail-section">
+        <section class="detail-section" *ngIf="job.requiredSkills">
           <h2>Required Skills</h2>
           <div class="skills-chips">
             <mat-chip *ngFor="let skill of job.requiredSkills.split(',')">
@@ -57,7 +73,7 @@
           </div>
         </section>
 
-        <mat-divider></mat-divider>
+        <mat-divider *ngIf="job.experienceLevel || job.minExperience !== undefined"></mat-divider>
 
         <section class="detail-section" *ngIf="job.experienceLevel || job.minExperience !== undefined">
           <h2>Experience Required</h2>
@@ -67,18 +83,11 @@
           </p>
         </section>
 
-        <mat-divider *ngIf="job.experienceLevel || job.minExperience !== undefined"></mat-divider>
+        <mat-divider *ngIf="job.salaryMin || job.salaryMax"></mat-divider>
 
         <section class="detail-section" *ngIf="job.salaryMin || job.salaryMax">
           <h2>Salary Range</h2>
           <p>{{ job.currency || 'INR' }} {{ job.salaryMin?.toLocaleString() }} - {{ job.salaryMax?.toLocaleString() }}</p>
-        </section>
-
-        <mat-divider *ngIf="job.salaryMin || job.salaryMax"></mat-divider>
-
-        <section class="detail-section">
-          <h2>Application Deadline</h2>
-          <p>{{ job.deadline | date: 'MMMM dd, yyyy' }}</p>
         </section>
       </mat-card-content>
     </mat-card>

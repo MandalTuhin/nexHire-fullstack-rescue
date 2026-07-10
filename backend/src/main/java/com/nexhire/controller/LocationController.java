@@ -1,5 +1,6 @@
 package com.nexhire.controller;
 
+import com.nexhire.dto.LocationNameResponse;
 import com.nexhire.dto.LocationResponse;
 import com.nexhire.dto.LocationUpdateRequest;
 import com.nexhire.service.LocationService;
@@ -21,6 +22,15 @@ public class LocationController {
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<LocationResponse>> getAllLocations() {
         return ResponseEntity.ok(locationService.getAllLocations());
+    }
+
+    /** Candidate-facing: just id/name, for the Location Preferences dropdown — deliberately
+     *  excludes budget/seat figures (HR planning data) that the full HR-only response above
+     *  carries. */
+    @GetMapping("/names")
+    @PreAuthorize("hasAnyRole('HR', 'EMPLOYEE')")
+    public ResponseEntity<List<LocationNameResponse>> getLocationNames() {
+        return ResponseEntity.ok(locationService.getLocationNames());
     }
 
     @PutMapping("/{id}")

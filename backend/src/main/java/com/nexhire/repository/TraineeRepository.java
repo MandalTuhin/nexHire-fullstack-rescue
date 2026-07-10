@@ -2,11 +2,13 @@ package com.nexhire.repository;
 
 import com.nexhire.entity.Trainee;
 import com.nexhire.enums.ApplicationStatus;
+import com.nexhire.enums.TraineeFinalResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +21,10 @@ public interface TraineeRepository extends JpaRepository<Trainee, Long> {
 
     @Query("SELECT t FROM Trainee t WHERE t.application.status = :status")
     List<Trainee> findByApplicationStatus(@Param("status") ApplicationStatus status);
+
+    long countByLapEnabledTrue();
+
+    long countByReleasedTrue();
+
+    long countByFinalResultIn(Collection<TraineeFinalResult> results);
 }

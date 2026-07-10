@@ -45,6 +45,18 @@ import {
           <p class="done" *ngIf="record.completed">
             Training completed — awaiting project assignment.
           </p>
+          <div class="lap-banner" *ngIf="record.applicationStatus === 'LAP'">
+            <mat-icon>support</mat-icon>
+            <div>
+              <strong>You've been enrolled in the Learning Assistance Program (LAP)</strong>
+              <p>
+                Your training results were below the required cutoff. HR has
+                enrolled you in LAP to help you meet the requirements — you'll
+                get additional support and another opportunity to qualify.
+                Reach out to your HR contact for details on next steps.
+              </p>
+            </div>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -57,8 +69,8 @@ import {
         gap: 24px;
       }
       .training-card {
-        border-radius: 12px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+        border-radius: var(--radius-card) !important;
+        box-shadow: var(--shadow-card) !important;
         padding: 16px;
         max-width: 600px;
       }
@@ -87,6 +99,30 @@ import {
         color: #16a34a;
         font-weight: 600;
         margin-top: 8px;
+      }
+      .lap-banner {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+      }
+      .lap-banner mat-icon {
+        color: #ea580c;
+        flex-shrink: 0;
+      }
+      .lap-banner strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .lap-banner p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #9a3412;
       }
     `,
   ],

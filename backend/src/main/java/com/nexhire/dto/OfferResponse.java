@@ -15,9 +15,15 @@ public class OfferResponse {
 
     private Long id;
     private Long applicationId;
+    private Long userId;
+    private String candidateName;
+    private String candidateEmail;
     private String jobTitle;
+    private Double assessmentScore;
     private String content;
+    private Long pdfFileId;
     private String status;
+    private LocalDateTime generatedAt;
     private String sentByName;
     private LocalDateTime sentAt;
     private LocalDateTime respondedAt;

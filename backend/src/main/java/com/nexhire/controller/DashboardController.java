@@ -2,6 +2,7 @@ package com.nexhire.controller;
 
 import com.nexhire.dto.ChartDataResponse;
 import com.nexhire.dto.DashboardStatsResponse;
+import com.nexhire.dto.PendingActionsResponse;
 import com.nexhire.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,11 @@ public class DashboardController {
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsResponse> getStats() {
         return ResponseEntity.ok(dashboardService.getStats());
+    }
+
+    @GetMapping("/pending-actions")
+    public ResponseEntity<PendingActionsResponse> getPendingActions() {
+        return ResponseEntity.ok(dashboardService.getPendingActions());
     }
 
     @GetMapping("/charts/applications")

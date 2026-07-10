@@ -70,14 +70,16 @@ public class ProjectService {
         projectRepository.delete(project);
     }
 
-    /** RMG: trainees eligible for assignment (applicationStatus == TRAINING_COMPLETED). */
+    /** RMG: trainees eligible for assignment (applicationStatus == RELEASED, per the batch
+     *  release logic in TrainingBatchService — was TRAINING_COMPLETED before the batch-wise
+     *  LAP/release pipeline existed). */
     public List<TraineeResponse> getEligibleTrainees() {
-        return traineeRepository.findByApplicationStatus(ApplicationStatus.TRAINING_COMPLETED)
+        return traineeRepository.findByApplicationStatus(ApplicationStatus.RELEASED)
                 .stream().map(this::toTraineeResponse).toList();
     }
 
     /**
-     * RMG: assign a training-completed trainee to a project.
+     * RMG: assign a released trainee to a project.
      * Sets applicationStatus + lifecycleStatus to PROJECT_ASSIGNED.
      */
     @Transactional
@@ -89,9 +91,9 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
 
         JobApplication application = trainee.getApplication();
-        if (application.getStatus() != ApplicationStatus.TRAINING_COMPLETED) {
+        if (application.getStatus() != ApplicationStatus.RELEASED) {
             throw new InvalidStateTransitionException(
-                    "Cannot assign: trainee applicationStatus must be TRAINING_COMPLETED, current is " + application.getStatus());
+                    "Cannot assign: trainee applicationStatus must be RELEASED, current is " + application.getStatus());
         }
 
         if (projectAssignmentRepository.findByTraineeId(traineeId).isPresent()) {

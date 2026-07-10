@@ -22,6 +22,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'GENERATE_OFFER',
     'VIEW_BGV',
     'UPDATE_BGV_STATUS',
+    'VIEW_JOINING_BATCHES',
+    'MANAGE_JOINING_BATCHES',
     'VIEW_TRAINEES',
     'VIEW_LOCATIONS',
   ],

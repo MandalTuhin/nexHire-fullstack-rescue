@@ -1,0 +1,507 @@
+<div class="profile-stepper-page">
+  <app-page-header
+    title="Complete Your Profile"
+    subtitle="Personal, academic and skills details are required before you can apply to jobs."
+  ></app-page-header>
+
+  <app-loader *ngIf="!loaded"></app-loader>
+
+  <ng-container *ngIf="loaded">
+    <div class="completion-banner" [class.complete]="isComplete">
+      <mat-icon>{{ isComplete ? 'check_circle' : 'info' }}</mat-icon>
+      <div class="banner-text">
+        <strong>{{ isComplete ? 'Your profile is complete.' : 'Your profile is incomplete.' }}</strong>
+        <span *ngIf="!isComplete">
+          Missing: {{ missingFields.join(', ') }}
+        </span>
+        <span *ngIf="isComplete">You're all set to apply for open positions.</span>
+      </div>
+    </div>
+
+    <mat-card class="stepper-card">
+      <mat-horizontal-stepper linear #stepper labelPosition="bottom">
+        <!-- Step 1: Personal Details -->
+        <mat-step [stepControl]="personalForm" label="Personal">
+          <form [formGroup]="personalForm" class="step-form">
+            <div class="locked-banner" *ngIf="personalLocked">
+              <mat-icon>lock</mat-icon>
+              <span>Saved — these details are locked. Contact HR if something needs to change.</span>
+            </div>
+
+            <div class="form-grid two-col">
+              <mat-form-field appearance="outline">
+                <mat-label>Date of Birth</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="dobPicker"
+                  formControlName="dateOfBirth"
+                  [max]="dobMax"
+                  [min]="dobMin"
+                />
+                <mat-datepicker-toggle matSuffix [for]="dobPicker" [disabled]="personalLocked"></mat-datepicker-toggle>
+                <mat-datepicker #dobPicker></mat-datepicker>
+                <mat-error *ngIf="personalForm.get('dateOfBirth')?.hasError('required')">Date of birth is required</mat-error>
+                <mat-error *ngIf="personalForm.get('dateOfBirth')?.hasError('dateRange')">
+                  You must be between 18 and 100 years old
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Gender</mat-label>
+                <mat-select formControlName="gender">
+                  <mat-option *ngFor="let g of genders" [value]="g.value">{{ g.label }}</mat-option>
+                </mat-select>
+                <mat-error *ngIf="personalForm.get('gender')?.hasError('required')">Gender is required</mat-error>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Address</mat-label>
+              <textarea matInput rows="2" formControlName="addressLine"></textarea>
+              <mat-error *ngIf="personalForm.get('addressLine')?.hasError('required')">Address is required</mat-error>
+            </mat-form-field>
+
+            <div class="form-grid three-col">
+              <mat-form-field appearance="outline">
+                <mat-label>City</mat-label>
+                <input matInput formControlName="city" />
+                <mat-error *ngIf="personalForm.get('city')?.hasError('required')">City is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>State</mat-label>
+                <mat-select formControlName="state">
+                  <mat-option *ngFor="let s of indianStates" [value]="s">{{ s }}</mat-option>
+                </mat-select>
+                <mat-error *ngIf="personalForm.get('state')?.hasError('required')">State is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Pincode</mat-label>
+                <input matInput formControlName="pincode" maxlength="6" />
+                <mat-error *ngIf="personalForm.get('pincode')?.hasError('required')">Pincode is required</mat-error>
+                <mat-error *ngIf="personalForm.get('pincode')?.hasError('pattern')">Enter a valid 6-digit pincode</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="step-actions">
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="saving"
+                (click)="saveStep(personalForm, 'Personal details')"
+              >
+                {{ saving ? 'Saving...' : (personalLocked ? 'Next' : 'Save and Next') }}
+              </button>
+            </div>
+          </form>
+        </mat-step>
+
+        <!-- Step 2: Academic Details -->
+        <mat-step [stepControl]="academicForm" label="Academic">
+          <form [formGroup]="academicForm" class="step-form">
+            <div class="locked-banner" *ngIf="academicLocked">
+              <mat-icon>lock</mat-icon>
+              <span>Saved — these details are locked. Contact HR if something needs to change.</span>
+            </div>
+
+            <h4 class="section-heading">10th Standard</h4>
+            <div class="form-grid three-col">
+              <mat-form-field appearance="outline">
+                <mat-label>School / Board</mat-label>
+                <mat-select formControlName="tenthSchoolBoard">
+                  <mat-option *ngFor="let b of schoolBoards" [value]="b">{{ b }}</mat-option>
+                  <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                </mat-select>
+                <mat-error *ngIf="academicForm.get('tenthSchoolBoard')?.hasError('required')">Board is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" *ngIf="academicForm.get('tenthSchoolBoard')?.value === OTHER_VALUE">
+                <mat-label>Specify Board</mat-label>
+                <input matInput formControlName="tenthSchoolBoardOther" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Percentage</mat-label>
+                <input matInput type="number" formControlName="tenthPercentage" />
+                <mat-error *ngIf="academicForm.get('tenthPercentage')?.hasError('required')">Percentage is required</mat-error>
+                <mat-error *ngIf="academicForm.get('tenthPercentage')?.hasError('min') || academicForm.get('tenthPercentage')?.hasError('max')">
+                  Must be between 0 and 100
+                </mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Passing Year</mat-label>
+                <input matInput type="number" formControlName="tenthPassingYear" />
+                <mat-error *ngIf="academicForm.get('tenthPassingYear')?.hasError('required')">Passing year is required</mat-error>
+                <mat-error *ngIf="academicForm.get('tenthPassingYear')?.hasError('max')">Passing year cannot be in the future</mat-error>
+                <mat-error *ngIf="academicForm.get('tenthPassingYear')?.hasError('min')">Enter a valid year</mat-error>
+              </mat-form-field>
+            </div>
+
+            <h4 class="section-heading">12th Standard</h4>
+            <div class="form-grid three-col">
+              <mat-form-field appearance="outline">
+                <mat-label>School / Board</mat-label>
+                <mat-select formControlName="twelfthSchoolBoard">
+                  <mat-option *ngFor="let b of schoolBoards" [value]="b">{{ b }}</mat-option>
+                  <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                </mat-select>
+                <mat-error *ngIf="academicForm.get('twelfthSchoolBoard')?.hasError('required')">Board is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" *ngIf="academicForm.get('twelfthSchoolBoard')?.value === OTHER_VALUE">
+                <mat-label>Specify Board</mat-label>
+                <input matInput formControlName="twelfthSchoolBoardOther" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Percentage</mat-label>
+                <input matInput type="number" formControlName="twelfthPercentage" />
+                <mat-error *ngIf="academicForm.get('twelfthPercentage')?.hasError('required')">Percentage is required</mat-error>
+                <mat-error *ngIf="academicForm.get('twelfthPercentage')?.hasError('min') || academicForm.get('twelfthPercentage')?.hasError('max')">
+                  Must be between 0 and 100
+                </mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Passing Year</mat-label>
+                <input matInput type="number" formControlName="twelfthPassingYear" />
+                <mat-error *ngIf="academicForm.get('twelfthPassingYear')?.hasError('required')">Passing year is required</mat-error>
+                <mat-error *ngIf="academicForm.get('twelfthPassingYear')?.hasError('max')">Passing year cannot be in the future</mat-error>
+                <mat-error *ngIf="academicForm.get('twelfthPassingYear')?.hasError('min')">Enter a valid year</mat-error>
+              </mat-form-field>
+            </div>
+
+            <h4 class="section-heading">Graduation</h4>
+            <div class="form-grid two-col">
+              <mat-form-field appearance="outline">
+                <mat-label>Degree</mat-label>
+                <mat-select formControlName="graduationDegree">
+                  <mat-option *ngFor="let d of degrees" [value]="d">{{ d }}</mat-option>
+                  <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                </mat-select>
+                <mat-error *ngIf="academicForm.get('graduationDegree')?.hasError('required')">Degree is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" *ngIf="academicForm.get('graduationDegree')?.value === OTHER_VALUE">
+                <mat-label>Specify Degree</mat-label>
+                <input matInput formControlName="graduationDegreeOther" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>University</mat-label>
+                <mat-select formControlName="graduationUniversity">
+                  <mat-option *ngFor="let u of universities" [value]="u">{{ u }}</mat-option>
+                  <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                </mat-select>
+                <mat-error *ngIf="academicForm.get('graduationUniversity')?.hasError('required')">University is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" *ngIf="academicForm.get('graduationUniversity')?.value === OTHER_VALUE">
+                <mat-label>Specify University</mat-label>
+                <input matInput formControlName="graduationUniversityOther" />
+              </mat-form-field>
+            </div>
+            <div class="form-grid three-col">
+              <mat-form-field appearance="outline">
+                <mat-label>CGPA</mat-label>
+                <input matInput type="number" step="0.01" formControlName="graduationCgpa" />
+                <mat-error *ngIf="academicForm.get('graduationCgpa')?.hasError('required')">CGPA is required</mat-error>
+                <mat-error *ngIf="academicForm.get('graduationCgpa')?.hasError('min') || academicForm.get('graduationCgpa')?.hasError('max')">
+                  CGPA must be between 0 and 10
+                </mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Starting Year</mat-label>
+                <input matInput type="number" formControlName="graduationStartYear" />
+                <mat-error *ngIf="academicForm.get('graduationStartYear')?.hasError('required')">Starting year is required</mat-error>
+                <mat-error *ngIf="academicForm.get('graduationStartYear')?.hasError('max')">Starting year cannot be in the future</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Passing Year</mat-label>
+                <input matInput type="number" formControlName="graduationPassingYear" />
+                <mat-error *ngIf="academicForm.get('graduationPassingYear')?.hasError('required')">Passing year is required</mat-error>
+                <mat-error *ngIf="academicForm.get('graduationPassingYear')?.hasError('max')">Passing year cannot be in the future</mat-error>
+                <mat-error *ngIf="academicForm.get('graduationPassingYear')?.hasError('yearOrder')">Must be after the starting year</mat-error>
+              </mat-form-field>
+            </div>
+
+            <button
+              type="button"
+              mat-stroked-button
+              class="add-optional-btn"
+              *ngIf="!showPostGraduation && !academicLocked"
+              (click)="showPostGraduation = true"
+            >
+              <mat-icon>add</mat-icon> Add Post-Graduation (optional)
+            </button>
+
+            <ng-container *ngIf="showPostGraduation">
+              <h4 class="section-heading">Post-Graduation <span class="optional-tag">Optional</span></h4>
+              <div class="form-grid two-col">
+                <mat-form-field appearance="outline">
+                  <mat-label>Degree</mat-label>
+                  <mat-select formControlName="postGraduationDegree">
+                    <mat-option *ngFor="let d of degrees" [value]="d">{{ d }}</mat-option>
+                    <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" *ngIf="academicForm.get('postGraduationDegree')?.value === OTHER_VALUE">
+                  <mat-label>Specify Degree</mat-label>
+                  <input matInput formControlName="postGraduationDegreeOther" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>University</mat-label>
+                  <mat-select formControlName="postGraduationUniversity">
+                    <mat-option *ngFor="let u of universities" [value]="u">{{ u }}</mat-option>
+                    <mat-option [value]="OTHER_VALUE">Other</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" *ngIf="academicForm.get('postGraduationUniversity')?.value === OTHER_VALUE">
+                  <mat-label>Specify University</mat-label>
+                  <input matInput formControlName="postGraduationUniversityOther" />
+                </mat-form-field>
+              </div>
+              <div class="form-grid two-col">
+                <mat-form-field appearance="outline">
+                  <mat-label>CGPA</mat-label>
+                  <input matInput type="number" step="0.01" formControlName="postGraduationCgpa" />
+                  <mat-error *ngIf="academicForm.get('postGraduationCgpa')?.hasError('min') || academicForm.get('postGraduationCgpa')?.hasError('max')">
+                    CGPA must be between 0 and 10
+                  </mat-error>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Passing Year</mat-label>
+                  <input matInput type="number" formControlName="postGraduationPassingYear" />
+                  <mat-error *ngIf="academicForm.get('postGraduationPassingYear')?.hasError('max')">Passing year cannot be in the future</mat-error>
+                </mat-form-field>
+              </div>
+            </ng-container>
+
+            <div class="step-actions">
+              <button mat-stroked-button matStepperPrevious [disabled]="saving">Back</button>
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="saving"
+                (click)="saveStep(academicForm, 'Academic details')"
+              >
+                {{ saving ? 'Saving...' : (academicLocked ? 'Next' : 'Save and Next') }}
+              </button>
+            </div>
+          </form>
+        </mat-step>
+
+        <!-- Step 3: Skills & Resume -->
+        <mat-step [stepControl]="skillsForm" label="Skills & Resume">
+          <form [formGroup]="skillsForm" class="step-form">
+            <div class="locked-banner" *ngIf="skillsLocked">
+              <mat-icon>lock</mat-icon>
+              <span>Saved — these details are locked. Contact HR if something needs to change.</span>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Primary Skills</mat-label>
+              <mat-chip-grid #skillsChipGrid [disabled]="skillsLocked">
+                <mat-chip-row
+                  *ngFor="let skill of skillsChips"
+                  (removed)="removeSkillChip(skill)"
+                  [editable]="false"
+                >
+                  {{ skill }}
+                  <button matChipRemove *ngIf="!skillsLocked" [attr.aria-label]="'remove ' + skill">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+                </mat-chip-row>
+                <input
+                  placeholder="Type a skill, then comma or Enter"
+                  [matChipInputFor]="skillsChipGrid"
+                  [matChipInputSeparatorKeyCodes]="skillSeparatorKeys"
+                  (matChipInputTokenEnd)="addSkillChip($event)"
+                  [disabled]="skillsLocked"
+                />
+              </mat-chip-grid>
+              <mat-error *ngIf="skillsForm.get('primarySkills')?.hasError('required')">Add at least one skill</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Secondary Skills</mat-label>
+              <input matInput formControlName="secondarySkills" placeholder="Docker, AWS" />
+              <mat-hint>Comma-separated (optional)</mat-hint>
+            </mat-form-field>
+
+            <div class="certifications-block" formArrayName="certifications">
+              <div class="cert-header">
+                <h4 class="section-heading">Certifications <span class="optional-tag">Optional</span></h4>
+                <button type="button" mat-stroked-button [disabled]="skillsLocked" (click)="addCertification()">
+                  <mat-icon>add</mat-icon> Add Certification
+                </button>
+              </div>
+
+              <div class="cert-entry" *ngFor="let cert of certifications.controls; let i = index" [formGroupName]="i">
+                <div class="cert-entry-header">
+                  <span class="cert-label">Certification {{ i + 1 }}</span>
+                  <button type="button" mat-icon-button [disabled]="skillsLocked" (click)="removeCertification(i)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Certification Name</mat-label>
+                  <input matInput formControlName="label" placeholder="e.g. AWS Certified Developer" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Description</mat-label>
+                  <textarea matInput rows="2" formControlName="description" placeholder="Issuing body, year, details"></textarea>
+                </mat-form-field>
+              </div>
+            </div>
+
+            <div class="resume-section">
+              <h4 class="section-heading">Resume <span class="required-tag">Required</span></h4>
+              <div class="resume-box" [class.has-resume]="resumeUploaded">
+                <div class="resume-info" *ngIf="resumeUploaded">
+                  <mat-icon class="ok-icon">task_alt</mat-icon>
+                  <span>{{ profile?.resumeFileName }}</span>
+                </div>
+                <div class="resume-info" *ngIf="!resumeUploaded">
+                  <mat-icon>description</mat-icon>
+                  <span>No resume uploaded yet</span>
+                </div>
+                <button
+                  mat-stroked-button
+                  color="primary"
+                  (click)="resumeInput.click()"
+                  [disabled]="uploadingResume"
+                >
+                  <mat-spinner diameter="16" *ngIf="uploadingResume"></mat-spinner>
+                  <span *ngIf="!uploadingResume">{{ resumeUploaded ? 'Replace' : 'Upload' }} Resume</span>
+                </button>
+                <input
+                  type="file"
+                  hidden
+                  #resumeInput
+                  accept=".pdf,.doc,.docx"
+                  (change)="onResumeSelected($event)"
+                />
+              </div>
+            </div>
+
+            <div class="step-actions">
+              <button mat-stroked-button matStepperPrevious [disabled]="saving">Back</button>
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="saving"
+                (click)="saveStep(skillsForm, 'Skills & Resume')"
+              >
+                {{ saving ? 'Saving...' : (skillsLocked ? 'Next' : 'Save and Next') }}
+              </button>
+            </div>
+          </form>
+        </mat-step>
+
+        <!-- Step 4: Location Preferences -->
+        <mat-step [stepControl]="locationForm" label="Location Preferences">
+          <form [formGroup]="locationForm" class="step-form">
+            <div class="locked-banner" *ngIf="locationLocked">
+              <mat-icon>lock</mat-icon>
+              <span>Saved — these details are locked. Contact HR if something needs to change.</span>
+            </div>
+
+            <p class="step-hint">
+              Choose exactly 3 unique locations, in order of preference. Preference 1 has the highest priority
+              during batch/branch allocation.
+            </p>
+            <div class="form-grid one-col">
+              <mat-form-field appearance="outline">
+                <mat-label>Preference 1 (Highest)</mat-label>
+                <mat-select formControlName="preference1">
+                  <mat-option *ngFor="let loc of locationOptions" [value]="loc.name">{{ loc.name }} ({{ loc.city }})</mat-option>
+                </mat-select>
+                <mat-error *ngIf="locationForm.get('preference1')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Preference 2</mat-label>
+                <mat-select formControlName="preference2">
+                  <mat-option *ngFor="let loc of locationOptions" [value]="loc.name">{{ loc.name }} ({{ loc.city }})</mat-option>
+                </mat-select>
+                <mat-error *ngIf="locationForm.get('preference2')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Preference 3</mat-label>
+                <mat-select formControlName="preference3">
+                  <mat-option *ngFor="let loc of locationOptions" [value]="loc.name">{{ loc.name }} ({{ loc.city }})</mat-option>
+                </mat-select>
+                <mat-error *ngIf="locationForm.get('preference3')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+            </div>
+            <div class="dup-error" *ngIf="locationPreferencesDuplicate">
+              Preferences must be unique — you've selected a duplicate.
+            </div>
+
+            <div class="step-actions">
+              <button mat-stroked-button matStepperPrevious [disabled]="saving">Back</button>
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="saving"
+                (click)="saveStep(locationForm, 'Location preferences')"
+              >
+                {{ saving ? 'Saving...' : (locationLocked ? 'Next' : 'Save and Next') }}
+              </button>
+            </div>
+          </form>
+        </mat-step>
+
+        <!-- Step 5: Review -->
+        <mat-step label="Review">
+          <div class="review-step">
+            <h4 class="section-heading">Review &amp; Save</h4>
+            <p class="step-hint">
+              Saving will update your full profile. Once all required sections and your resume are present,
+              your profile will be marked complete and you'll be able to apply to jobs.
+            </p>
+
+            <div class="review-grid">
+              <div class="review-block">
+                <strong>Personal</strong>
+                <span>{{ personalForm.getRawValue().city }}, {{ personalForm.getRawValue().state }} - {{ personalForm.getRawValue().pincode }}</span>
+              </div>
+              <div class="review-block">
+                <strong>Graduation</strong>
+                <span>{{ academicForm.getRawValue().graduationDegree === OTHER_VALUE ? academicForm.getRawValue().graduationDegreeOther : academicForm.getRawValue().graduationDegree }} · {{ academicForm.getRawValue().graduationUniversity === OTHER_VALUE ? academicForm.getRawValue().graduationUniversityOther : academicForm.getRawValue().graduationUniversity }}</span>
+              </div>
+              <div class="review-block">
+                <strong>Primary Skills</strong>
+                <span>{{ skillsChips.join(', ') || '—' }}</span>
+              </div>
+              <div class="review-block">
+                <strong>Resume</strong>
+                <span>{{ profile?.resumeFileName || 'Not uploaded' }}</span>
+              </div>
+              <div class="review-block">
+                <strong>Location Preferences</strong>
+                <span>
+                  {{ locationForm.getRawValue().preference1 }} &gt; {{ locationForm.getRawValue().preference2 }} &gt;
+                  {{ locationForm.getRawValue().preference3 }}
+                </span>
+              </div>
+            </div>
+
+            <div class="missing-list" *ngIf="!isComplete && missingFields.length">
+              <mat-icon>warning</mat-icon>
+              <span>Still missing: {{ missingFields.join(', ') }}</span>
+            </div>
+
+            <div class="step-actions">
+              <button mat-stroked-button matStepperPrevious>Back</button>
+              <button mat-stroked-button color="primary" [disabled]="saving" (click)="save(false)">
+                {{ saving ? 'Saving...' : 'Save Profile' }}
+              </button>
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="saving"
+                (click)="save(true)"
+              >
+                Save &amp; Browse Jobs
+              </button>
+            </div>
+          </div>
+        </mat-step>
+      </mat-horizontal-stepper>
+    </mat-card>
+  </ng-container>
+</div>

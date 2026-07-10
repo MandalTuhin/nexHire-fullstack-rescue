@@ -443,13 +443,14 @@ export class CandidateLayoutComponent implements OnInit {
 
   menuItems: MenuItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/candidate', exact: true },
-    { label: 'Browse Jobs', icon: 'work_outline', route: '/candidate/jobs' },
+    { label: 'Hiring Drives', icon: 'work_outline', route: '/candidate/jobs' },
     {
-      label: 'My Applications',
+      label: 'Track My Application',
       icon: 'assignment_ind',
       route: '/candidate/applications',
     },
     { label: 'My Offers', icon: 'card_membership', route: '/candidate/offers' },
+    { label: 'Background Check', icon: 'verified_user', route: '/candidate/background-check' },
     { label: 'My Joining', icon: 'how_to_reg', route: '/candidate/joining' },
     { label: 'My Training', icon: 'school', route: '/candidate/training' },
   ];
