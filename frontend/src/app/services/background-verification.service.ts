@@ -7,8 +7,6 @@ import {
   BgcCaseDetail,
   BgcDocument,
   BgcDocumentReviewRequest,
-  BgcVendorRequest,
-  BgcVendorRequestCreate,
   UpdateBgvStatusRequest,
 } from '../models/background-verification.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
@@ -31,7 +29,6 @@ interface BackendBgv {
   candidateEmail: string;
   jobTitle: string;
   status: string;
-  vendorName?: string;
   remarks?: string;
   initiatedAt?: string;
   completedAt?: string;
@@ -70,9 +67,9 @@ export class BackgroundVerificationService extends BaseService {
   }
 
   /** HR manual fallback — the normal flow auto-initiates on offer acceptance. */
-  initiate(applicationId: number, vendorName?: string): Observable<BackgroundVerification> {
+  initiate(applicationId: number): Observable<BackgroundVerification> {
     return this.http
-      .post<BackendBgv>(API_ENDPOINTS.BGV.INITIATE(applicationId), { vendorName })
+      .post<BackendBgv>(API_ENDPOINTS.BGV.INITIATE(applicationId), {})
       .pipe(map((b) => this.toModel(b)));
   }
 
@@ -110,16 +107,6 @@ export class BackgroundVerificationService extends BaseService {
     return this.http.get(API_ENDPOINTS.BGV.DOWNLOAD_DOCUMENT(documentId), { responseType: 'blob' });
   }
 
-  // ─── Vendor requests ────────────────────────────────────────────────────────
-
-  sendToVendor(bgcCaseId: number, request: BgcVendorRequestCreate): Observable<BgcVendorRequest> {
-    return this.http.post<BgcVendorRequest>(API_ENDPOINTS.BGV.SEND_TO_VENDOR(bgcCaseId), request);
-  }
-
-  getVendorRequests(bgcCaseId: number): Observable<BgcVendorRequest[]> {
-    return this.http.get<BgcVendorRequest[]>(API_ENDPOINTS.BGV.VENDOR_REQUESTS(bgcCaseId));
-  }
-
   private toModel(b: BackendBgv): BackgroundVerification {
     return {
       bgvId: b.id,
@@ -129,7 +116,6 @@ export class BackgroundVerificationService extends BaseService {
       candidateEmail: b.candidateEmail,
       jobTitle: b.jobTitle,
       status: b.status as any,
-      vendorName: b.vendorName,
       remarks: b.remarks,
       initiatedDate: b.initiatedAt,
       completedDate: b.completedAt,

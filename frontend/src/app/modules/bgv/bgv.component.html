@@ -1,5 +1,5 @@
 <div class="bgv-mgmt">
-  <app-page-header title="Background Verification" subtitle="Review BGC cases, documents, vendor requests and bulk results"></app-page-header>
+  <app-page-header title="Background Verification" subtitle="Review BGC cases, documents and bulk results"></app-page-header>
 
   <div class="layout" [class.split]="selectedCase">
     <div class="list-column">
@@ -54,16 +54,11 @@
                 </td>
               </ng-container>
 
-              <ng-container matColumnDef="vendor">
-                <th mat-header-cell *matHeaderCellDef>Vendor</th>
-                <td mat-cell *matCellDef="let c">{{ c.vendorName || '—' }}</td>
-              </ng-container>
-
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
                 <td mat-cell *matCellDef="let c" align="end">
                   <button mat-stroked-button class="row-btn" (click)="openCase(c)">View</button>
-                  <ng-container *ngIf="c.status === 'VERIFICATION_IN_PROGRESS' || c.status === 'RECHECK_REQUIRED'">
+                  <ng-container *ngIf="c.status === 'DOCUMENTS_SUBMITTED' || c.status === 'VERIFICATION_IN_PROGRESS' || c.status === 'RECHECK_REQUIRED'">
                     <button mat-icon-button color="primary" matTooltip="Mark Cleared" (click)="quickTransition(c, 'CLEARED')">
                       <mat-icon>check_circle</mat-icon>
                     </button>
@@ -179,7 +174,6 @@
               <div class="detail-item"><span class="label">Role</span><span class="value">{{ detail.jobTitle }}</span></div>
               <div class="detail-item"><span class="label">Status</span><app-status-badge [status]="detail.status"></app-status-badge></div>
               <div class="detail-item"><span class="label">Offer Accepted</span><span class="value">{{ detail.offerAcceptedAt | date: 'medium' }}</span></div>
-              <div class="detail-item"><span class="label">Vendor</span><span class="value">{{ detail.vendorName || '—' }}</span></div>
             </div>
           </div>
 
@@ -209,35 +203,27 @@
 
           <mat-divider></mat-divider>
 
-          <div class="detail-section">
+          <div
+            class="detail-section"
+            *ngIf="detail.status === 'DOCUMENTS_SUBMITTED' || detail.status === 'VERIFICATION_IN_PROGRESS' || detail.status === 'RECHECK_REQUIRED'"
+          >
             <div class="section-head">
-              <h4>Vendor Requests</h4>
+              <h4>Verification Actions</h4>
+            </div>
+            <div class="verification-actions">
               <button
                 mat-stroked-button
-                color="primary"
-                *ngIf="detail.status === 'DOCUMENTS_SUBMITTED' || detail.status === 'RECHECK_REQUIRED'"
-                (click)="showVendorForm = !showVendorForm"
+                *ngIf="detail.status !== 'VERIFICATION_IN_PROGRESS'"
+                (click)="quickTransition(selectedCase!, 'VERIFICATION_IN_PROGRESS')"
               >
-                {{ showVendorForm ? 'Cancel' : 'Send to Vendor' }}
+                <mat-icon>autorenew</mat-icon> Start Verification
               </button>
-            </div>
-
-            <div class="vendor-form" *ngIf="showVendorForm">
-              <mat-form-field appearance="outline" class="full"><mat-label>Vendor Name</mat-label><input matInput [(ngModel)]="vendorName" /></mat-form-field>
-              <mat-form-field appearance="outline" class="full"><mat-label>Vendor Link</mat-label><input matInput [(ngModel)]="vendorLink" /></mat-form-field>
-              <mat-form-field appearance="outline" class="full"><mat-label>Request Reference</mat-label><input matInput [(ngModel)]="vendorReference" /></mat-form-field>
-              <mat-form-field appearance="outline" class="full"><mat-label>Remarks</mat-label><input matInput [(ngModel)]="vendorRemarks" /></mat-form-field>
-              <button mat-raised-button color="primary" (click)="submitVendorRequest()">Send</button>
-            </div>
-
-            <app-empty-state *ngIf="detail.vendorRequests.length === 0 && !showVendorForm" icon="local_shipping" title="No vendor requests sent yet"></app-empty-state>
-            <div class="vendor-row" *ngFor="let vr of detail.vendorRequests">
-              <div class="vendor-info">
-                <span class="name">{{ vr.vendorName }}</span>
-                <span class="meta">Sent by {{ vr.sentByName }} on {{ vr.sentAt | date: 'medium' }}</span>
-                <span class="meta" *ngIf="vr.requestReference">Ref: {{ vr.requestReference }}</span>
-              </div>
-              <span class="status-chip">{{ vr.status }}</span>
+              <button mat-raised-button color="primary" (click)="quickTransition(selectedCase!, 'CLEARED')">
+                <mat-icon>check_circle</mat-icon> Mark Cleared
+              </button>
+              <button mat-stroked-button color="warn" (click)="quickTransition(selectedCase!, 'FAILED')">
+                <mat-icon>cancel</mat-icon> Mark Failed
+              </button>
             </div>
           </div>
 

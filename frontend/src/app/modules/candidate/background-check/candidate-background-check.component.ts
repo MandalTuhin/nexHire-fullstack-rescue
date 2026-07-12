@@ -43,10 +43,6 @@ interface RequiredDocType {
               </div>
               <p class="hero-desc">{{ statusDescription() }}</p>
             </div>
-            <div class="hero-meta" *ngIf="bgv.vendorName">
-              <span class="hero-eyebrow">Vendor</span>
-              <span class="hero-meta-value">{{ bgv.vendorName }}</span>
-            </div>
           </mat-card-content>
         </mat-card>
 
@@ -206,17 +202,6 @@ interface RequiredDocType {
         margin: 0;
         font-size: 13px;
         color: #64748b;
-      }
-      .hero-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-end;
-      }
-      .hero-meta-value {
-        font-size: 14px;
-        font-weight: 600;
-        color: #1e293b;
       }
 
       /* Checklist — NextStep-style vertical timeline */

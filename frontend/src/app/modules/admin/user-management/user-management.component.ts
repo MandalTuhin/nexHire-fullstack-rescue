@@ -68,28 +68,9 @@ type UserRow = AdminUser;
       </ng-template>
 
       <ng-template #roleCell let-row>
-        <button
-          mat-button
-          [matMenuTriggerFor]="roleMenu"
-          [ngClass]="getRoleClass(row.role)"
-          class="role-btn"
-        >
-          {{ row.role }} <mat-icon>arrow_drop_down</mat-icon>
-        </button>
-        <mat-menu #roleMenu="matMenu">
-          <button mat-menu-item (click)="changeRole(row, 'EMPLOYEE')">
-            Employee
-          </button>
-          <button mat-menu-item (click)="changeRole(row, 'HR')">
-            HR
-          </button>
-          <button mat-menu-item (click)="changeRole(row, 'RMG')">
-            RMG
-          </button>
-          <button mat-menu-item (click)="changeRole(row, 'ADMIN')">
-            Admin
-          </button>
-        </mat-menu>
+        <span [ngClass]="getRoleClass(row.role)" class="role-badge">
+          {{ row.role }}
+        </span>
       </ng-template>
 
       <ng-template #statusCell let-row>
@@ -172,12 +153,15 @@ type UserRow = AdminUser;
         background: #fee2e2;
         color: #dc2626;
       }
-      .role-btn {
-        border-radius: 20px !important;
-        font-size: 12px !important;
-        height: 32px !important;
-        line-height: 32px !important;
-        padding: 0 8px 0 16px !important;
+      .role-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        height: 24px;
+        line-height: 24px;
+        padding: 0 14px;
       }
       .role-admin {
         background-color: #f3e8ff !important;
@@ -291,17 +275,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit {
       default:
         return 'role-candidate';
     }
-  }
-
-  changeRole(user: AdminUser, newRole: string): void {
-    if (user.role === newRole) return;
-    this.adminUserService.updateRole(user.id, newRole).subscribe({
-      next: (updated) => {
-        user.role = updated.role;
-        this.toast.success(`Role updated to ${updated.role}`);
-      },
-      error: () => {},
-    });
   }
 
   deactivate(user: AdminUser): void {

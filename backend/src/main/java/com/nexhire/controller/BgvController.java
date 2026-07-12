@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bgv")
@@ -31,11 +30,8 @@ public class BgvController {
     /** HR manual fallback — the normal flow auto-initiates on offer acceptance. */
     @PostMapping("/{applicationId}")
     @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<BgvResponse> initiate(
-            @PathVariable Long applicationId,
-            @RequestBody(required = false) Map<String, String> body) {
-        String vendor = body != null ? body.get("vendorName") : null;
-        return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.initiate(applicationId, vendor));
+    public ResponseEntity<BgvResponse> initiate(@PathVariable Long applicationId) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.initiate(applicationId));
     }
 
     /** HR: paginated/searchable BGC case list (avoids loading every case at once). */
@@ -62,7 +58,7 @@ public class BgvController {
         return ResponseEntity.ok(bgvService.getByApplication(applicationId));
     }
 
-    /** BGC Detail page: candidate/application/offer info + status + documents + vendor + audit history. */
+    /** BGC Detail page: candidate/application/offer info + status + documents + audit history. */
     @GetMapping("/{id}/detail")
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<BgcCaseDetailResponse> getDetail(@PathVariable Long id) {
@@ -130,24 +126,6 @@ public class BgvController {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.inline().filename(data.fileName()).build().toString())
                 .body(new ByteArrayResource(data.data()));
-    }
-
-    // ─── Vendor requests ────────────────────────────────────────────────────────
-
-    @PostMapping("/{bgcCaseId}/vendor-request")
-    @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<BgcVendorRequestResponse> sendToVendor(
-            @PathVariable Long bgcCaseId,
-            @RequestBody BgcVendorRequestCreate request,
-            Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
-        return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.sendToVendor(bgcCaseId, request, userId));
-    }
-
-    @GetMapping("/{bgcCaseId}/vendor-requests")
-    @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<List<BgcVendorRequestResponse>> getVendorRequests(@PathVariable Long bgcCaseId) {
-        return ResponseEntity.ok(bgvService.getVendorRequests(bgcCaseId));
     }
 
     // ─── Bulk Excel workflow (BGC results) ───────────────────────────────────────

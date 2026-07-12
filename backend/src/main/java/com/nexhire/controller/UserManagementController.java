@@ -2,7 +2,6 @@ package com.nexhire.controller;
 
 import com.nexhire.dto.CreateUserRequest;
 import com.nexhire.dto.PageResponse;
-import com.nexhire.dto.RoleUpdateRequest;
 import com.nexhire.dto.UserResponse;
 import com.nexhire.service.UserManagementService;
 import jakarta.validation.Valid;
@@ -37,15 +36,6 @@ public class UserManagementController {
             @Valid @RequestBody CreateUserRequest request, Authentication authentication) {
         Long adminId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED).body(userManagementService.createUser(request, adminId));
-    }
-
-    @PutMapping("/{id}/role")
-    public ResponseEntity<UserResponse> updateRole(
-            @PathVariable Long id,
-            @Valid @RequestBody RoleUpdateRequest request,
-            Authentication authentication) {
-        Long adminId = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(userManagementService.updateRole(id, request, adminId));
     }
 
     @PutMapping("/{id}/deactivate")

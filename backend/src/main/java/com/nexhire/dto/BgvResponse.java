@@ -20,7 +20,6 @@ public class BgvResponse {
     private String candidateEmail;
     private String jobTitle;
     private String status;
-    private String vendorName;
     private String remarks;
     private LocalDateTime initiatedAt;
     private LocalDateTime completedAt;

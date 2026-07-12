@@ -2,7 +2,6 @@ package com.nexhire.service;
 
 import com.nexhire.dto.CreateUserRequest;
 import com.nexhire.dto.PageResponse;
-import com.nexhire.dto.RoleUpdateRequest;
 import com.nexhire.dto.UserResponse;
 import com.nexhire.entity.ActivityLog;
 import com.nexhire.entity.User;
@@ -83,34 +82,6 @@ public class UserManagementService {
                 .user(admin != null ? admin : user)
                 .actionType("USER_CREATED")
                 .description("Created " + role + " user " + user.getEmail())
-                .timestamp(LocalDateTime.now())
-                .build());
-
-        return toResponse(user);
-    }
-
-    /** ADMIN: update a user's role and log the change. */
-    @Transactional
-    public UserResponse updateRole(Long userId, RoleUpdateRequest request, Long adminId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        UserRole newRole;
-        try {
-            newRole = UserRole.valueOf(request.getRole());
-        } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException("Invalid role: " + request.getRole());
-        }
-
-        UserRole oldRole = user.getRole();
-        user.setRole(newRole);
-        userRepository.save(user);
-
-        User admin = userRepository.findById(adminId).orElse(null);
-        activityLogRepository.save(ActivityLog.builder()
-                .user(admin != null ? admin : user)
-                .actionType("ROLE_CHANGE")
-                .description("Role for " + user.getEmail() + " changed from " + oldRole + " to " + newRole)
                 .timestamp(LocalDateTime.now())
                 .build());
 

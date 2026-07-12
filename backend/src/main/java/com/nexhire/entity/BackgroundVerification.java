@@ -9,8 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * Background Verification record. Conducted by a third-party vendor;
- * HR/system records the status which is surfaced against the application.
+ * Background Verification record. Conducted directly by HR — status is surfaced against
+ * the application.
  */
 @Entity
 @Table(name = "background_verifications")
@@ -33,8 +33,6 @@ public class BackgroundVerification {
     @Column(nullable = false)
     @Builder.Default
     private BgvStatus status = BgvStatus.NOT_INITIATED;
-
-    private String vendorName;
 
     private String remarks;
 

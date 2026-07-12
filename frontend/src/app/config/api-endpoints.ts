@@ -21,7 +21,6 @@ export const API_ENDPOINTS = {
   USERS: {
     BASE: `${BASE}/api/users`,
     BY_ID: (id: number) => `${BASE}/api/users/${id}`,
-    UPDATE_ROLE: (id: number) => `${BASE}/api/users/${id}/role`,
     DEACTIVATE: (id: number) => `${BASE}/api/users/${id}/deactivate`,
     REACTIVATE: (id: number) => `${BASE}/api/users/${id}/reactivate`,
   },
@@ -153,8 +152,6 @@ export const API_ENDPOINTS = {
       `${BASE}/api/bgv/documents/${documentId}/review`,
     DOWNLOAD_DOCUMENT: (documentId: number) =>
       `${BASE}/api/bgv/documents/${documentId}/download`,
-    SEND_TO_VENDOR: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/vendor-request`,
-    VENDOR_REQUESTS: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/vendor-requests`,
     EXCEL_TEMPLATE: `${BASE}/api/bgv/excel/template`,
     EXCEL_VALIDATE: `${BASE}/api/bgv/excel/validate`,
     EXCEL_COMMIT: `${BASE}/api/bgv/excel/commit`,

@@ -16,6 +16,4 @@ public class BgvUpdateRequest {
     private String status;
 
     private String remarks;
-
-    private String vendorName;
 }

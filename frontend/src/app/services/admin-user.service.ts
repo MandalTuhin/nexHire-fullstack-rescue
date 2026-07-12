@@ -59,12 +59,6 @@ export class AdminUserService extends BaseService {
     return this.http.post<AdminUser>(API_ENDPOINTS.USERS.BASE, request);
   }
 
-  updateRole(id: number, role: string): Observable<AdminUser> {
-    return this.http.put<AdminUser>(API_ENDPOINTS.USERS.UPDATE_ROLE(id), {
-      role,
-    });
-  }
-
   deactivate(id: number): Observable<AdminUser> {
     return this.http.put<AdminUser>(API_ENDPOINTS.USERS.DEACTIVATE(id), {});
   }

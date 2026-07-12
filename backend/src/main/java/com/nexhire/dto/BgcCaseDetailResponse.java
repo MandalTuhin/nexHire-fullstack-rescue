@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Composite view for the BGC case detail screen — per context.md's "BGC Detail page should
  *  show: candidate details, application details, offer acceptance details, BGC status,
- *  uploaded documents, vendor request history, BGC result history, audit history." */
+ *  uploaded documents, BGC result history, audit history." */
 @Data
 @Builder
 @NoArgsConstructor
@@ -25,7 +25,6 @@ public class BgcCaseDetailResponse {
     private String candidatePhone;
     private String jobTitle;
     private String status;
-    private String vendorName;
     private String remarks;
     private LocalDateTime initiatedAt;
     private LocalDateTime completedAt;
@@ -33,6 +32,5 @@ public class BgcCaseDetailResponse {
     private LocalDateTime offerAcceptedAt;
 
     private List<BgcDocumentResponse> documents;
-    private List<BgcVendorRequestResponse> vendorRequests;
     private List<ActivityLogResponse> auditHistory;
 }

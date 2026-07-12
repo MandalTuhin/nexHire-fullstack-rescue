@@ -22,7 +22,6 @@ export interface BackgroundVerification {
   candidateEmail?: string;
   jobTitle?: string;
   status: BgvStatus;
-  vendorName?: string;
   remarks?: string;
   initiatedDate?: string;
   completedDate?: string;
@@ -32,7 +31,6 @@ export interface BackgroundVerification {
 export interface UpdateBgvStatusRequest {
   status: BgvStatus;
   remarks?: string;
-  vendorName?: string;
 }
 
 export interface BgcDocument {
@@ -52,25 +50,6 @@ export interface BgcDocumentReviewRequest {
   remarks?: string;
 }
 
-export interface BgcVendorRequest {
-  id: number;
-  bgcCaseId: number;
-  vendorName?: string;
-  vendorLink?: string;
-  requestReference?: string;
-  sentByName?: string;
-  sentAt: string;
-  status: string;
-  remarks?: string;
-}
-
-export interface BgcVendorRequestCreate {
-  vendorName?: string;
-  vendorLink?: string;
-  requestReference?: string;
-  remarks?: string;
-}
-
 export interface BgcCaseDetail {
   bgcCaseId: number;
   applicationId: number;
@@ -80,13 +59,11 @@ export interface BgcCaseDetail {
   candidatePhone?: string;
   jobTitle: string;
   status: BgvStatus;
-  vendorName?: string;
   remarks?: string;
   initiatedAt?: string;
   completedAt?: string;
   offerAcceptedAt?: string;
   documents: BgcDocument[];
-  vendorRequests: BgcVendorRequest[];
   auditHistory: {
     id: number;
     userId?: number;

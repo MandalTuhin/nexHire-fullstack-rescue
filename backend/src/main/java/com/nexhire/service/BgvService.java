@@ -6,7 +6,6 @@ import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.BgcDocumentStatus;
 import com.nexhire.enums.BgvStatus;
 import com.nexhire.enums.FileCategory;
-import com.nexhire.enums.VendorRequestStatus;
 import com.nexhire.exception.BusinessRuleException;
 import com.nexhire.exception.DuplicateResourceException;
 import com.nexhire.exception.InvalidStateTransitionException;
@@ -30,8 +29,6 @@ public class BgvService {
     private final JobApplicationRepository applicationRepository;
     private final OfferLetterRepository offerLetterRepository;
     private final BgcDocumentRepository documentRepository;
-    private final BgcVendorRequestRepository vendorRequestRepository;
-    private final UserRepository userRepository;
     private final StoredFileRepository storedFileRepository;
     private final FileStorageService fileStorageService;
     private final EmployeeSelectionService employeeSelectionService;
@@ -54,7 +51,7 @@ public class BgvService {
 
     /** HR manual fallback path (edge cases outside the normal offer-accept flow). */
     @Transactional
-    public BgvResponse initiate(Long applicationId, String vendorName) {
+    public BgvResponse initiate(Long applicationId) {
         JobApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
@@ -65,7 +62,6 @@ public class BgvService {
         BackgroundVerification bgv = BackgroundVerification.builder()
                 .application(application)
                 .status(BgvStatus.INITIATED)
-                .vendorName(vendorName)
                 .build();
         bgv = bgvRepository.save(bgv);
 
@@ -120,15 +116,12 @@ public class BgvService {
                 .candidatePhone(app.getUser().getPhone())
                 .jobTitle(app.getJob().getTitle())
                 .status(bgv.getStatus().name())
-                .vendorName(bgv.getVendorName())
                 .remarks(bgv.getRemarks())
                 .initiatedAt(bgv.getInitiatedAt())
                 .completedAt(bgv.getCompletedAt())
                 .offerAcceptedAt(offerAcceptedAt)
                 .documents(documentRepository.findByBgcCaseIdOrderByUploadedAtDesc(bgv.getId()).stream()
                         .map(this::toDocResponse).toList())
-                .vendorRequests(vendorRequestRepository.findByBgcCaseIdOrderBySentAtDesc(bgv.getId()).stream()
-                        .map(this::toVendorResponse).toList())
                 .auditHistory(activityLogService.getLogsForEntity("APPLICATION", app.getId()))
                 .build();
     }
@@ -146,9 +139,6 @@ public class BgvService {
         }
 
         applyStatus(bgv, newStatus, request.getRemarks(), actingUserId);
-        if (request.getVendorName() != null) {
-            bgv.setVendorName(request.getVendorName());
-        }
         bgvRepository.save(bgv);
 
         return toResponse(bgv);
@@ -274,46 +264,6 @@ public class BgvService {
         return fileStorageService.retrieve(doc.getStoredFile().getId());
     }
 
-    // ─── Vendor requests ────────────────────────────────────────────────────────
-
-    @Transactional
-    public BgcVendorRequestResponse sendToVendor(Long bgcCaseId, BgcVendorRequestCreate request, Long sentByUserId) {
-        BackgroundVerification bgv = bgvRepository.findById(bgcCaseId)
-                .orElseThrow(() -> new ResourceNotFoundException("BGC case not found with id: " + bgcCaseId));
-
-        if (bgv.getStatus() != BgvStatus.DOCUMENTS_SUBMITTED && bgv.getStatus() != BgvStatus.RECHECK_REQUIRED) {
-            throw new InvalidStateTransitionException(
-                    "Documents must be submitted before sending to a vendor (status: " + bgv.getStatus() + ")");
-        }
-
-        User sentBy = userRepository.findById(sentByUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        BgcVendorRequest vendorRequest = vendorRequestRepository.save(BgcVendorRequest.builder()
-                .bgcCase(bgv)
-                .vendorName(request.getVendorName())
-                .vendorLink(request.getVendorLink())
-                .requestReference(request.getRequestReference())
-                .remarks(request.getRemarks())
-                .sentBy(sentBy)
-                .status(VendorRequestStatus.SENT)
-                .build());
-
-        bgv.setVendorName(request.getVendorName());
-        applyStatus(bgv, BgvStatus.VERIFICATION_IN_PROGRESS, null, sentByUserId);
-        bgvRepository.save(bgv);
-
-        auditLogService.log(sentByUserId, "BGC_VENDOR_REQUEST_SENT", "APPLICATION", bgv.getApplication().getId(),
-                "Sent to vendor: " + request.getVendorName());
-
-        return toVendorResponse(vendorRequest);
-    }
-
-    public List<BgcVendorRequestResponse> getVendorRequests(Long bgcCaseId) {
-        return vendorRequestRepository.findByBgcCaseIdOrderBySentAtDesc(bgcCaseId).stream()
-                .map(this::toVendorResponse).toList();
-    }
-
     // ─── Mapping ──────────────────────────────────────────────────────────────
 
     private BackgroundVerification findCase(Long applicationId) {
@@ -331,7 +281,6 @@ public class BgvService {
                 .candidateEmail(app.getUser().getEmail())
                 .jobTitle(app.getJob().getTitle())
                 .status(bgv.getStatus().name())
-                .vendorName(bgv.getVendorName())
                 .remarks(bgv.getRemarks())
                 .initiatedAt(bgv.getInitiatedAt())
                 .completedAt(bgv.getCompletedAt())
@@ -353,17 +302,4 @@ public class BgvService {
                 .build();
     }
 
-    private BgcVendorRequestResponse toVendorResponse(BgcVendorRequest vr) {
-        return BgcVendorRequestResponse.builder()
-                .id(vr.getId())
-                .bgcCaseId(vr.getBgcCase().getId())
-                .vendorName(vr.getVendorName())
-                .vendorLink(vr.getVendorLink())
-                .requestReference(vr.getRequestReference())
-                .sentByName(vr.getSentBy().getName())
-                .sentAt(vr.getSentAt())
-                .status(vr.getStatus().name())
-                .remarks(vr.getRemarks())
-                .build();
-    }
 }

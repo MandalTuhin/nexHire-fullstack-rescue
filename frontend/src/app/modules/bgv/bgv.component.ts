@@ -24,7 +24,7 @@ export class BgvManagementComponent implements OnInit {
   totalRecords = 0;
   page = 0;
   size = 20;
-  displayedColumns = ['candidate', 'jobTitle', 'status', 'vendor', 'actions'];
+  displayedColumns = ['candidate', 'jobTitle', 'status', 'actions'];
   loading = false;
 
   search = '';
@@ -34,13 +34,6 @@ export class BgvManagementComponent implements OnInit {
   selectedCase: BackgroundVerification | null = null;
   detail: BgcCaseDetail | null = null;
   loadingDetail = false;
-
-  // Vendor request form (shown inline in the detail panel)
-  showVendorForm = false;
-  vendorName = '';
-  vendorLink = '';
-  vendorReference = '';
-  vendorRemarks = '';
 
   // Document review modal
   reviewDoc: { id: number; documentType: string } | null = null;
@@ -95,7 +88,6 @@ export class BgvManagementComponent implements OnInit {
 
   openCase(c: BackgroundVerification): void {
     this.selectedCase = c;
-    this.showVendorForm = false;
     this.loadingDetail = true;
     this.bgvService.getDetail(c.bgvId).subscribe({
       next: (d) => {
@@ -116,12 +108,14 @@ export class BgvManagementComponent implements OnInit {
   quickTransition(c: BackgroundVerification, status: BgvStatus): void {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
-        title: 'Confirm BGC Result',
+        title: 'Confirm BGC Status Change',
         message:
           status === 'CLEARED'
             ? 'Clearing this case immediately creates the employee record and selected-user entry. Continue?'
-            : 'Mark this candidate as failed background verification?',
-        type: status === 'CLEARED' ? 'info' : 'danger',
+            : status === 'FAILED'
+              ? 'Mark this candidate as failed background verification?'
+              : 'Move this case to Verification In Progress?',
+        type: status === 'CLEARED' || status === 'VERIFICATION_IN_PROGRESS' ? 'info' : 'danger',
       },
     });
     dialogRef.afterClosed().subscribe((confirm) => {
@@ -163,32 +157,6 @@ export class BgvManagementComponent implements OnInit {
       next: (blob) => window.open(window.URL.createObjectURL(blob), '_blank'),
       error: () => {},
     });
-  }
-
-  // ─── Vendor requests ────────────────────────────────────────────────────────
-
-  submitVendorRequest(): void {
-    if (!this.selectedCase) return;
-    this.bgvService
-      .sendToVendor(this.selectedCase.bgvId, {
-        vendorName: this.vendorName,
-        vendorLink: this.vendorLink,
-        requestReference: this.vendorReference,
-        remarks: this.vendorRemarks,
-      })
-      .subscribe({
-        next: () => {
-          this.toastService.success('Sent to vendor — case moved to Verification In Progress.');
-          this.showVendorForm = false;
-          this.vendorName = '';
-          this.vendorLink = '';
-          this.vendorReference = '';
-          this.vendorRemarks = '';
-          if (this.selectedCase) this.openCase(this.selectedCase);
-          this.loadCases();
-        },
-        error: () => {},
-      });
   }
 
   // ─── Excel bulk upload ────────────────────────────────────────────────────
