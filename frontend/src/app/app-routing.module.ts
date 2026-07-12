@@ -5,6 +5,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
 import { CandidateLayoutComponent } from './layouts/candidate-layout/candidate-layout.component';
 import { HrLayoutComponent } from './layouts/hr-layout/hr-layout.component';
+import { RmgLayoutComponent } from './layouts/rmg-layout/rmg-layout.component';
 import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.component';
 
 // ─── Guards ──────────────────────────────────────────────────────────────────
@@ -33,10 +34,12 @@ import { AssessmentsManagementComponent } from './modules/assessments/assessment
 import { OfferLettersManagementComponent } from './modules/offer-letters/offer-letters.component';
 import { BgvManagementComponent } from './modules/bgv/bgv.component';
 import { JoiningBatchesComponent } from './modules/joining-batches/joining-batches.component';
-import { TraineesManagementComponent } from './modules/trainees/trainees.component';
 import { AssetsManagementComponent } from './modules/assets/assets.component';
 import { ProjectsComponent } from './modules/projects/projects.component';
 import { BudgetOverviewComponent } from './modules/budget-overview/budget-overview.component';
+
+// ─── RMG Portal Pages ────────────────────────────────────────────────────────
+import { RmgDashboardComponent } from './modules/rmg/dashboard/rmg-dashboard.component';
 import { ReleasedCandidatesComponent } from './modules/released/released.component';
 
 // ─── Admin Portal Pages ──────────────────────────────────────────────────────
@@ -44,9 +47,9 @@ import { AdminDashboardComponent } from './modules/admin/admin-dashboard/admin-d
 import { UserManagementComponent } from './modules/admin/user-management/user-management.component';
 import { ActivityLogsComponent } from './modules/admin/activity-logs/activity-logs.component';
 import { CitiesComponent } from './modules/admin/locations/cities/cities.component';
-import { BranchesComponent } from './modules/admin/locations/branches/branches.component';
 import { BlocksComponent } from './modules/admin/locations/blocks/blocks.component';
 import { BudgetsComponent } from './modules/admin/budgets/budgets.component';
+import { TrainingProgramsComponent } from './modules/admin/training-programs/training-programs.component';
 import { SystemSettingsComponent } from './modules/admin/system-settings/system-settings.component';
 
 // ─── Error Pages ─────────────────────────────────────────────────────────────
@@ -98,7 +101,7 @@ const routes: Routes = [
     path: 'hr',
     component: HrLayoutComponent,
     canActivate: [AuthGuard, RoleGuard],
-    data: { roles: ['HR', 'TRAINING_MANAGER', 'RMG'] },
+    data: { roles: ['HR', 'TRAINING_MANAGER'] },
     children: [
       { path: '', component: HrDashboardComponent, pathMatch: 'full' },
       { path: 'profile', component: CandidateProfileComponent },
@@ -137,19 +140,26 @@ const routes: Routes = [
         data: { permissions: ['VIEW_JOINING_BATCHES'] },
       },
       {
-        path: 'trainees',
-        component: TraineesManagementComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['VIEW_TRAINEES'] },
-      },
-      {
         path: 'budget',
         component: BudgetOverviewComponent,
         canActivate: [PermissionGuard],
         data: { permissions: ['VIEW_LOCATIONS'] },
       },
+    ],
+  },
+
+  // ─── RMG Portal (/rmg/**) ─────────────────────────────────────────────────
+  {
+    path: 'rmg',
+    component: RmgLayoutComponent,
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['RMG'] },
+    children: [
+      { path: '', component: RmgDashboardComponent, pathMatch: 'full' },
+      { path: 'profile', component: CandidateProfileComponent },
+      { path: 'change-password', component: ChangePasswordComponent },
       {
-        path: 'released',
+        path: 'allocation',
         component: ReleasedCandidatesComponent,
         canActivate: [PermissionGuard],
         data: { permissions: ['ALLOCATE_PROJECT'] },
@@ -198,12 +208,6 @@ const routes: Routes = [
         data: { permissions: ['MANAGE_PERMISSIONS'] },
       },
       {
-        path: 'branches',
-        component: BranchesComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['MANAGE_PERMISSIONS'] },
-      },
-      {
         path: 'blocks',
         component: BlocksComponent,
         canActivate: [PermissionGuard],
@@ -212,6 +216,12 @@ const routes: Routes = [
       {
         path: 'budgets',
         component: BudgetsComponent,
+        canActivate: [PermissionGuard],
+        data: { permissions: ['MANAGE_PERMISSIONS'] },
+      },
+      {
+        path: 'training-programs',
+        component: TrainingProgramsComponent,
         canActivate: [PermissionGuard],
         data: { permissions: ['MANAGE_PERMISSIONS'] },
       },

@@ -40,12 +40,12 @@ class JoiningLetterServiceTest {
 
     private JobApplication application;
     private User candidate;
-    private Location location;
+    private City location;
     private JoiningLetter letter;
 
     @BeforeEach
     void setUp() {
-        location = Location.builder().id(1L).name("Bangalore").city("Bangalore").build();
+        location = City.builder().id(1L).name("Bangalore").build();
         candidate = User.builder().id(1L).name("John").email("john@test.com")
                 .role(UserRole.EMPLOYEE).lifecycleStatus(LifecycleStatus.CANDIDATE).active(true).build();
         Job job = Job.builder().id(1L).title("Java Dev").description("Desc").location(location).build();

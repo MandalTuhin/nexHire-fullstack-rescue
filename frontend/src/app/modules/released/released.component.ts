@@ -5,14 +5,17 @@ import {
 } from '../../services/project-rmg.service';
 import { TraineeRecord } from '../../services/trainee-progress.service';
 import { ToastService } from '../../shared/services/toast.service';
+import { BulkAction } from '../../shared/components/bulk-action-bar/bulk-action-bar.component';
 
+/** RMG Project Allocation — search/filter/multi-select/bulk allocation (P-Claude.md section 8),
+ *  with per-vacancy validation enforced server-side. */
 @Component({
   selector: 'app-released-candidates',
   template: `
     <div class="released-candidates">
       <app-page-header
-        title="Project Allocation (RMG)"
-        subtitle="Create projects and assign training-completed trainees"
+        title="Project Allocation"
+        subtitle="Assign training-completed trainees to projects. Projects are created by Admin."
       ></app-page-header>
 
       <div class="allocation-grid">
@@ -20,19 +23,49 @@ import { ToastService } from '../../shared/services/toast.service';
         <mat-card class="column-card">
           <mat-card-header>
             <mat-card-title
-              >Eligible Trainees (Training Completed)</mat-card-title
+              >Released Candidates Waiting ({{ filteredEligible.length }})</mat-card-title
             >
           </mat-card-header>
           <mat-card-content>
+            <div class="filter-row">
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Search candidate</mat-label>
+                <input matInput [(ngModel)]="search" (ngModelChange)="applyFilter()" placeholder="Name or email" />
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="proj-select">
+                <mat-label>Bulk target project</mat-label>
+                <mat-select [(ngModel)]="bulkTargetProjectId">
+                  <mat-option *ngFor="let p of projects" [value]="p.id">{{ p.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <app-bulk-action-bar
+              [selectedCount]="selected.size"
+              [actions]="bulkActions"
+              (actionClicked)="onBulkAction($event)"
+              (selectionCleared)="selected.clear()"
+            ></app-bulk-action-bar>
+
             <app-empty-state
-              *ngIf="eligible.length === 0"
+              *ngIf="filteredEligible.length === 0"
               icon="people"
               title="No eligible trainees"
               subtitle="Trainees must complete training to be eligible for allocation."
             ></app-empty-state>
 
-            <div class="table-container" *ngIf="eligible.length > 0">
-              <table mat-table [dataSource]="eligible">
+            <div class="table-container" *ngIf="filteredEligible.length > 0">
+              <table mat-table [dataSource]="filteredEligible">
+                <ng-container matColumnDef="select">
+                  <th mat-header-cell *matHeaderCellDef></th>
+                  <td mat-cell *matCellDef="let t">
+                    <mat-checkbox
+                      [checked]="selected.has(t.traineeId)"
+                      (change)="toggle(t.traineeId)"
+                    ></mat-checkbox>
+                  </td>
+                </ng-container>
                 <ng-container matColumnDef="candidate">
                   <th mat-header-cell *matHeaderCellDef>Candidate</th>
                   <td mat-cell *matCellDef="let t">
@@ -95,9 +128,9 @@ import { ToastService } from '../../shared/services/toast.service';
               <div class="proj-item" *ngFor="let p of projects">
                 <div>
                   <span class="pname">{{ p.name }}</span>
-                  <span class="pdesc">{{ p.description }}</span>
+                  <span class="pdesc">{{ p.client }} · {{ p.technology }}</span>
                 </div>
-                <span class="team">Team: {{ p.teamSize }}</span>
+                <span class="team">{{ p.remainingVacancies }} of {{ p.totalVacancies }} open</span>
               </div>
             </div>
           </mat-card-content>
@@ -128,6 +161,16 @@ import { ToastService } from '../../shared/services/toast.service';
         padding: 16px;
         height: fit-content;
       }
+      .filter-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
+      }
+      .search-field {
+        flex: 1;
+        min-width: 200px;
+      }
       table {
         width: 100%;
       }
@@ -144,20 +187,11 @@ import { ToastService } from '../../shared/services/toast.service';
         color: #64748b;
       }
       .proj-select {
-        width: 160px;
+        width: 180px;
         margin-right: 8px;
       }
       .row-btn {
         height: 40px;
-      }
-      .create-project {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 20px;
-      }
-      .full-width {
-        width: 100%;
       }
       .proj-list {
         display: flex;
@@ -193,9 +227,18 @@ import { ToastService } from '../../shared/services/toast.service';
 })
 export class ReleasedCandidatesComponent implements OnInit {
   eligible: TraineeRecord[] = [];
+  filteredEligible: TraineeRecord[] = [];
   projects: RmgProject[] = [];
-  candidateColumns = ['candidate', 'job', 'actions'];
+  candidateColumns = ['select', 'candidate', 'job', 'actions'];
   selectedProject: Record<number, number> = {};
+
+  search = '';
+  selected = new Set<number>();
+  bulkTargetProjectId: number | null = null;
+
+  readonly bulkActions: BulkAction[] = [
+    { id: 'bulk-assign', label: 'Assign Selected to Project', icon: 'business_center', color: 'primary' },
+  ];
 
   constructor(
     private rmg: ProjectRmgService,
@@ -207,13 +250,40 @@ export class ReleasedCandidatesComponent implements OnInit {
   }
 
   load(): void {
-    // RMG allocates to active projects only (projects are created/managed by Admin).
+    // RMG allocates to ACTIVE projects only (FILLED/INACTIVE have no open vacancies or are
+    // disabled by Admin; projects themselves are created/managed by Admin).
     this.rmg
       .getProjects()
       .subscribe(
-        (list) => (this.projects = (list || []).filter((p) => p.active)),
+        (list) => (this.projects = (list || []).filter((p) => p.status === 'ACTIVE')),
       );
-    this.rmg.getEligibleTrainees().subscribe((list) => (this.eligible = list));
+    this.rmg.getEligibleTrainees().subscribe((list) => {
+      this.eligible = list;
+      this.applyFilter();
+    });
+  }
+
+  applyFilter(): void {
+    const s = this.search.trim().toLowerCase();
+    this.filteredEligible = !s
+      ? this.eligible
+      : this.eligible.filter(
+          (t) =>
+            (t.candidateName || '').toLowerCase().includes(s) ||
+            (t.candidateEmail || '').toLowerCase().includes(s),
+        );
+    const visibleIds = new Set(this.filteredEligible.map((t) => t.traineeId));
+    for (const id of Array.from(this.selected)) {
+      if (!visibleIds.has(id)) this.selected.delete(id);
+    }
+  }
+
+  toggle(traineeId: number): void {
+    if (this.selected.has(traineeId)) {
+      this.selected.delete(traineeId);
+    } else {
+      this.selected.add(traineeId);
+    }
   }
 
   assign(t: TraineeRecord): void {
@@ -225,6 +295,32 @@ export class ReleasedCandidatesComponent implements OnInit {
         this.load();
       },
       error: (e) => this.toast.error(e.error?.message || 'Failed to assign'),
+    });
+  }
+
+  onBulkAction(actionId: string): void {
+    if (actionId === 'bulk-assign') {
+      this.bulkAssign();
+    }
+  }
+
+  bulkAssign(): void {
+    if (!this.bulkTargetProjectId) {
+      this.toast.error('Choose a target project for the bulk assignment first.');
+      return;
+    }
+    const traineeIds = Array.from(this.selected);
+    this.rmg.bulkAssign(this.bulkTargetProjectId, traineeIds).subscribe({
+      next: (result) => {
+        this.selected.clear();
+        this.load();
+        if (result.failureCount === 0) {
+          this.toast.success(`${result.successCount} candidate(s) assigned successfully.`);
+        } else {
+          this.toast.warning(`${result.successCount} assigned, ${result.failureCount} failed.`);
+        }
+      },
+      error: (e) => this.toast.error(e.error?.message || 'Bulk assignment failed'),
     });
   }
 }

@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -79,6 +80,19 @@ public class GlobalExceptionHandler {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
         return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    /** Method-level @PreAuthorize denials (e.g. an authenticated non-ADMIN hitting an
+     *  ADMIN-only action on a path with no matching SecurityConfig filter rule) throw this
+     *  from deep inside the controller invocation, where it's resolved here rather than by
+     *  CustomAccessDeniedHandler (which only sees denials from the filter-chain-level checks
+     *  in SecurityConfig). Without this handler it falls through to handleGeneral() below as a
+     *  misleading 500 instead of a 403. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.FORBIDDEN,
+                "Forbidden: You do not have permission to access this resource", request);
     }
 
     @ExceptionHandler(Exception.class)

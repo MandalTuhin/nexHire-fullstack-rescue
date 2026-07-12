@@ -39,18 +39,21 @@ public class JoiningBatchService {
     private final EmployeeRepository employeeRepository;
     private final AssessmentResultRepository assessmentResultRepository;
     private final CandidateLocationPreferenceRepository locationPreferenceRepository;
-    private final LocationRepository locationRepository;
+    private final CityRepository locationRepository;
     private final UserRepository userRepository;
     private final StoredFileRepository storedFileRepository;
     private final FileStorageService fileStorageService;
     private final PdfGenerationService pdfGenerationService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final TrainingProgramRepository trainingProgramRepository;
+    private final BudgetService budgetService;
+    private final BlockService blockService;
 
     @Transactional(readOnly = true)
     public List<EligibleJoiningCandidateResponse> getEligibleCandidates(Long joiningLocationId) {
-        Location location = locationRepository.findById(joiningLocationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Location not found with id: " + joiningLocationId));
+        City location = locationRepository.findById(joiningLocationId)
+                .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + joiningLocationId));
 
         List<EligibleJoiningCandidateResponse> result = new ArrayList<>();
         for (JobApplication app : applicationRepository.findByStatus(ApplicationStatus.SELECTED_USER_CREATED)) {
@@ -90,12 +93,28 @@ public class JoiningBatchService {
                     + ". Please select only " + request.getBatchSize() + " candidates or create multiple batches.");
         }
 
-        Location joiningLocation = locationRepository.findById(request.getJoiningLocationId())
+        City joiningLocation = locationRepository.findById(request.getJoiningLocationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Joining location not found"));
-        Location trainingLocation = locationRepository.findById(request.getTrainingLocationId())
+        City trainingLocation = locationRepository.findById(request.getTrainingLocationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Training location not found"));
         User createdBy = userRepository.findById(actingUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        TrainingProgram assignedTraining = null;
+        if (request.getTrainingProgramId() != null) {
+            assignedTraining = trainingProgramRepository.findById(request.getTrainingProgramId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Training program not found with id: " + request.getTrainingProgramId()));
+        }
+
+        // trainingProgram (free text) predates the real catalog and the column is still
+        // NOT NULL — derive it from the resolved program if the caller only sent an id.
+        String trainingProgramText = request.getTrainingProgram();
+        if ((trainingProgramText == null || trainingProgramText.isBlank()) && assignedTraining != null) {
+            trainingProgramText = assignedTraining.getName();
+        }
+        if (trainingProgramText == null || trainingProgramText.isBlank()) {
+            throw new BusinessRuleException("A training program (or trainingProgramId) is required");
+        }
 
         JoiningBatch batch = JoiningBatch.builder()
                 .batchCode("PENDING")
@@ -104,7 +123,8 @@ public class JoiningBatchService {
                 .joiningDate(request.getJoiningDate())
                 .joiningLocation(joiningLocation)
                 .trainingLocation(trainingLocation)
-                .trainingProgram(request.getTrainingProgram())
+                .trainingProgram(trainingProgramText)
+                .assignedTraining(assignedTraining)
                 .block(request.getBlock())
                 .trainingStartDate(request.getTrainingStartDate())
                 .trainingEndDate(request.getTrainingEndDate())
@@ -114,6 +134,15 @@ public class JoiningBatchService {
         batch = joiningBatchRepository.save(batch);
         batch.setBatchCode(generateBatchCode(batch.getId(), request.getJoiningDate()));
         batch = joiningBatchRepository.save(batch);
+
+        // P-Claude.md section 4: a Block runs one active batch at a time — book it the moment
+        // the wizard assigns it, not just at Training Assignment, so the room is exclusive for
+        // this batch's whole occupancy (see class javadoc on JoiningBatch).
+        if (request.getTrainingBlockId() != null) {
+            Block bookedBlock = blockService.bookBlock(request.getTrainingBlockId(), batch, request.getBatchSize());
+            batch.setTrainingBlock(bookedBlock);
+            batch = joiningBatchRepository.save(batch);
+        }
 
         addMembers(batch, request.getApplicationIds());
 
@@ -245,6 +274,15 @@ public class JoiningBatchService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<JoiningBatchMember> members = joiningBatchMemberRepository.findByBatchIdOrderByLocationPreferenceRankAsc(batchId);
 
+        // P-Claude.md section 5: reserve the projected training cost before letters go out,
+        // blocking the send if the training city can't afford it. Only engages once a real
+        // TrainingProgram is known for this batch (see JoiningBatchCreateRequest.trainingProgramId) —
+        // if not, this is a no-op and behaves exactly as before.
+        if (batch.getAssignedTraining() != null && batch.getReservedBudgetAmount() == null) {
+            long projectedCost = batch.getAssignedTraining().getCostPerCandidate() * batch.getBatchSize();
+            budgetService.reserve(batch.getTrainingLocation(), projectedCost, batch, actingUserId);
+        }
+
         for (JoiningBatchMember member : members) {
             JobApplication app = member.getApplication();
             JoiningLetter letter = joiningLetterRepository.findByApplicationId(app.getId())
@@ -288,6 +326,37 @@ public class JoiningBatchService {
         joiningBatchRepository.save(batch);
     }
 
+    private static final List<JoiningBatchStatus> CANCELLABLE_STATUSES = List.of(
+            JoiningBatchStatus.CREATED, JoiningBatchStatus.JOINING_LETTER_SENT,
+            JoiningBatchStatus.JOINING_ACCEPTANCE_IN_PROGRESS, JoiningBatchStatus.READY_FOR_TRAINING);
+
+    /** HR: cancels a batch before training starts — releases any booked Block and any budget
+     *  reservation back to available, so nothing is left dangling. */
+    @Transactional
+    public JoiningBatchResponse cancelBatch(Long batchId, String reason, Long actingUserId) {
+        JoiningBatch batch = joiningBatchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
+
+        if (!CANCELLABLE_STATUSES.contains(batch.getStatus())) {
+            throw new BusinessRuleException(
+                    "Cannot cancel: batch status must be pre-training (current is " + batch.getStatus() + ")");
+        }
+
+        if (batch.getTrainingBlock() != null) {
+            blockService.releaseBlock(batch.getTrainingBlock().getId());
+        }
+        budgetService.cancelReservation(batch.getTrainingLocation(), batch, actingUserId);
+
+        batch.setStatus(JoiningBatchStatus.CANCELLED);
+        joiningBatchRepository.save(batch);
+
+        auditLogService.log(actingUserId, "JOINING_BATCH_CANCELLED", "JOINING_BATCH", batchId,
+                "Batch " + batch.getBatchCode() + " cancelled"
+                        + (reason != null && !reason.isBlank() ? " (" + reason + ")" : ""));
+
+        return toResponse(batch, true);
+    }
+
     private String generateBatchCode(Long id, LocalDate joiningDate) {
         return "JB-" + joiningDate.getYear() + "-" + String.format("%05d", id);
     }
@@ -298,7 +367,7 @@ public class JoiningBatchService {
         String today = LocalDate.now().format(DATE_FMT);
 
         List<String> trainingLines = new ArrayList<>(List.of(
-                "Training Location: " + batch.getTrainingLocation().getName(),
+                "Training City: " + batch.getTrainingLocation().getName(),
                 "Training Program: " + (batch.getTrainingProgram() != null && !batch.getTrainingProgram().isBlank()
                         ? batch.getTrainingProgram() : "To be confirmed")
         ));
@@ -321,7 +390,7 @@ public class JoiningBatchService {
                                 "Employee ID: " + (employee != null ? employee.getEmployeeCode() : "To be assigned"),
                                 "Role: " + role,
                                 "Joining Date: " + batch.getJoiningDate().format(DATE_FMT),
-                                "Joining Location: " + batch.getJoiningLocation().getName(),
+                                "Joining City: " + batch.getJoiningLocation().getName(),
                                 "Batch: " + batch.getBatchCode() + " (" + batch.getBatchName() + ")"
                         )),
                         new PdfGenerationService.PdfSection("Training Details", trainingLines),
@@ -352,6 +421,8 @@ public class JoiningBatchService {
                 .trainingLocationName(batch.getTrainingLocation().getName())
                 .trainingProgram(batch.getTrainingProgram())
                 .block(batch.getBlock())
+                .trainingBlockId(batch.getTrainingBlock() != null ? batch.getTrainingBlock().getId() : null)
+                .trainingBlockName(batch.getTrainingBlock() != null ? batch.getTrainingBlock().getName() : null)
                 .trainingStartDate(batch.getTrainingStartDate())
                 .trainingEndDate(batch.getTrainingEndDate())
                 .batchSize(batch.getBatchSize())

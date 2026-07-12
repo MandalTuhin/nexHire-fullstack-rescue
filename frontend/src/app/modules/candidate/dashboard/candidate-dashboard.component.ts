@@ -2,9 +2,13 @@ import { Component, OnInit } from '@angular/core';
 import { ApplicationService } from '../../../services/application.service';
 import { OfferLetterService } from '../../../services/offer-letter.service';
 import { CandidateProfileService } from '../../../services/candidate-profile.service';
+import { ProjectRmgService, MyProjectAssignment } from '../../../services/project-rmg.service';
+import { JoiningLetterService } from '../../../services/joining-letter.service';
+import { TraineeProgressService, TraineeRecord } from '../../../services/trainee-progress.service';
 import { CurrentUserService } from '../../../core/auth/current-user.service';
 import { Application } from '../../../models/application.model';
 import { OfferLetter } from '../../../models/offer-letter.model';
+import { JoiningLetter } from '../../../models/joining-letter.model';
 
 @Component({
     selector: 'app-candidate-dashboard',
@@ -43,6 +47,91 @@ import { OfferLetter } from '../../../models/offer-letter.model';
                 <span class="stat-num">{{ offers.length }}</span>
                 <span class="stat-lbl">Offers Issued</span>
               </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Joining Details (P-Claude.md candidate dashboard card) -->
+      <mat-card class="project-card" *ngIf="joiningLetter">
+        <mat-card-header>
+          <mat-card-title>Joining Details</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="project-grid">
+            <div class="project-field">
+              <span class="field-lbl">Batch</span>
+              <span class="field-val">{{ joiningLetter.batchCode || '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Joining Date</span>
+              <span class="field-val">{{ joiningLetter.joiningDate | date }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Location</span>
+              <span class="field-val">{{ joiningLetter.locationName || '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Status</span>
+              <app-status-badge [status]="joiningLetter.status"></app-status-badge>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Training Status (P-Claude.md candidate dashboard card) -->
+      <mat-card class="project-card" *ngIf="training">
+        <mat-card-header>
+          <mat-card-title>Training Status</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="project-grid">
+            <div class="project-field">
+              <span class="field-lbl">Batch</span>
+              <span class="field-val">{{ training.batchCode || '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Attendance</span>
+              <span class="field-val">{{ training.attendancePercentage != null ? training.attendancePercentage + '%' : '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Score</span>
+              <span class="field-val">{{ training.score != null ? training.score : '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Result</span>
+              <app-status-badge [status]="training.finalResult || 'IN_PROGRESS'"></app-status-badge>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- My Project (P-Claude.md: Project Name, Technology, Location, Allocation Date, Status) -->
+      <mat-card class="project-card" *ngIf="myProject">
+        <mat-card-header>
+          <mat-card-title>My Project</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="project-grid">
+            <div class="project-field">
+              <span class="field-lbl">Project Name</span>
+              <span class="field-val">{{ myProject.projectName }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Technology</span>
+              <span class="field-val">{{ myProject.technology || '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Location</span>
+              <span class="field-val">{{ myProject.locationName || '—' }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Allocation Date</span>
+              <span class="field-val">{{ myProject.assignedAt | date }}</span>
+            </div>
+            <div class="project-field">
+              <span class="field-lbl">Status</span>
+              <app-status-badge [status]="myProject.projectStatus || 'ACTIVE'"></app-status-badge>
             </div>
           </div>
         </mat-card-content>
@@ -171,6 +260,33 @@ import { OfferLetter } from '../../../models/offer-letter.model';
       text-transform: uppercase;
       font-weight: 600;
     }
+    .project-card {
+      border-radius: var(--radius-card) !important;
+      box-shadow: var(--shadow-card) !important;
+    }
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      padding-top: 8px;
+    }
+    .project-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-lbl {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .field-val {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -222,12 +338,18 @@ export class CandidateDashboardComponent implements OnInit {
   offers: OfferLetter[] = [];
   profileCompleted = false;
   profileLoaded = false;
+  myProject: MyProjectAssignment | null = null;
+  joiningLetter: JoiningLetter | null = null;
+  training: TraineeRecord | null = null;
 
   constructor(
     private currentUserService: CurrentUserService,
     private appService: ApplicationService,
     private offerService: OfferLetterService,
-    private profileService: CandidateProfileService
+    private profileService: CandidateProfileService,
+    private projectService: ProjectRmgService,
+    private joiningLetterService: JoiningLetterService,
+    private trainingService: TraineeProgressService,
   ) {}
 
   ngOnInit(): void {
@@ -243,6 +365,18 @@ export class CandidateDashboardComponent implements OnInit {
         error: () => {
           this.profileLoaded = true;
         },
+      });
+      this.projectService.getMyProject().subscribe({
+        next: (project) => (this.myProject = project),
+        error: () => (this.myProject = null),
+      });
+      this.joiningLetterService.getMine().subscribe({
+        next: (letters) => (this.joiningLetter = letters.length > 0 ? letters[0] : null),
+        error: () => (this.joiningLetter = null),
+      });
+      this.trainingService.getMyTraining().subscribe({
+        next: (record) => (this.training = record),
+        error: () => (this.training = null),
       });
     }
   }

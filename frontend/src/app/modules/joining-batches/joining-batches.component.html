@@ -104,12 +104,24 @@
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Training Program</mat-label>
-                <input matInput formControlName="trainingProgram" placeholder="e.g. Java Bootcamp" />
+                <mat-select formControlName="trainingProgramId">
+                  <mat-option *ngFor="let p of trainingPrograms" [value]="p.id">
+                    {{ p.name }}<span *ngIf="p.duration"> ({{ p.duration }})</span> — ₹{{ p.costPerCandidate | number }}/candidate
+                  </mat-option>
+                </mat-select>
               </mat-form-field>
             </div>
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Block (optional)</mat-label>
-              <input matInput formControlName="block" placeholder="e.g. Block A" />
+              <mat-label>Training Block {{ loadingBlocks ? '(loading…)' : '' }}</mat-label>
+              <mat-select formControlName="trainingBlockId" [disabled]="!trainingForm.value.trainingLocationId">
+                <mat-option [value]="null">— None (assign later) —</mat-option>
+                <mat-option *ngFor="let b of wizardBlocks" [value]="b.id">
+                  {{ b.name }} (capacity {{ b.capacity }})
+                </mat-option>
+              </mat-select>
+              <mat-hint *ngIf="trainingForm.value.trainingLocationId && wizardBlocks.length === 0 && !loadingBlocks">
+                No available blocks in this city — you can still create the batch and assign a block later.
+              </mat-hint>
             </mat-form-field>
             <div class="form-grid two-col">
               <mat-form-field appearance="outline">
@@ -223,7 +235,8 @@
           <div class="summary-item"><span class="label">Status</span><app-status-badge [status]="selectedBatch.status"></app-status-badge></div>
           <div class="summary-item"><span class="label">Joining</span><span class="value">{{ selectedBatch.joiningDate | date }} · {{ selectedBatch.joiningLocationName }}</span></div>
           <div class="summary-item"><span class="label">Training</span><span class="value">{{ selectedBatch.trainingLocationName }} · {{ selectedBatch.trainingProgram || '—' }}</span></div>
-          <div class="summary-item" *ngIf="selectedBatch.block"><span class="label">Block</span><span class="value">{{ selectedBatch.block }}</span></div>
+          <div class="summary-item" *ngIf="selectedBatch.trainingBlockName"><span class="label">Training Block</span><span class="value">{{ selectedBatch.trainingBlockName }}</span></div>
+          <div class="summary-item" *ngIf="!selectedBatch.trainingBlockName && selectedBatch.block"><span class="label">Block</span><span class="value">{{ selectedBatch.block }}</span></div>
           <div class="summary-item" *ngIf="selectedBatch.trainingStartDate"><span class="label">Training Dates</span><span class="value">{{ selectedBatch.trainingStartDate | date }} – {{ selectedBatch.trainingEndDate | date }}</span></div>
           <div class="summary-item"><span class="label">Headcount</span><span class="value">{{ selectedBatch.currentHeadcount }} / {{ selectedBatch.batchSize }}</span></div>
         </mat-card-content>
@@ -286,7 +299,7 @@
             <mat-label>Training Program</mat-label>
             <mat-select [(ngModel)]="selectedTrainingProgramId">
               <mat-option *ngFor="let p of trainingPrograms" [value]="p.id">
-                {{ p.name }} (₹{{ p.costPerCandidate | number }}/candidate, cutoff {{ p.cutoffScore }}, min. attendance {{ p.minimumAttendancePercentage }}%)
+                {{ p.name }}<span *ngIf="p.duration"> ({{ p.duration }})</span> — ₹{{ p.costPerCandidate | number }}/candidate, cutoff {{ p.cutoffScore }}, min. attendance {{ p.minimumAttendancePercentage }}%
               </mat-option>
             </mat-select>
           </mat-form-field>

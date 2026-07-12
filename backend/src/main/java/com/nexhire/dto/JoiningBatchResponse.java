@@ -25,6 +25,8 @@ public class JoiningBatchResponse {
     private String trainingLocationName;
     private String trainingProgram;
     private String block;
+    private Long trainingBlockId;
+    private String trainingBlockName;
     private LocalDate trainingStartDate;
     private LocalDate trainingEndDate;
     private Integer batchSize;

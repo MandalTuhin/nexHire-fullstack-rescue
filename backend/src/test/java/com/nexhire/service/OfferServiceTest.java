@@ -58,7 +58,7 @@ class OfferServiceTest {
 
     @BeforeEach
     void setUp() {
-        Location location = Location.builder().id(1L).name("Bangalore").city("Bangalore").build();
+        City location = City.builder().id(1L).name("Bangalore").build();
         candidate = User.builder().id(1L).name("John").email("john@test.com").build();
         Job job = Job.builder().id(1L).title("Java Dev").description("Desc").location(location).build();
         application = JobApplication.builder().id(1L).user(candidate).job(job)

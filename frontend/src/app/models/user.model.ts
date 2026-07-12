@@ -70,6 +70,7 @@ export interface LoggedInUser {
   permissions: string[]; // Empty if backend hasn't implemented yet — use role mapping
   profilePhotoUrl?: string;
   active?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface ChangePasswordRequest {

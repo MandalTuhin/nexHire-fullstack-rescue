@@ -1,91 +1,62 @@
 import { Component, OnInit } from '@angular/core';
-import { LocationBudgetService } from '../../services/location-budget.service';
-import { LocationBudget } from '../../models/location-budget.model';
+import { CityAdminService } from '../../services/city-admin.service';
+import { CityAdmin } from '../../models/city-admin.model';
 
+/** HR-facing read-only view of the City training budget passbook (P-Claude.md "BUDGET MODULE":
+ *  Total/Reserved/Used/Available per city — bank-passbook style, no Hiring Slots/Training Seats
+ *  KPIs). Allocation/manual-adjustment actions are ADMIN-only and live on the Admin Cities page. */
 @Component({
   selector: 'app-budget-overview',
   template: `
     <div class="budget-page">
       <app-page-header
-        title="Budget & Capacity Overview"
-        subtitle="Monitor hiring budget slots and training seat usage per location."
+        title="Budget Overview"
+        subtitle="Monitor the training budget passbook per city."
       ></app-page-header>
 
       <app-empty-state
-        *ngIf="!loading && locations.length === 0"
+        *ngIf="!loading && cities.length === 0"
         icon="account_balance_wallet"
-        title="No locations configured"
-        subtitle="Ask an administrator to set up locations with budgets."
+        title="No cities configured"
+        subtitle="Ask an administrator to set up cities with budgets."
       ></app-empty-state>
 
-      <div class="location-cards" *ngIf="locations.length > 0">
-        <mat-card class="loc-card" *ngFor="let loc of locations">
+      <div class="location-cards" *ngIf="cities.length > 0">
+        <mat-card class="loc-card" *ngFor="let city of cities">
           <mat-card-header>
-            <mat-card-title>{{ loc.name }}</mat-card-title>
-            <mat-card-subtitle>{{ loc.city }}</mat-card-subtitle>
+            <mat-card-title>{{ city.name }}</mat-card-title>
+            <mat-card-subtitle>{{ city.blockCount }} training block(s)</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div class="metrics-grid">
               <div class="metric budget-metric">
-                <span class="metric-label">Training Budget (₹)</span>
+                <span class="metric-label">Available Budget (₹)</span>
                 <div class="budget-numbers">
                   <div class="budget-big">
-                    <span class="amount remaining-amount"
-                      >₹{{ loc.remainingAmount || 0 | number }}</span
-                    >
-                    <span class="sub-label">remaining</span>
+                    <span class="amount remaining-amount">₹{{ city.availableBudget | number }}</span>
+                    <span class="sub-label">available</span>
                   </div>
                   <div class="budget-detail">
-                    <span>Total: ₹{{ loc.budgetAmount || 0 | number }}</span>
-                    <span>Used: ₹{{ loc.usedAmount || 0 | number }}</span>
+                    <span>Total: ₹{{ city.totalBudget | number }}</span>
+                    <span>Reserved: ₹{{ city.reservedBudget | number }}</span>
+                    <span>Used: ₹{{ city.usedBudget | number }}</span>
                   </div>
                 </div>
                 <mat-progress-bar
                   mode="determinate"
-                  [value]="percent(loc.usedAmount || 0, loc.budgetAmount || 1)"
+                  [value]="percent(city.reservedBudget + city.usedBudget, city.totalBudget)"
                   [color]="
-                    percent(loc.usedAmount || 0, loc.budgetAmount || 1) > 80
+                    percent(city.reservedBudget + city.usedBudget, city.totalBudget) > 80
                       ? 'warn'
                       : 'primary'
                   "
                 ></mat-progress-bar>
+                <span class="remaining">Committed (reserved + used): {{ percent(city.reservedBudget + city.usedBudget, city.totalBudget) }}%</span>
               </div>
 
               <div class="metric">
-                <span class="metric-label">Hiring Slots</span>
-                <div class="progress-row">
-                  <mat-progress-bar
-                    mode="determinate"
-                    [value]="percent(loc.budgetUsed, loc.budgetTotal)"
-                    color="primary"
-                  ></mat-progress-bar>
-                  <span class="progress-text"
-                    >{{ loc.budgetUsed }} / {{ loc.budgetTotal }} used</span
-                  >
-                </div>
-                <span class="remaining"
-                  >Remaining:
-                  <strong>{{ loc.budgetAvailable }}</strong> slots</span
-                >
-              </div>
-
-              <div class="metric">
-                <span class="metric-label">Training Seats</span>
-                <div class="progress-row">
-                  <mat-progress-bar
-                    mode="determinate"
-                    [value]="percent(loc.seatsOccupied, loc.seatsTotal)"
-                    color="accent"
-                  ></mat-progress-bar>
-                  <span class="progress-text"
-                    >{{ loc.seatsOccupied }} /
-                    {{ loc.seatsTotal }} occupied</span
-                  >
-                </div>
-                <span class="remaining"
-                  >Available:
-                  <strong>{{ loc.seatsAvailable }}</strong> seats</span
-                >
+                <span class="metric-label">Status</span>
+                <app-status-badge [status]="city.status"></app-status-badge>
               </div>
             </div>
           </mat-card-content>
@@ -164,19 +135,6 @@ import { LocationBudget } from '../../models/location-budget.model';
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
-      .progress-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .progress-row mat-progress-bar {
-        flex: 1;
-      }
-      .progress-text {
-        font-size: 12px;
-        color: #64748b;
-        white-space: nowrap;
-      }
       .remaining {
         font-size: 13px;
         color: #1e293b;
@@ -186,23 +144,23 @@ import { LocationBudget } from '../../models/location-budget.model';
   standalone: false,
 })
 export class BudgetOverviewComponent implements OnInit {
-  locations: LocationBudget[] = [];
+  cities: CityAdmin[] = [];
   loading = false;
 
-  constructor(private locationBudgetService: LocationBudgetService) {}
+  constructor(private cityService: CityAdminService) {}
 
   ngOnInit(): void {
     this.loading = true;
-    this.locationBudgetService.getAll().subscribe({
+    this.cityService.getAll().subscribe({
       next: (list) => {
-        this.locations = list;
+        this.cities = list;
         this.loading = false;
       },
       error: () => (this.loading = false),
     });
   }
 
-  percent(used: number, total: number): number {
-    return total > 0 ? Math.round((used / total) * 100) : 0;
+  percent(committed: number, total: number): number {
+    return total > 0 ? Math.round((committed / total) * 100) : 0;
   }
 }

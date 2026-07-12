@@ -4,6 +4,7 @@ import com.nexhire.dto.BulkActionRequest;
 import com.nexhire.dto.BulkActionResult;
 import com.nexhire.dto.OfferRequest;
 import com.nexhire.dto.OfferResponse;
+import com.nexhire.dto.PageResponse;
 import com.nexhire.service.FileStorageService;
 import com.nexhire.service.OfferService;
 import jakarta.validation.Valid;
@@ -27,11 +28,23 @@ public class OfferController {
 
     private final OfferService offerService;
 
-    /** HR: all auto-generated offers, sorted by assessment score desc. */
+    /** HR: paginated/searchable offer list, sorted by assessment score desc (avoids loading every offer at once). */
     @GetMapping
     @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<List<OfferResponse>> getAll() {
-        return ResponseEntity.ok(offerService.getAll());
+    public ResponseEntity<PageResponse<OfferResponse>> search(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offerService.search(search, status, page, size));
+    }
+
+    /** HR: full id list of GENERATED offers sorted by score desc — backs the "Select Top N /
+     *  Select All" bulk-send shortcuts, independent of the paginated table above. */
+    @GetMapping("/generated-ids")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<List<Long>> getGeneratedIds() {
+        return ResponseEntity.ok(offerService.getGeneratedApplicationIdsSortedByScore());
     }
 
     @PostMapping("/{applicationId}")

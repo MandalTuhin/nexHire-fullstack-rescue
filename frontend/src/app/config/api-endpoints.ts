@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
     LOGIN: `${BASE}/api/auth/login`,
     LOGOUT: `${BASE}/api/auth/logout`,
     ME: `${BASE}/api/auth/me`,
+    CHANGE_PASSWORD: `${BASE}/api/auth/change-password`,
   },
 
   // ─── Users (Admin) ─────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ export const API_ENDPOINTS = {
     BASE: `${BASE}/api/offers`,
     SEND: (applicationId: number) => `${BASE}/api/offers/${applicationId}`,
     BULK_SEND: `${BASE}/api/offers/bulk/send`,
+    GENERATED_IDS: `${BASE}/api/offers/generated-ids`,
     MY: `${BASE}/api/offers/my`,
     PDF: (offerId: number) => `${BASE}/api/offers/${offerId}/pdf`,
     ACCEPT: (id: number) => `${BASE}/api/offers/${id}/accept`,
@@ -116,10 +118,8 @@ export const API_ENDPOINTS = {
     EXCEL_HISTORY: (id: number) => `${BASE}/api/training-batches/${id}/excel/history`,
   },
 
-  // ─── Locations (budget + seats) ──────────────────────────────────────────────
+  // ─── Locations (id/name lookups for dropdowns — budget passbook lives under CITIES) ─────
   LOCATIONS: {
-    BASE: `${BASE}/api/locations`,
-    BY_ID: (id: number) => `${BASE}/api/locations/${id}`,
     NAMES: `${BASE}/api/locations/names`,
   },
 
@@ -151,12 +151,11 @@ export const API_ENDPOINTS = {
 
   // ─── Trainees / Training (Phase B) ───────────────────────────────────────────
   TRAINEES: {
+    // Legacy /api/training/** (trainees list/progress/complete) was removed — it duplicated
+    // and conflicted with the real JoiningBatch+Trainee pipeline (TrainingBatchService). MY
+    // now points at that real pipeline's own candidate self-service endpoint.
     BASE: `${BASE}/api/training/trainees`,
-    MY: `${BASE}/api/training/my`,
-    UPDATE_PROGRESS: (traineeId: number) =>
-      `${BASE}/api/training/${traineeId}/progress`,
-    COMPLETE: (traineeId: number) =>
-      `${BASE}/api/training/${traineeId}/complete`,
+    MY: `${BASE}/api/training-batches/my`,
     BY_ID: (id: number) => `${BASE}/api/trainees/${id}`,
     UPDATE_STATUS: (id: number) => `${BASE}/api/trainees/${id}/status`,
     BY_TRAINING: (trainingId: number) =>
@@ -170,6 +169,8 @@ export const API_ENDPOINTS = {
     ELIGIBLE_TRAINEES: `${BASE}/api/projects/eligible-trainees`,
     ASSIGN: (projectId: number, traineeId: number) =>
       `${BASE}/api/projects/${projectId}/assign/${traineeId}`,
+    BULK_ASSIGN: (projectId: number) => `${BASE}/api/projects/${projectId}/bulk-assign`,
+    MY: `${BASE}/api/projects/my`,
     BY_ID: (id: number) => `${BASE}/api/projects/${id}`,
     UPDATE: (id: number) => `${BASE}/api/projects/${id}`,
     UPDATE_STATUS: (id: number) => `${BASE}/api/projects/${id}/status`,
@@ -218,6 +219,9 @@ export const API_ENDPOINTS = {
     CREATE: `${BASE}/api/cities`,
     UPDATE: (id: number) => `${BASE}/api/cities/${id}`,
     BUDGET: (id: number) => `${BASE}/api/cities/${id}/budget`,
+    BUDGET_TRANSACTIONS: (id: number) => `${BASE}/api/cities/${id}/budget-transactions`,
+    ALLOCATE: (id: number) => `${BASE}/api/cities/${id}/allocate`,
+    ADJUST: (id: number) => `${BASE}/api/cities/${id}/adjust`,
   },
   BRANCHES: {
     BASE: `${BASE}/api/branches`,
@@ -276,6 +280,8 @@ export const API_ENDPOINTS = {
   DASHBOARD: {
     STATS: `${BASE}/api/dashboard/stats`,
     PENDING_ACTIONS: `${BASE}/api/dashboard/pending-actions`,
+    RMG_STATS: `${BASE}/api/dashboard/rmg-stats`,
+    ADMIN_STATS: `${BASE}/api/dashboard/admin-stats`,
     CHARTS: `${BASE}/api/dashboard/charts`,
     APPLICATION_CHART: `${BASE}/api/dashboard/charts/applications`,
     ASSESSMENT_CHART: `${BASE}/api/dashboard/charts/assessments`,

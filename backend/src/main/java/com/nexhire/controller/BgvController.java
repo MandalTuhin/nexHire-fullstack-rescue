@@ -38,10 +38,15 @@ public class BgvController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bgvService.initiate(applicationId, vendor));
     }
 
+    /** HR: paginated/searchable BGC case list (avoids loading every case at once). */
     @GetMapping
     @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<List<BgvResponse>> getAll() {
-        return ResponseEntity.ok(bgvService.getAll());
+    public ResponseEntity<PageResponse<BgvResponse>> search(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(bgvService.search(search, status, page, size));
     }
 
     @GetMapping("/my")

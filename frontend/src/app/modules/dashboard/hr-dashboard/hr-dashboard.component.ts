@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
 import { DashboardService } from '../../../services/dashboard.service';
-import { CurrentUserService } from '../../../core/auth/current-user.service';
 import { DashboardStats, PendingActions } from '../../../models/admin.model';
+import { CityAdminService } from '../../../services/city-admin.service';
+import { CityAdmin } from '../../../models/city-admin.model';
 
 interface MetricTile {
   label: string;
@@ -52,6 +52,23 @@ interface PendingActionRow {
               <mat-icon>{{ action.icon }}</mat-icon>
               <span class="pending-label">{{ action.label }}</span>
               <span class="pending-count">{{ action.count }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Budget Alerts (P-Claude.md HR dashboard card) -->
+      <mat-card class="pending-card" *ngIf="budgetAlerts.length > 0">
+        <mat-card-header>
+          <mat-card-title>Budget Alerts</mat-card-title>
+          <mat-card-subtitle>Cities running low on available training budget</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="pending-grid">
+            <div class="pending-row" *ngFor="let city of budgetAlerts" routerLink="/hr/budget">
+              <mat-icon>warning</mat-icon>
+              <span class="pending-label">{{ city.name }}</span>
+              <span class="pending-count">₹{{ city.availableBudget | number }}</span>
             </div>
           </div>
         </mat-card-content>
@@ -380,19 +397,14 @@ export class HrDashboardComponent implements OnInit {
   pending: PendingActions | null = null;
   sections: MetricSection[] = [];
   pendingRows: PendingActionRow[] = [];
+  budgetAlerts: CityAdmin[] = [];
 
   constructor(
     private dashboardService: DashboardService,
-    private currentUserService: CurrentUserService,
-    private router: Router,
+    private cityAdminService: CityAdminService,
   ) {}
 
   ngOnInit(): void {
-    // RMG doesn't need the HR dashboard — redirect straight to allocation.
-    if (this.currentUserService.getRole()?.toUpperCase() === 'RMG') {
-      this.router.navigate(['/hr/released']);
-      return;
-    }
     this.dashboardService.getStats().subscribe((s) => {
       this.stats = s;
       this.sections = this.buildSections(s);
@@ -400,6 +412,12 @@ export class HrDashboardComponent implements OnInit {
     this.dashboardService.getPendingActions().subscribe((p) => {
       this.pending = p;
       this.pendingRows = this.buildPendingRows(p);
+    });
+    this.cityAdminService.getAll().subscribe((cities) => {
+      // Flag a city once its available budget drops to 10% or less of its total allocation.
+      this.budgetAlerts = cities.filter(
+        (c) => c.totalBudget > 0 && c.availableBudget <= c.totalBudget * 0.1,
+      );
     });
   }
 

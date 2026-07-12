@@ -6,7 +6,6 @@ import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.JoiningBatchStatus;
 import com.nexhire.enums.TraineeFinalResult;
 import com.nexhire.exception.BusinessRuleException;
-import com.nexhire.exception.InsufficientResourceException;
 import com.nexhire.exception.InvalidStateTransitionException;
 import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.*;
@@ -25,11 +24,12 @@ import java.util.List;
  * "joining batch" and "training batch" are the same underlying batch at different lifecycle
  * stages, not separate entities (context.md's own field lists for both are near-identical).
  *
- * Block-level seat enforcement from the spec is adapted to location-level (HiringBudget/
- * TrainingSeat are per-Location; there's no separate Block catalog in this build — see
- * JoiningBatch's own class comment). "Logged-in HR employeeId as hrId" is adapted to just the
- * acting User's id — HR users aren't modeled as Employee rows in this build (Employee is
- * created only via the BGC-clear pipeline), so a literal employeeId lookup isn't meaningful.
+ * Capacity/budget enforcement lives elsewhere by design: Block capacity is validated once, at
+ * booking time (JoiningBatchService.createBatch -> BlockService.bookBlock), and budget
+ * sufficiency is validated by BudgetService (reserve at joining-letter-send time,
+ * chargeTrainingCost here). "Logged-in HR employeeId as hrId" is adapted to just the acting
+ * User's id — HR users aren't modeled as Employee rows in this build (Employee is created only
+ * via the BGC-clear pipeline), so a literal employeeId lookup isn't meaningful.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,14 +41,25 @@ public class TrainingBatchService {
     private final TrainingProgramRepository trainingProgramRepository;
     private final TraineeRepository traineeRepository;
     private final ReleaseRecordRepository releaseRecordRepository;
+    private final LapHistoryRepository lapHistoryRepository;
     private final EmployeeRepository employeeRepository;
     private final SelectedUserRepository selectedUserRepository;
-    private final HiringBudgetRepository hiringBudgetRepository;
-    private final TrainingSeatRepository trainingSeatRepository;
     private final JobApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final BudgetService budgetService;
+    private final BlockService blockService;
+
+    // ─── Candidate self-service ───────────────────────────────────────────────────
+
+    /** EMPLOYEE: the logged-in candidate's own trainee record (real Trainee/JoiningBatch
+     *  pipeline — replaces the older, disconnected TrainingRecord-based "My Training" page). */
+    public TraineeDetailResponse getMyTrainee(Long userId) {
+        Trainee trainee = traineeRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No trainee record found for current user"));
+        return toTraineeDetail(trainee);
+    }
 
     // ─── Training Program catalog ────────────────────────────────────────────────
 
@@ -60,11 +71,33 @@ public class TrainingBatchService {
     public TrainingProgramResponse createProgram(TrainingProgramCreateRequest request) {
         TrainingProgram program = trainingProgramRepository.save(TrainingProgram.builder()
                 .name(request.getName())
+                .duration(request.getDuration())
                 .costPerCandidate(request.getCostPerCandidate())
                 .cutoffScore(request.getCutoffScore())
                 .minimumAttendancePercentage(request.getMinimumAttendancePercentage())
                 .build());
         return toProgramResponse(program);
+    }
+
+    @Transactional
+    public TrainingProgramResponse updateProgram(Long id, TrainingProgramUpdateRequest request) {
+        TrainingProgram program = trainingProgramRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Training program not found with id: " + id));
+
+        if (request.getName() != null) program.setName(request.getName());
+        if (request.getDuration() != null) program.setDuration(request.getDuration());
+        if (request.getCostPerCandidate() != null) program.setCostPerCandidate(request.getCostPerCandidate());
+        if (request.getCutoffScore() != null) program.setCutoffScore(request.getCutoffScore());
+        if (request.getMinimumAttendancePercentage() != null) program.setMinimumAttendancePercentage(request.getMinimumAttendancePercentage());
+        if (request.getStatus() != null) {
+            try {
+                program.setStatus(com.nexhire.enums.TrainingProgramStatus.valueOf(request.getStatus().trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new BusinessRuleException("Invalid training program status: " + request.getStatus());
+            }
+        }
+
+        return toProgramResponse(trainingProgramRepository.save(program));
     }
 
     // ─── Training Assignment (budget/seat deduction + Trainee creation) ──────────
@@ -107,33 +140,16 @@ public class TrainingBatchService {
         }
 
         int actualHeadcount = accepted.size();
-        Location location = batch.getTrainingLocation();
+        City location = batch.getTrainingLocation();
 
-        HiringBudget budget = hiringBudgetRepository.findByLocationId(location.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Hiring budget not found for location: " + location.getName()));
-        TrainingSeat seats = trainingSeatRepository.findByLocationId(location.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Training seats not found for location: " + location.getName()));
-
+        // Capacity is already enforced: the batch's trainingBlock was booked at creation time
+        // with capacity >= batchSize (see BlockService.bookBlock), and actualHeadcount here can
+        // only be <= batchSize (a subset of accepted members) — no separate seat check needed.
+        // Budget sufficiency is enforced by chargeTrainingCost itself (it throws if there's no
+        // reservation and the city can't cover actualCost; if a reservation exists, its
+        // sufficiency was already validated when it was made — see BudgetService.reserve).
         long requiredAmount = program.getCostPerCandidate() * actualHeadcount;
-        int availableSlots = budget.getTotalSlots() - budget.getUsedSlots();
-        long availableAmount = budget.getBudgetAmount() - budget.getUsedAmount();
-        int availableSeats = seats.getTotalSeats() - seats.getOccupiedSeats();
-
-        if (availableSlots < actualHeadcount || availableAmount < requiredAmount || availableSeats < actualHeadcount) {
-            throw new InsufficientResourceException(
-                    "Insufficient resources at " + location.getName() + " for " + actualHeadcount + " candidate(s): "
-                            + "slots available " + availableSlots + ", budget available Rs." + availableAmount
-                            + " (need Rs." + requiredAmount + "), seats available " + availableSeats);
-        }
-
-        // Transactional, atomic deduction — no partial updates on failure (exception above
-        // already prevented reaching this point if any check failed).
-        budget.setUsedSlots(budget.getUsedSlots() + actualHeadcount);
-        budget.setUsedAmount(budget.getUsedAmount() + requiredAmount);
-        hiringBudgetRepository.save(budget);
-
-        seats.setOccupiedSeats(seats.getOccupiedSeats() + actualHeadcount);
-        trainingSeatRepository.save(seats);
+        budgetService.chargeTrainingCost(location, batch, requiredAmount, actingUserId);
 
         for (JoiningBatchMember member : accepted) {
             JobApplication application = member.getApplication();
@@ -211,6 +227,7 @@ public class TrainingBatchService {
 
         auditLogService.log(actingUserId, "MOVED_TO_LAP", "APPLICATION", application.getId(),
                 "Trainee " + trainee.getUser().getEmail() + " moved to LAP");
+        logLapHistory(trainee, "MOVED_TO_LAP", remarks, actingUserId);
 
         notificationService.notify(application.getUser().getId(), "LAP",
                 "Learning Assistance Program",
@@ -234,6 +251,7 @@ public class TrainingBatchService {
 
         auditLogService.log(actingUserId, "REMOVED_FROM_LAP", "APPLICATION", application.getId(),
                 "Trainee " + trainee.getUser().getEmail() + " removed from LAP");
+        logLapHistory(trainee, "REMOVED_FROM_LAP", null, actingUserId);
 
         return toTraineeDetail(trainee);
     }
@@ -283,8 +301,33 @@ public class TrainingBatchService {
                 ? JoiningBatchStatus.COMPLETED : JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS);
         joiningBatchRepository.save(batch);
 
+        // The room is free again once this batch's training is done — see BlockService.
+        if (batch.getTrainingBlock() != null) {
+            blockService.releaseBlock(batch.getTrainingBlock().getId());
+        }
+
         auditLogService.log(actingUserId, "BATCH_COMPLETED", "JOINING_BATCH", batchId,
                 "Batch " + batch.getBatchCode() + " completed: " + releasedCount + "/" + trainees.size() + " released");
+
+        return getDetail(batchId);
+    }
+
+    /** HR: archives a finished batch. Purely a terminal marker — no further state changes. */
+    @Transactional
+    public TrainingBatchDetailResponse closeBatch(Long batchId, Long actingUserId) {
+        JoiningBatch batch = joiningBatchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
+
+        if (batch.getStatus() != JoiningBatchStatus.COMPLETED && batch.getStatus() != JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS) {
+            throw new BusinessRuleException(
+                    "Cannot close: batch status must be COMPLETED or COMPLETED_WITH_EXCEPTIONS (current is " + batch.getStatus() + ")");
+        }
+
+        batch.setStatus(JoiningBatchStatus.CLOSED);
+        joiningBatchRepository.save(batch);
+
+        auditLogService.log(actingUserId, "JOINING_BATCH_CLOSED", "JOINING_BATCH", batchId,
+                "Batch " + batch.getBatchCode() + " closed");
 
         return getDetail(batchId);
     }
@@ -299,15 +342,37 @@ public class TrainingBatchService {
         return true;
     }
 
+    private void logLapHistory(Trainee trainee, String action, String remarks, Long actingUserId) {
+        User actingUser = actingUserId != null ? userRepository.findById(actingUserId).orElse(null) : null;
+        lapHistoryRepository.save(LapHistory.builder()
+                .trainee(trainee)
+                .action(action)
+                .remarks(remarks)
+                .actingUser(actingUser)
+                .build());
+    }
+
     // ─── Mapping ──────────────────────────────────────────────────────────────
+
+    private LapHistoryResponse toLapHistoryResponse(LapHistory h) {
+        return LapHistoryResponse.builder()
+                .id(h.getId())
+                .action(h.getAction())
+                .remarks(h.getRemarks())
+                .actingUserName(h.getActingUser() != null ? h.getActingUser().getName() : null)
+                .createdAt(h.getCreatedAt())
+                .build();
+    }
 
     private TrainingProgramResponse toProgramResponse(TrainingProgram p) {
         return TrainingProgramResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
+                .duration(p.getDuration())
                 .costPerCandidate(p.getCostPerCandidate())
                 .cutoffScore(p.getCutoffScore())
                 .minimumAttendancePercentage(p.getMinimumAttendancePercentage())
+                .status(p.getStatus().name())
                 .build();
     }
 
@@ -325,6 +390,7 @@ public class TrainingBatchService {
                 .candidateName(app.getUser().getName())
                 .candidateEmail(app.getUser().getEmail())
                 .candidatePhone(app.getUser().getPhone())
+                .jobTitle(app.getJob().getTitle())
                 .batchId(trainee.getBatch() != null ? trainee.getBatch().getId() : null)
                 .batchCode(trainee.getBatch() != null ? trainee.getBatch().getBatchCode() : null)
                 .score(trainee.getScore())
@@ -336,6 +402,8 @@ public class TrainingBatchService {
                 .remarks(trainee.getRemarks())
                 .applicationStatus(app.getStatus().name())
                 .joinedAt(trainee.getJoinedAt())
+                .lapHistory(lapHistoryRepository.findByTraineeIdOrderByCreatedAtDesc(trainee.getId()).stream()
+                        .map(this::toLapHistoryResponse).toList())
                 .build();
     }
 
@@ -362,7 +430,6 @@ public class TrainingBatchService {
                 .trainingLocationName(batch.getTrainingLocation().getName())
                 .trainingProgram(batch.getTrainingProgram())
                 .block(batch.getBlock())
-                .trainer(batch.getTrainer())
                 .trainingStartDate(batch.getTrainingStartDate())
                 .trainingEndDate(batch.getTrainingEndDate())
                 .status(batch.getStatus().name())

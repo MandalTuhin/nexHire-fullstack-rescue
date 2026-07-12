@@ -36,10 +36,8 @@ public class DataSeeder implements CommandLineRunner {
     private static final String EMP_PASSWORD = "password123";
 
     private final UserRepository userRepository;
-    private final LocationRepository locationRepository;
+    private final CityRepository locationRepository;
     private final JobRepository jobRepository;
-    private final HiringBudgetRepository hiringBudgetRepository;
-    private final TrainingSeatRepository trainingSeatRepository;
     private final ProjectRepository projectRepository;
     private final AssetRepository assetRepository;
     private final JobApplicationRepository applicationRepository;
@@ -48,7 +46,6 @@ public class DataSeeder implements CommandLineRunner {
     private final JoiningLetterRepository joiningLetterRepository;
     private final BackgroundVerificationRepository bgvRepository;
     private final TraineeRepository traineeRepository;
-    private final TrainingRecordRepository trainingRecordRepository;
     private final ProjectAssignmentRepository projectAssignmentRepository;
     private final AssetAssignmentRepository assetAssignmentRepository;
     private final ActivityLogRepository activityLogRepository;
@@ -87,21 +84,11 @@ public class DataSeeder implements CommandLineRunner {
                 .password(passwordEncoder.encode("rmg123")).phone("9000000003")
                 .role(UserRole.RMG).build());
 
-        // ─── Locations + budgets + training seats ─────────────────────────────────
-        Location bangalore = locationRepository.save(Location.builder()
-                .name("Bangalore").city("Bangalore").build());
-        Location hyderabad = locationRepository.save(Location.builder()
-                .name("Hyderabad").city("Hyderabad").build());
-
-        HiringBudget blrBudget = hiringBudgetRepository.save(HiringBudget.builder()
-                .location(bangalore).totalSlots(10).usedSlots(0).budgetAmount(5000000L).usedAmount(0L).build());
-        HiringBudget hydBudget = hiringBudgetRepository.save(HiringBudget.builder()
-                .location(hyderabad).totalSlots(8).usedSlots(0).budgetAmount(4000000L).usedAmount(0L).build());
-
-        TrainingSeat blrSeats = trainingSeatRepository.save(TrainingSeat.builder()
-                .location(bangalore).totalSeats(15).occupiedSeats(0).build());
-        TrainingSeat hydSeats = trainingSeatRepository.save(TrainingSeat.builder()
-                .location(hyderabad).totalSeats(10).occupiedSeats(0).build());
+        // ─── Cities ─────────────────────────────────────────────────────────────
+        City bangalore = locationRepository.save(City.builder()
+                .name("Bangalore").totalBudget(5000000L).build());
+        City hyderabad = locationRepository.save(City.builder()
+                .name("Hyderabad").totalBudget(4000000L).build());
 
         // ─── Jobs ───────────────────────────────────────────────────────────────
         // Only ONE hiring drive is ever surfaced to candidates (context.md: TCS hires in bulk
@@ -136,11 +123,14 @@ public class DataSeeder implements CommandLineRunner {
 
         // ─── Projects (managed by Admin) ──────────────────────────────────────────
         Project alpha = projectRepository.save(Project.builder()
-                .name("HDFC Banking Portal").description("Core banking web application with transaction processing and account management").build());
+                .name("HDFC Banking Portal").description("Core banking web application with transaction processing and account management")
+                .client("HDFC Bank").technology("Java, Spring Boot").location(bangalore).totalVacancies(15).build());
         Project beta = projectRepository.save(Project.builder()
-                .name("Flipkart Logistics Platform").description("Warehouse management and last-mile delivery optimization system").build());
+                .name("Flipkart Logistics Platform").description("Warehouse management and last-mile delivery optimization system")
+                .client("Flipkart").technology("Angular, Node.js").location(bangalore).totalVacancies(12).build());
         projectRepository.save(Project.builder()
-                .name("Infosys Cloud Migration").description("Legacy on-premise workload migration to AWS cloud infrastructure").build());
+                .name("Infosys Cloud Migration").description("Legacy on-premise workload migration to AWS cloud infrastructure")
+                .client("Infosys").technology("AWS, Python").location(hyderabad).totalVacancies(10).build());
 
         // ─── Assets ───────────────────────────────────────────────────────────────
         Asset laptop1 = assetRepository.save(asset("Dell Latitude 5540", "LAPTOP", "DL-5540-0001"));
@@ -225,7 +215,7 @@ public class DataSeeder implements CommandLineRunner {
         offer(ta1, "Offer for Java Developer at NexHire.", hr, now.minusDays(20));
         bgv(ta1, BgvStatus.CLEARED, "SecureCheck Pvt Ltd", "All checks cleared.", now.minusDays(15));
         joining(ta1, bangalore, hr, LocalDate.now().minusDays(10), now.minusDays(12));
-        trainee(t1, ta1, 45, "Spring Boot Fundamentals", false, now.minusDays(10));
+        trainee(t1, ta1, false);
 
         // TRAINING_IN_PROGRESS (trainee, 70%)
         User t2 = emp("Pooja Reddy", "trainee2@nexhire.com", "9000000112", LifecycleStatus.TRAINEE);
@@ -234,7 +224,7 @@ public class DataSeeder implements CommandLineRunner {
         offer(ta2, "Offer for Angular Developer at NexHire.", hr, now.minusDays(22));
         bgv(ta2, BgvStatus.CLEARED, "VerifyPro Solutions", "All checks cleared.", now.minusDays(16));
         joining(ta2, hyderabad, hr, LocalDate.now().minusDays(11), now.minusDays(13));
-        trainee(t2, ta2, 70, "Angular Components & RxJS", false, now.minusDays(11));
+        trainee(t2, ta2, false);
 
         // TRAINING_COMPLETED (eligible for RMG allocation)
         User t3 = emp("Sameer Joshi", "trainee3@nexhire.com", "9000000113", LifecycleStatus.TRAINEE);
@@ -243,7 +233,7 @@ public class DataSeeder implements CommandLineRunner {
         offer(ta3, "Offer for Java Developer at NexHire.", hr, now.minusDays(40));
         bgv(ta3, BgvStatus.CLEARED, "SecureCheck Pvt Ltd", "All checks cleared.", now.minusDays(35));
         joining(ta3, bangalore, hr, LocalDate.now().minusDays(30), now.minusDays(32));
-        Trainee tr3 = trainee(t3, ta3, 100, "Spring Boot Microservices", true, now.minusDays(2));
+        Trainee tr3 = trainee(t3, ta3, true);
 
         // TRAINING_COMPLETED (eligible for RMG allocation)
         User t4 = emp("Nisha Gupta", "trainee4@nexhire.com", "9000000114", LifecycleStatus.TRAINEE);
@@ -252,7 +242,7 @@ public class DataSeeder implements CommandLineRunner {
         offer(ta4, "Offer for Full Stack Developer at NexHire.", hr, now.minusDays(42));
         bgv(ta4, BgvStatus.CLEARED, "VerifyPro Solutions", "All checks cleared.", now.minusDays(37));
         joining(ta4, bangalore, hr, LocalDate.now().minusDays(31), now.minusDays(33));
-        trainee(t4, ta4, 100, "Full Stack Capstone", true, now.minusDays(1));
+        trainee(t4, ta4, true);
 
         // PROJECT_ASSIGNED (already allocated to Project Alpha by RMG)
         User t5 = emp("Rahul Singh", "employee1@nexhire.com", "9000000115", LifecycleStatus.PROJECT_ASSIGNED);
@@ -261,7 +251,7 @@ public class DataSeeder implements CommandLineRunner {
         offer(ta5, "Offer for Java Developer at NexHire.", hr, now.minusDays(70));
         bgv(ta5, BgvStatus.CLEARED, "SecureCheck Pvt Ltd", "All checks cleared.", now.minusDays(65));
         joining(ta5, bangalore, hr, LocalDate.now().minusDays(60), now.minusDays(62));
-        Trainee tr5 = trainee(t5, ta5, 100, "Spring Boot Microservices", true, now.minusDays(50));
+        Trainee tr5 = trainee(t5, ta5, true);
         assignToProject(tr5, alpha, rmg, now.minusDays(5));
 
         // ─── Asset assignments ────────────────────────────────────────────────────
@@ -273,34 +263,10 @@ public class DataSeeder implements CommandLineRunner {
         // ─── Bulk candidates (~5000) spread across the pipeline, for realistic scale
         // testing of pagination/filtering/dashboard counts — context.md's "around 5000 job
         // applications" / "Do not load all 5000 records at once" sizing. ───────────────────
-        // Give the two locations extra headroom so the bulk far-along candidates (who do
-        // consume real budget/seats, same as the named seed above) don't read as "over
-        // capacity" on the Budget Overview page.
-        blrBudget.setTotalSlots(20);
-        hydBudget.setTotalSlots(15);
-        blrSeats.setTotalSeats(25);
-        hydSeats.setTotalSeats(15);
         // BCrypt is deliberately slow (~50-100ms/hash) — hash once and reuse across all ~5000
         // bulk candidates instead of re-hashing the same constant password every time.
         bulkPasswordHash = passwordEncoder.encode(EMP_PASSWORD);
-        BulkSeedCounters counters = seedBulkCandidates(
-                new Job[]{javaJob, angularJob, fullStackJob}, bangalore, hyderabad, hr);
-
-        // ─── Reflect resource usage from joined people ────────────────────────────
-        // 5 joined into Bangalore (t1, t3, t4, t5, u10), 1 into Hyderabad (t2), plus
-        // whatever the bulk seed above pushed through training assignment.
-        blrBudget.setUsedSlots(5 + counters.blrTrainingAssigned);
-        blrBudget.setUsedAmount(250000L + counters.blrTrainingAssigned * 50000L);
-        hydBudget.setUsedSlots(1 + counters.hydTrainingAssigned);
-        hydBudget.setUsedAmount(50000L + counters.hydTrainingAssigned * 50000L);
-        hiringBudgetRepository.save(blrBudget);
-        hiringBudgetRepository.save(hydBudget);
-        // Trainees currently occupying training seats (in-progress, not yet released): t1
-        // (BLR), t2 (HYD), plus the bulk seed's still-in-progress trainees.
-        blrSeats.setOccupiedSeats(3 + counters.blrSeatsOccupied);
-        hydSeats.setOccupiedSeats(2 + counters.hydSeatsOccupied);
-        trainingSeatRepository.save(blrSeats);
-        trainingSeatRepository.save(hydSeats);
+        seedBulkCandidates(new Job[]{javaJob, angularJob, fullStackJob}, bangalore, hyderabad, hr);
 
         // ─── Activity logs ────────────────────────────────────────────────────────
         activity(hr, "ASSESSMENT_SCORED", "HR recorded assessment score for Arjun Rao.", now.minusDays(6));
@@ -352,7 +318,7 @@ public class DataSeeder implements CommandLineRunner {
                 .remarks(remarks).completedAt(completedAt).build());
     }
 
-    private void joining(JobApplication application, Location location, User sentBy, LocalDate joiningDate, LocalDateTime respondedAt) {
+    private void joining(JobApplication application, City location, User sentBy, LocalDate joiningDate, LocalDateTime respondedAt) {
         joiningLetterRepository.save(JoiningLetter.builder()
                 .application(application)
                 .content("Joining letter for " + application.getJob().getTitle() + " at NexHire.")
@@ -360,18 +326,20 @@ public class DataSeeder implements CommandLineRunner {
                 .sentAt(now.minusDays(12)).respondedAt(respondedAt).build());
     }
 
-    private Trainee trainee(User user, JobApplication application, int progress, String topic, boolean completed, LocalDateTime updatedAt) {
-        Trainee trainee = traineeRepository.save(Trainee.builder()
-                .user(user).application(application).joinedAt(now.minusDays(12)).build());
-        trainingRecordRepository.save(TrainingRecord.builder()
-                .trainee(trainee).progress(progress).topic(topic).completed(completed).build());
-        return trainee;
+    private Trainee trainee(User user, JobApplication application, boolean completed) {
+        return traineeRepository.save(Trainee.builder()
+                .user(user).application(application).joinedAt(now.minusDays(12))
+                .score(completed ? 88.0 : null)
+                .attendancePercentage(completed ? 92.0 : null)
+                .finalResult(completed ? TraineeFinalResult.COMPLETED : TraineeFinalResult.PENDING)
+                .build());
     }
 
     private void assignToProject(Trainee trainee, Project project, User assignedBy, LocalDateTime assignedAt) {
         projectAssignmentRepository.save(ProjectAssignment.builder()
                 .trainee(trainee).project(project).assignedBy(assignedBy).assignedAt(assignedAt).build());
-        project.setTeamSize(project.getTeamSize() + 1);
+        project.setAllocatedCount(project.getAllocatedCount() + 1);
+        project.recomputeStatus();
         projectRepository.save(project);
     }
 
@@ -402,10 +370,6 @@ public class DataSeeder implements CommandLineRunner {
         return FIRST_NAMES[i % FIRST_NAMES.length] + " " + LAST_NAMES[i % LAST_NAMES.length];
     }
 
-    /** Aggregate counts the caller needs to correctly reflect budget/seat consumption. */
-    private record BulkSeedCounters(int blrTrainingAssigned, int hydTrainingAssigned,
-                                     int blrSeatsOccupied, int hydSeatsOccupied) {}
-
     /**
      * Seeds ~5000 candidates spread across every pipeline stage in a realistic funnel shape
      * (most sit early — applied/in-assessment — tapering sharply toward release), so the
@@ -418,9 +382,8 @@ public class DataSeeder implements CommandLineRunner {
      * slow) except for the BGC-cleared cascade, which reuses EmployeeSelectionService so
      * Employee/SelectedUser creation stays consistent with the one real business rule.
      */
-    private BulkSeedCounters seedBulkCandidates(Job[] jobs, Location bangalore, Location hyderabad, User hr) {
+    private void seedBulkCandidates(Job[] jobs, City bangalore, City hyderabad, User hr) {
         int i = 0;
-        int blrTrainingAssigned = 0, hydTrainingAssigned = 0, blrSeatsOccupied = 0, hydSeatsOccupied = 0;
 
         i = bulkStage(i, 2000, jobs, hr, ApplicationStatus.APPLIED, false);
         i = bulkStage(i, 1000, jobs, hr, ApplicationStatus.ASSESSMENT_ASSIGNED, false);
@@ -436,15 +399,12 @@ public class DataSeeder implements CommandLineRunner {
         i = bulkJoiningStage(i, 25, jobs, bangalore, hyderabad, hr, false); // JOINING_LETTER_SENT
         i = bulkJoiningStage(i, 15, jobs, bangalore, hyderabad, hr, true); // JOINING_ACCEPTED
 
-        // TRAINING_IN_PROGRESS / RELEASED — Bangalore only, small counts, do consume real
-        // budget + (for in-progress) training seats.
+        // TRAINING_IN_PROGRESS / RELEASED — Bangalore only, small counts.
         for (int n = 0; n < 5; n++, i++) {
             JobApplication app = bulkApplication(i, jobs[i % jobs.length], ApplicationStatus.TRAINING_IN_PROGRESS, hr);
             traineeRepository.save(Trainee.builder()
                     .user(app.getUser()).application(app).joinedAt(now.minusDays(5))
                     .score(null).finalResult(TraineeFinalResult.PENDING).build());
-            blrTrainingAssigned++;
-            blrSeatsOccupied++;
         }
         for (int n = 0; n < 5; n++, i++) {
             JobApplication app = bulkApplication(i, jobs[i % jobs.length], ApplicationStatus.RELEASED, hr);
@@ -452,11 +412,9 @@ public class DataSeeder implements CommandLineRunner {
                     .user(app.getUser()).application(app).joinedAt(now.minusDays(20))
                     .score(88.0).attendancePercentage(92.0)
                     .finalResult(TraineeFinalResult.PASSED).released(true).build());
-            blrTrainingAssigned++;
         }
 
         log.info("Bulk-seeded {} candidates across the full pipeline.", i);
-        return new BulkSeedCounters(blrTrainingAssigned, hydTrainingAssigned, blrSeatsOccupied, hydSeatsOccupied);
     }
 
     /** Builds `count` candidates with a plain application at `status`, optionally with a score. */
@@ -533,11 +491,11 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     /** Builds `count` selected candidates with a joining letter, either accepted or just sent. */
-    private int bulkJoiningStage(int startIndex, int count, Job[] jobs, Location bangalore, Location hyderabad,
+    private int bulkJoiningStage(int startIndex, int count, Job[] jobs, City bangalore, City hyderabad,
                                   User hr, boolean accepted) {
         int i = startIndex;
         for (int n = 0; n < count; n++, i++) {
-            Location loc = i % 2 == 0 ? bangalore : hyderabad;
+            City loc = i % 2 == 0 ? bangalore : hyderabad;
             ApplicationStatus status = accepted ? ApplicationStatus.JOINING_ACCEPTED : ApplicationStatus.JOINING_LETTER_SENT;
             JobApplication app = bulkApplication(i, jobs[i % jobs.length], status, hr);
             assessmentResultRepository.save(AssessmentResult.builder()

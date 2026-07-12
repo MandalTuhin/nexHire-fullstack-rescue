@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { DashboardStats, PendingActions, ChartData } from '../models/admin.model';
+import { DashboardStats, PendingActions, ChartData, RmgDashboardStats, AdminDashboardStats } from '../models/admin.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { BaseService } from './base.service';
 
@@ -21,6 +21,14 @@ export class DashboardService extends BaseService {
 
   getPendingActions(): Observable<PendingActions> {
     return this.http.get<PendingActions>(API_ENDPOINTS.DASHBOARD.PENDING_ACTIONS);
+  }
+
+  getRmgStats(): Observable<RmgDashboardStats> {
+    return this.http.get<RmgDashboardStats>(API_ENDPOINTS.DASHBOARD.RMG_STATS);
+  }
+
+  getAdminStats(): Observable<AdminDashboardStats> {
+    return this.http.get<AdminDashboardStats>(API_ENDPOINTS.DASHBOARD.ADMIN_STATS);
   }
 
   getApplicationChart(): Observable<ChartData> {

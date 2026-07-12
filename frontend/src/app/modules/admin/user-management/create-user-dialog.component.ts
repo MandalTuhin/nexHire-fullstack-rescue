@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AdminUserService } from '../../../services/admin-user.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
     selector: 'app-create-user-dialog',
@@ -23,8 +25,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Role</mat-label>
           <mat-select formControlName="role">
-            <mat-option value="CANDIDATE">Candidate</mat-option>
             <mat-option value="HR">HR</mat-option>
+            <mat-option value="RMG">RMG</mat-option>
             <mat-option value="ADMIN">Admin</mat-option>
           </mat-select>
         </mat-form-field>
@@ -37,8 +39,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="userForm.invalid" (click)="submit()">Create User</button>
+      <button mat-button mat-dialog-close [disabled]="submitting">Cancel</button>
+      <button mat-raised-button color="primary" [disabled]="userForm.invalid || submitting" (click)="submit()">Create User</button>
     </mat-dialog-actions>
   `,
     styles: [`
@@ -57,10 +59,13 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 })
 export class CreateUserDialogComponent {
   userForm: FormGroup;
+  submitting = false;
 
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<CreateUserDialogComponent>
+    private dialogRef: MatDialogRef<CreateUserDialogComponent>,
+    private adminUserService: AdminUserService,
+    private toast: ToastService,
   ) {
     this.userForm = this.fb.group({
       fullName: ['', Validators.required],
@@ -71,8 +76,17 @@ export class CreateUserDialogComponent {
   }
 
   submit(): void {
-    if (this.userForm.valid) {
-      this.dialogRef.close(this.userForm.value);
-    }
+    if (this.userForm.invalid || this.submitting) return;
+    this.submitting = true;
+    this.adminUserService.createUser(this.userForm.value).subscribe({
+      next: (created) => {
+        this.toast.success(`${created.role} user ${created.email} created.`);
+        this.dialogRef.close(created);
+      },
+      error: (e) => {
+        this.submitting = false;
+        this.toast.error(e.error?.message || 'Failed to create user');
+      },
+    });
   }
 }

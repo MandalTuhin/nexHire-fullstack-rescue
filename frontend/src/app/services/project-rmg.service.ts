@@ -4,14 +4,33 @@ import { Observable } from 'rxjs';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { BaseService } from './base.service';
 import { TraineeRecord } from './trainee-progress.service';
+import { ApplicationBulkActionResult } from '../models/application.model';
+
+export type ProjectStatus = 'ACTIVE' | 'FILLED' | 'INACTIVE';
 
 export interface RmgProject {
   id: number;
   name: string;
   description?: string;
-  active: boolean;
-  teamSize: number;
+  client?: string;
+  technology?: string;
+  locationId?: number;
+  locationName?: string;
+  totalVacancies: number;
+  allocatedCount: number;
+  remainingVacancies: number;
+  status: ProjectStatus;
   createdAt?: string;
+}
+
+export interface ProjectUpsertPayload {
+  name: string;
+  description?: string;
+  client?: string;
+  technology?: string;
+  locationId?: number;
+  totalVacancies?: number;
+  status?: ProjectStatus;
 }
 
 export interface ProjectAssignmentResult {
@@ -19,11 +38,17 @@ export interface ProjectAssignmentResult {
   traineeId: number;
   projectId: number;
   projectName: string;
+  technology?: string;
+  locationName?: string;
+  projectStatus?: ProjectStatus;
   candidateName: string;
   candidateEmail: string;
   assignedByName: string;
   assignedAt: string;
 }
+
+/** Candidate-facing shape — same wire response, aliased for clarity at call sites. */
+export type MyProjectAssignment = ProjectAssignmentResult;
 
 /**
  * Backend-aligned RMG project + allocation service (real nexHIRE API).
@@ -46,17 +71,14 @@ export class ProjectRmgService extends BaseService {
   }
 
   /** ADMIN: create a project. */
-  createProject(name: string, description?: string): Observable<RmgProject> {
-    return this.http.post<RmgProject>(API_ENDPOINTS.PROJECTS.CREATE, {
-      name,
-      description,
-    });
+  createProject(payload: ProjectUpsertPayload): Observable<RmgProject> {
+    return this.http.post<RmgProject>(API_ENDPOINTS.PROJECTS.CREATE, payload);
   }
 
-  /** ADMIN: update a project's details / active flag. */
+  /** ADMIN: update a project's details / status. */
   updateProject(
     id: number,
-    payload: { name: string; description?: string; active?: boolean },
+    payload: ProjectUpsertPayload,
   ): Observable<RmgProject> {
     return this.http.put<RmgProject>(
       API_ENDPOINTS.PROJECTS.UPDATE(id),
@@ -83,5 +105,21 @@ export class ProjectRmgService extends BaseService {
       API_ENDPOINTS.PROJECTS.ASSIGN(projectId, traineeId),
       {},
     );
+  }
+
+  /** RMG: bulk-assign multiple selected trainees to a single project. */
+  bulkAssign(
+    projectId: number,
+    traineeIds: number[],
+  ): Observable<ApplicationBulkActionResult> {
+    return this.http.post<ApplicationBulkActionResult>(
+      API_ENDPOINTS.PROJECTS.BULK_ASSIGN(projectId),
+      traineeIds,
+    );
+  }
+
+  /** EMPLOYEE: the logged-in candidate's own project assignment (null until RMG assigns one). */
+  getMyProject(): Observable<MyProjectAssignment | null> {
+    return this.http.get<MyProjectAssignment | null>(API_ENDPOINTS.PROJECTS.MY);
   }
 }

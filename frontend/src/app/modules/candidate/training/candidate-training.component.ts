@@ -29,21 +29,16 @@ import {
           >
         </mat-card-header>
         <mat-card-content>
-          <div class="progress-block">
-            <div class="progress-head">
-              <span>Progress</span>
-              <span class="pct">{{ record.progress }}%</span>
-            </div>
-            <mat-progress-bar
-              mode="determinate"
-              [value]="record.progress"
-            ></mat-progress-bar>
+          <div class="progress-block" *ngIf="record.score != null || record.attendancePercentage != null">
+            <p class="topic" *ngIf="record.score != null">
+              Assessment score: <strong>{{ record.score }}</strong>
+            </p>
+            <p class="topic" *ngIf="record.attendancePercentage != null">
+              Attendance: <strong>{{ record.attendancePercentage }}%</strong>
+            </p>
           </div>
-          <p class="topic" *ngIf="record.topic">
-            Current topic: <strong>{{ record.topic }}</strong>
-          </p>
-          <p class="done" *ngIf="record.completed">
-            Training completed — awaiting project assignment.
+          <p class="done" *ngIf="record.released">
+            Training completed — released for project allocation.
           </p>
           <div class="lap-banner" *ngIf="record.applicationStatus === 'LAP'">
             <mat-icon>support</mat-icon>

@@ -1,5 +1,6 @@
 package com.nexhire.service;
 
+import com.nexhire.dto.BulkActionResult;
 import com.nexhire.dto.ProjectAssignmentResponse;
 import com.nexhire.dto.ProjectRequest;
 import com.nexhire.dto.ProjectResponse;
@@ -7,6 +8,8 @@ import com.nexhire.dto.TraineeResponse;
 import com.nexhire.entity.*;
 import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.LifecycleStatus;
+import com.nexhire.enums.ProjectStatus;
+import com.nexhire.exception.BusinessRuleException;
 import com.nexhire.exception.DuplicateResourceException;
 import com.nexhire.exception.InvalidStateTransitionException;
 import com.nexhire.exception.ResourceNotFoundException;
@@ -25,9 +28,9 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectAssignmentRepository projectAssignmentRepository;
     private final TraineeRepository traineeRepository;
-    private final TrainingRecordRepository trainingRecordRepository;
     private final JobApplicationRepository applicationRepository;
     private final UserRepository userRepository;
+    private final CityRepository cityRepository;
     private final NotificationService notificationService;
 
     /** ADMIN + RMG: list all projects (RMG filters to active ones client-side for allocation). */
@@ -41,7 +44,12 @@ public class ProjectService {
         Project project = Project.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .client(request.getClient())
+                .technology(request.getTechnology())
+                .location(resolveLocation(request.getLocationId()))
+                .totalVacancies(request.getTotalVacancies() != null ? request.getTotalVacancies() : 0)
                 .build();
+        project.recomputeStatus();
         return toProjectResponse(projectRepository.save(project));
     }
 
@@ -52,10 +60,29 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
         project.setName(request.getName());
         project.setDescription(request.getDescription());
-        if (request.getActive() != null) {
-            project.setActive(request.getActive());
+        if (request.getClient() != null) project.setClient(request.getClient());
+        if (request.getTechnology() != null) project.setTechnology(request.getTechnology());
+        if (request.getLocationId() != null) project.setLocation(resolveLocation(request.getLocationId()));
+        if (request.getTotalVacancies() != null) project.setTotalVacancies(request.getTotalVacancies());
+
+        if (request.getStatus() != null) {
+            try {
+                project.setStatus(ProjectStatus.valueOf(request.getStatus().trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new BusinessRuleException("Invalid project status: " + request.getStatus());
+            }
         }
+        // Re-derive ACTIVE/FILLED against the (possibly just-changed) vacancy count — a manual
+        // INACTIVE set above is preserved since recomputeStatus() never overrides it.
+        project.recomputeStatus();
+
         return toProjectResponse(projectRepository.save(project));
+    }
+
+    private City resolveLocation(Long locationId) {
+        if (locationId == null) return null;
+        return cityRepository.findById(locationId)
+                .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + locationId));
     }
 
     /** ADMIN: delete a project. Blocked while trainees are still assigned to it. */
@@ -76,6 +103,30 @@ public class ProjectService {
     public List<TraineeResponse> getEligibleTrainees() {
         return traineeRepository.findByApplicationStatus(ApplicationStatus.RELEASED)
                 .stream().map(this::toTraineeResponse).toList();
+    }
+
+    /** RMG: bulk-assign multiple released trainees to a single project (multi-select allocation,
+     *  P-Claude.md section 8). Each trainee is validated/assigned independently — one failure
+     *  (e.g. vacancies run out partway through) doesn't roll back the ones that already
+     *  succeeded, mirroring the pattern used by OfferService.bulkSend. */
+    @Transactional
+    public BulkActionResult bulkAssign(Long projectId, List<Long> traineeIds, Long assignedById) {
+        int success = 0;
+        java.util.List<BulkActionResult.Failure> failures = new java.util.ArrayList<>();
+        for (Long traineeId : traineeIds) {
+            try {
+                assignTrainee(projectId, traineeId, assignedById);
+                success++;
+            } catch (Exception e) {
+                failures.add(BulkActionResult.Failure.builder().id(traineeId).reason(e.getMessage()).build());
+            }
+        }
+        return BulkActionResult.builder()
+                .totalRequested(traineeIds.size())
+                .successCount(success)
+                .failureCount(failures.size())
+                .failures(failures)
+                .build();
     }
 
     /**
@@ -100,6 +151,16 @@ public class ProjectService {
             throw new DuplicateResourceException("Trainee already assigned to a project");
         }
 
+        // P-Claude.md section 8: "Always validate remaining vacancies. Never allow allocation
+        // beyond project capacity." totalVacancies == 0 means "no cap configured" (legacy/open
+        // projects), so only enforce when a real cap has been set.
+        if (project.getTotalVacancies() != null && project.getTotalVacancies() > 0
+                && project.getAllocatedCount() >= project.getTotalVacancies()) {
+            throw new BusinessRuleException(
+                    "Project '" + project.getName() + "' has no remaining vacancies (" +
+                            project.getAllocatedCount() + "/" + project.getTotalVacancies() + " filled)");
+        }
+
         User assignedBy = userRepository.findById(assignedById)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -119,8 +180,9 @@ public class ProjectService {
         user.setLifecycleStatus(LifecycleStatus.PROJECT_ASSIGNED);
         userRepository.save(user);
 
-        // Increment team size
-        project.setTeamSize(project.getTeamSize() + 1);
+        // Increment allocated count and auto-flip to FILLED if this was the last vacancy.
+        project.setAllocatedCount(project.getAllocatedCount() + 1);
+        project.recomputeStatus();
         projectRepository.save(project);
 
         // Notify trainee about project assignment
@@ -128,31 +190,57 @@ public class ProjectService {
                 "Project Assigned",
                 "You have been assigned to project: " + project.getName() + ". Welcome to the team!");
 
+        return toAssignmentResponse(assignment);
+    }
+
+    /** EMPLOYEE: the logged-in candidate's own project assignment, if any (P-Claude.md section 8:
+     *  "Candidate Portal should display Project Name, Technology, Location, Allocation Date,
+     *  Current Project Status"). Null (no content) until RMG has assigned them. */
+    public ProjectAssignmentResponse getMyProject(Long userId) {
+        return projectAssignmentRepository.findByTraineeUserId(userId)
+                .map(this::toAssignmentResponse)
+                .orElse(null);
+    }
+
+    private ProjectAssignmentResponse toAssignmentResponse(ProjectAssignment assignment) {
+        Project project = assignment.getProject();
+        User user = assignment.getTrainee().getUser();
         return ProjectAssignmentResponse.builder()
                 .id(assignment.getId())
-                .traineeId(trainee.getId())
+                .traineeId(assignment.getTrainee().getId())
                 .projectId(project.getId())
                 .projectName(project.getName())
+                .technology(project.getTechnology())
+                .locationName(project.getLocation() != null ? project.getLocation().getName() : null)
+                .projectStatus(project.getStatus().name())
                 .candidateName(user.getName())
                 .candidateEmail(user.getEmail())
-                .assignedByName(assignedBy.getName())
+                .assignedByName(assignment.getAssignedBy() != null ? assignment.getAssignedBy().getName() : null)
                 .assignedAt(assignment.getAssignedAt())
                 .build();
     }
 
     private ProjectResponse toProjectResponse(Project p) {
+        int remaining = p.getTotalVacancies() != null
+                ? Math.max(0, p.getTotalVacancies() - p.getAllocatedCount())
+                : 0;
         return ProjectResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
                 .description(p.getDescription())
-                .active(p.getActive())
-                .teamSize(p.getTeamSize())
+                .client(p.getClient())
+                .technology(p.getTechnology())
+                .locationId(p.getLocation() != null ? p.getLocation().getId() : null)
+                .locationName(p.getLocation() != null ? p.getLocation().getName() : null)
+                .totalVacancies(p.getTotalVacancies())
+                .allocatedCount(p.getAllocatedCount())
+                .remainingVacancies(remaining)
+                .status(p.getStatus().name())
                 .createdAt(p.getCreatedAt())
                 .build();
     }
 
     private TraineeResponse toTraineeResponse(Trainee trainee) {
-        TrainingRecord record = trainingRecordRepository.findByTraineeId(trainee.getId()).orElse(null);
         JobApplication app = trainee.getApplication();
         return TraineeResponse.builder()
                 .traineeId(trainee.getId())
@@ -162,11 +250,10 @@ public class ProjectService {
                 .candidateEmail(trainee.getUser().getEmail())
                 .jobTitle(app.getJob().getTitle())
                 .applicationStatus(app.getStatus().name())
-                .progress(record != null ? record.getProgress() : 0)
-                .topic(record != null ? record.getTopic() : null)
-                .completed(record != null ? record.getCompleted() : false)
+                .score(trainee.getScore())
+                .attendancePercentage(trainee.getAttendancePercentage())
+                .finalResult(trainee.getFinalResult().name())
                 .joinedAt(trainee.getJoinedAt())
-                .updatedAt(record != null ? record.getUpdatedAt() : null)
                 .build();
     }
 }

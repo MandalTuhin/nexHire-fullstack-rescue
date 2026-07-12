@@ -4,24 +4,45 @@ import { Observable } from 'rxjs';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { BaseService } from './base.service';
 
+export interface LapHistoryEntry {
+  id: number;
+  action: string;
+  remarks?: string;
+  actingUserName?: string;
+  createdAt: string;
+}
+
+/** Matches backend TraineeDetailResponse — used both by TrainingBatchController's candidate
+ *  self-service endpoint (all fields populated) and ProjectService's leaner TraineeResponse for
+ *  the RMG eligible-trainees list (batch/employee/lap detail fields simply absent there). */
 export interface TraineeRecord {
   traineeId: number;
   userId: number;
   applicationId: number;
+  employeeCode?: string;
+  selectedUserId?: number;
   candidateName: string;
   candidateEmail: string;
+  candidatePhone?: string;
   jobTitle: string;
+  batchId?: number;
+  batchCode?: string;
+  assessmentScore?: number;
+  score?: number;
+  attendancePercentage?: number;
+  finalResult?: string;
+  lapEnabled?: boolean;
+  released?: boolean;
+  flagReason?: string;
+  remarks?: string;
   applicationStatus: string;
-  progress: number;
-  topic?: string;
-  completed: boolean;
   joinedAt?: string;
-  updatedAt?: string;
+  lapHistory?: LapHistoryEntry[];
 }
 
 /**
- * Backend-aligned training/trainee service (real nexHIRE API).
- * Distinct from the legacy mock TrainingService (selected candidates / catalog).
+ * Backend-aligned training/trainee service (real nexHIRE API — the JoiningBatch+Trainee
+ * pipeline). Distinct from the legacy mock TrainingService (selected candidates / catalog).
  */
 @Injectable({ providedIn: 'root' })
 export class TraineeProgressService extends BaseService {
@@ -29,33 +50,8 @@ export class TraineeProgressService extends BaseService {
     super(http);
   }
 
-  /** HR: list all trainees. */
-  getAllTrainees(): Observable<TraineeRecord[]> {
-    return this.http.get<TraineeRecord[]>(API_ENDPOINTS.TRAINEES.BASE);
-  }
-
-  /** EMPLOYEE: own training record. */
+  /** EMPLOYEE: own trainee record. */
   getMyTraining(): Observable<TraineeRecord> {
     return this.http.get<TraineeRecord>(API_ENDPOINTS.TRAINEES.MY);
-  }
-
-  /** HR: update training progress (0-100). */
-  updateProgress(
-    traineeId: number,
-    progress: number,
-    topic?: string,
-  ): Observable<TraineeRecord> {
-    return this.http.put<TraineeRecord>(
-      API_ENDPOINTS.TRAINEES.UPDATE_PROGRESS(traineeId),
-      { progress, topic },
-    );
-  }
-
-  /** HR: mark training complete. */
-  complete(traineeId: number): Observable<TraineeRecord> {
-    return this.http.put<TraineeRecord>(
-      API_ENDPOINTS.TRAINEES.COMPLETE(traineeId),
-      {},
-    );
   }
 }

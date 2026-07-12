@@ -1,21 +1,20 @@
 package com.nexhire.enums;
 
 /**
- * context.md "JOINING BATCH MANAGEMENT" lists these 10 statuses. The pipeline this build
- * actually drives them through (documented since the spec text doesn't itself define a
- * strict order): CREATED -> JOINING_LETTER_SENT -> JOINING_ACCEPTANCE_IN_PROGRESS ->
- * READY_FOR_TRAINING -> (Phase 6: budget/seat deduction + Trainee creation) ->
- * ASSIGNED_TO_TRAINING -> TRAINING_IN_PROGRESS -> COMPLETED/COMPLETED_WITH_EXCEPTIONS -> CLOSED,
- * with CANCELLED reachable from any pre-training state. ASSIGNED_TO_TRAINING deliberately
- * comes AFTER acceptance is known, not before — Phase 6's budget/seat deduction needs the
- * final accepted headcount, which isn't known until candidates have responded.
+ * The pipeline this build actually drives batches through: CREATED -> JOINING_LETTER_SENT ->
+ * JOINING_ACCEPTANCE_IN_PROGRESS -> READY_FOR_TRAINING -> (TrainingBatchService.assignTraining:
+ * budget/seat deduction + Trainee creation, in one atomic step — there's no real-world trigger
+ * between "assigned" and "in progress" distinct from that single action, so this build doesn't
+ * carry a separate ASSIGNED_TO_TRAINING status) -> TRAINING_IN_PROGRESS ->
+ * COMPLETED/COMPLETED_WITH_EXCEPTIONS -> CLOSED (JoiningBatchService.closeBatch, an explicit
+ * HR archival action). CANCELLED is reachable from any pre-training state via
+ * JoiningBatchService.cancelBatch, which also releases any booked Block/budget reservation.
  */
 public enum JoiningBatchStatus {
     CREATED,
     JOINING_LETTER_SENT,
     JOINING_ACCEPTANCE_IN_PROGRESS,
     READY_FOR_TRAINING,
-    ASSIGNED_TO_TRAINING,
     TRAINING_IN_PROGRESS,
     COMPLETED,
     COMPLETED_WITH_EXCEPTIONS,

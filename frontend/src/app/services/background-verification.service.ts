@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
@@ -12,7 +12,15 @@ import {
   UpdateBgvStatusRequest,
 } from '../models/background-verification.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
+import { PagedResponse } from '../models/api-response.model';
 import { BaseService } from './base.service';
+
+export interface BgvSearchParams {
+  search?: string;
+  status?: string;
+  page?: number;
+  size?: number;
+}
 
 /** Raw backend BgvResponse. */
 interface BackendBgv {
@@ -36,11 +44,16 @@ export class BackgroundVerificationService extends BaseService {
     super(http);
   }
 
-  /** HR: all BGC cases. */
-  getAll(): Observable<BackgroundVerification[]> {
+  /** HR: paginated/searchable BGC case list (backend avoids loading every case at once). */
+  search(params: BgvSearchParams = {}): Observable<PagedResponse<BackgroundVerification>> {
+    let httpParams = new HttpParams()
+      .set('page', String(params.page ?? 0))
+      .set('size', String(params.size ?? 20));
+    if (params.search) httpParams = httpParams.set('search', params.search);
+    if (params.status) httpParams = httpParams.set('status', params.status);
     return this.http
-      .get<BackendBgv[]>(API_ENDPOINTS.BGV.BASE)
-      .pipe(map((list) => (list || []).map((b) => this.toModel(b))));
+      .get<PagedResponse<BackendBgv>>(API_ENDPOINTS.BGV.BASE, { params: httpParams })
+      .pipe(map((page) => ({ ...page, content: page.content.map((b) => this.toModel(b)) })));
   }
 
   /** Candidate: own BGC cases. */

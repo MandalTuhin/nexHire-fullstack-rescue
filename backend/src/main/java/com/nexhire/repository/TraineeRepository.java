@@ -22,6 +22,9 @@ public interface TraineeRepository extends JpaRepository<Trainee, Long> {
     @Query("SELECT t FROM Trainee t WHERE t.application.status = :status")
     List<Trainee> findByApplicationStatus(@Param("status") ApplicationStatus status);
 
+    @Query("SELECT COUNT(t) FROM Trainee t WHERE t.application.status = :status")
+    long countByApplicationStatus(@Param("status") ApplicationStatus status);
+
     long countByLapEnabledTrue();
 
     long countByReleasedTrue();

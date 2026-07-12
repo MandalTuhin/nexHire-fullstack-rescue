@@ -1,5 +1,6 @@
 package com.nexhire.controller;
 
+import com.nexhire.dto.ChangePasswordRequest;
 import com.nexhire.dto.LoginRequest;
 import com.nexhire.dto.LoginResponse;
 import com.nexhire.dto.ProfileUpdateRequest;
@@ -52,8 +53,19 @@ public class AuthController {
                 "email", user.getEmail(),
                 "phone", user.getPhone(),
                 "role", user.getRole().name(),
-                "lifecycleStatus", user.getLifecycleStatus() != null ? user.getLifecycleStatus().name() : ""
+                "lifecycleStatus", user.getLifecycleStatus() != null ? user.getLifecycleStatus().name() : "",
+                "mustChangePassword", Boolean.TRUE.equals(user.getMustChangePassword())
         ));
+    }
+
+    /** Authenticated user: change own password (current-password check, strength, match). */
+    @PutMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        authService.changePassword(userId, request);
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
 
     /** Authenticated user: update own name + phone. */

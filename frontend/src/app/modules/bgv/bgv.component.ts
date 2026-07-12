@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { PageEvent } from '@angular/material/paginator';
 import { BackgroundVerificationService } from '../../services/background-verification.service';
 import { BgcExcelService } from '../../services/bgc-excel.service';
 import { ToastService } from '../../shared/services/toast.service';
@@ -20,7 +21,9 @@ import { UploadSummary } from '../../models/bulk-upload.model';
 })
 export class BgvManagementComponent implements OnInit {
   cases: BackgroundVerification[] = [];
-  filteredCases: BackgroundVerification[] = [];
+  totalRecords = 0;
+  page = 0;
+  size = 20;
   displayedColumns = ['candidate', 'jobTitle', 'status', 'vendor', 'actions'];
   loading = false;
 
@@ -65,29 +68,30 @@ export class BgvManagementComponent implements OnInit {
 
   loadCases(): void {
     this.loading = true;
-    this.bgvService.getAll().subscribe({
-      next: (list) => {
-        this.cases = list;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-        this.toastService.error('Failed to load BGC cases.');
-      },
-    });
+    this.bgvService
+      .search({ search: this.search, status: this.statusFilter, page: this.page, size: this.size })
+      .subscribe({
+        next: (result) => {
+          this.cases = result.content;
+          this.totalRecords = result.totalElements;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.toastService.error('Failed to load BGC cases.');
+        },
+      });
   }
 
   applyFilters(): void {
-    const s = this.search.trim().toLowerCase();
-    this.filteredCases = this.cases.filter((c) => {
-      const matchesSearch =
-        !s ||
-        (c.candidateName || '').toLowerCase().includes(s) ||
-        (c.candidateEmail || '').toLowerCase().includes(s);
-      const matchesStatus = !this.statusFilter || c.status === this.statusFilter;
-      return matchesSearch && matchesStatus;
-    });
+    this.page = 0;
+    this.loadCases();
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.page = event.pageIndex;
+    this.size = event.pageSize;
+    this.loadCases();
   }
 
   openCase(c: BackgroundVerification): void {

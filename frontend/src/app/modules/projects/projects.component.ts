@@ -2,12 +2,17 @@ import { Component, OnInit } from '@angular/core';
 import {
   ProjectRmgService,
   RmgProject,
+  ProjectStatus,
 } from '../../services/project-rmg.service';
+import { CityAdminService } from '../../services/city-admin.service';
+import { CityAdmin } from '../../models/city-admin.model';
 import { ToastService } from '../../shared/services/toast.service';
 
 /**
- * Admin project management: full CRUD over projects.
- * Allocation of trainees is handled separately by RMG.
+ * Admin project management: full CRUD over projects (P-Claude.md "PROJECTS").
+ * Allocation of trainees is handled separately by RMG. Status (ACTIVE/FILLED) is derived
+ * automatically from vacancies by the backend once allocations happen; INACTIVE is the only
+ * status this form can set directly.
  */
 @Component({
   selector: 'app-projects',
@@ -37,6 +42,42 @@ import { ToastService } from '../../shared/services/toast.service';
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Client</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="form.client"
+                  placeholder="e.g. HDFC Bank"
+                />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Technology</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="form.technology"
+                  placeholder="e.g. Java, Spring Boot"
+                />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Location</mat-label>
+                <mat-select [(ngModel)]="form.locationId">
+                  <mat-option [value]="null">—</mat-option>
+                  <mat-option *ngFor="let city of cities" [value]="city.id">{{ city.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Total Vacancies</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="form.totalVacancies"
+                  placeholder="e.g. 15"
+                />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
                 <mat-label>Description</mat-label>
                 <textarea
                   matInput
@@ -46,9 +87,14 @@ import { ToastService } from '../../shared/services/toast.service';
                 ></textarea>
               </mat-form-field>
 
-              <mat-checkbox *ngIf="editingId" [(ngModel)]="form.active">
-                Active
-              </mat-checkbox>
+              <mat-form-field appearance="outline" class="full-width" *ngIf="editingId">
+                <mat-label>Status</mat-label>
+                <mat-select [(ngModel)]="form.status">
+                  <mat-option value="ACTIVE">Active</mat-option>
+                  <mat-option value="FILLED">Filled</mat-option>
+                  <mat-option value="INACTIVE">Inactive</mat-option>
+                </mat-select>
+              </mat-form-field>
             </div>
 
             <div class="form-actions">
@@ -93,17 +139,25 @@ import { ToastService } from '../../shared/services/toast.service';
                   <td mat-cell *matCellDef="let project">{{ project.name }}</td>
                 </ng-container>
 
-                <ng-container matColumnDef="description">
-                  <th mat-header-cell *matHeaderCellDef>Description</th>
-                  <td mat-cell *matCellDef="let project">
-                    {{ project.description || 'N/A' }}
-                  </td>
+                <ng-container matColumnDef="client">
+                  <th mat-header-cell *matHeaderCellDef>Client</th>
+                  <td mat-cell *matCellDef="let project">{{ project.client || 'N/A' }}</td>
                 </ng-container>
 
-                <ng-container matColumnDef="teamSize">
-                  <th mat-header-cell *matHeaderCellDef>Team Size</th>
+                <ng-container matColumnDef="technology">
+                  <th mat-header-cell *matHeaderCellDef>Technology</th>
+                  <td mat-cell *matCellDef="let project">{{ project.technology || 'N/A' }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="location">
+                  <th mat-header-cell *matHeaderCellDef>Location</th>
+                  <td mat-cell *matCellDef="let project">{{ project.locationName || 'N/A' }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="vacancies">
+                  <th mat-header-cell *matHeaderCellDef>Allocated / Total</th>
                   <td mat-cell *matCellDef="let project">
-                    {{ project.teamSize }}
+                    {{ project.allocatedCount }} / {{ project.totalVacancies }}
                   </td>
                 </ng-container>
 
@@ -112,10 +166,11 @@ import { ToastService } from '../../shared/services/toast.service';
                   <td mat-cell *matCellDef="let project">
                     <span
                       class="status-chip"
-                      [class.active]="project.active"
-                      [class.inactive]="!project.active"
+                      [class.active]="project.status === 'ACTIVE'"
+                      [class.filled]="project.status === 'FILLED'"
+                      [class.inactive]="project.status === 'INACTIVE'"
                     >
-                      {{ project.active ? 'ACTIVE' : 'INACTIVE' }}
+                      {{ project.status }}
                     </span>
                   </td>
                 </ng-container>
@@ -213,6 +268,10 @@ import { ToastService } from '../../shared/services/toast.service';
         background: #dcfce7;
         color: #166534;
       }
+      .status-chip.filled {
+        background: #fef3c7;
+        color: #92400e;
+      }
       .status-chip.inactive {
         background: #fee2e2;
         color: #991b1b;
@@ -223,23 +282,30 @@ import { ToastService } from '../../shared/services/toast.service';
 })
 export class ProjectsComponent implements OnInit {
   projects: RmgProject[] = [];
-  displayedColumns = ['name', 'description', 'teamSize', 'status', 'actions'];
+  cities: CityAdmin[] = [];
+  displayedColumns = ['name', 'client', 'technology', 'location', 'vacancies', 'status', 'actions'];
 
   editingId: number | null = null;
   saving = false;
-  form: { name: string; description: string; active: boolean } = {
-    name: '',
-    description: '',
-    active: true,
-  };
+  form: {
+    name: string;
+    description: string;
+    client: string;
+    technology: string;
+    locationId: number | null;
+    totalVacancies: number | null;
+    status: ProjectStatus;
+  } = this.emptyForm();
 
   constructor(
     private projectService: ProjectRmgService,
+    private cityService: CityAdminService,
     private toastService: ToastService,
   ) {}
 
   ngOnInit(): void {
     this.loadProjects();
+    this.cityService.getAll().subscribe((list) => (this.cities = list || []));
   }
 
   loadProjects(): void {
@@ -255,43 +321,31 @@ export class ProjectsComponent implements OnInit {
     }
     this.saving = true;
 
-    if (this.editingId) {
-      this.projectService
-        .updateProject(this.editingId, {
-          name: this.form.name,
-          description: this.form.description,
-          active: this.form.active,
-        })
-        .subscribe({
-          next: () => {
-            this.toastService.success('Project updated.');
-            this.resetForm();
-            this.loadProjects();
-          },
-          error: (e) => {
-            this.saving = false;
-            this.toastService.error(
-              e.error?.message || 'Failed to update project.',
-            );
-          },
-        });
-    } else {
-      this.projectService
-        .createProject(this.form.name, this.form.description)
-        .subscribe({
-          next: () => {
-            this.toastService.success('Project created.');
-            this.resetForm();
-            this.loadProjects();
-          },
-          error: (e) => {
-            this.saving = false;
-            this.toastService.error(
-              e.error?.message || 'Failed to create project.',
-            );
-          },
-        });
-    }
+    const payload = {
+      name: this.form.name,
+      description: this.form.description,
+      client: this.form.client,
+      technology: this.form.technology,
+      locationId: this.form.locationId ?? undefined,
+      totalVacancies: this.form.totalVacancies ?? undefined,
+      status: this.editingId ? this.form.status : undefined,
+    };
+
+    const request$ = this.editingId
+      ? this.projectService.updateProject(this.editingId, payload)
+      : this.projectService.createProject(payload);
+
+    request$.subscribe({
+      next: () => {
+        this.toastService.success(this.editingId ? 'Project updated.' : 'Project created.');
+        this.resetForm();
+        this.loadProjects();
+      },
+      error: (e) => {
+        this.saving = false;
+        this.toastService.error(e.error?.message || 'Failed to save project.');
+      },
+    });
   }
 
   edit(project: RmgProject): void {
@@ -299,7 +353,11 @@ export class ProjectsComponent implements OnInit {
     this.form = {
       name: project.name,
       description: project.description || '',
-      active: project.active,
+      client: project.client || '',
+      technology: project.technology || '',
+      locationId: project.locationId ?? null,
+      totalVacancies: project.totalVacancies,
+      status: project.status,
     };
   }
 
@@ -329,6 +387,18 @@ export class ProjectsComponent implements OnInit {
   private resetForm(): void {
     this.editingId = null;
     this.saving = false;
-    this.form = { name: '', description: '', active: true };
+    this.form = this.emptyForm();
+  }
+
+  private emptyForm() {
+    return {
+      name: '',
+      description: '',
+      client: '',
+      technology: '',
+      locationId: null,
+      totalVacancies: null,
+      status: 'ACTIVE' as ProjectStatus,
+    };
   }
 }

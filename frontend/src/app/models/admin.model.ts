@@ -67,6 +67,29 @@ export interface PendingActions {
   lapCandidatesRequiringReview: number;
 }
 
+export interface RecentAllocation {
+  id: number;
+  candidateName: string;
+  projectName: string;
+  assignedAt: string;
+}
+
+export interface RmgDashboardStats {
+  releasedCandidatesWaiting: number;
+  activeProjects: number;
+  remainingVacancies: number;
+  recentAllocations: RecentAllocation[];
+}
+
+export interface AdminDashboardStats {
+  activeUsers: number;
+  cities: number;
+  blocks: number;
+  budgetUtilizationPercent: number;
+  activeProjects: number;
+  runningBatches: number;
+}
+
 export interface ChartData {
   labels: string[];
   datasets: {

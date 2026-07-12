@@ -1,11 +1,19 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { OfferLetter, OfferStatus } from '../models/offer-letter.model';
 import { ApplicationBulkActionResult } from '../models/application.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
+import { PagedResponse } from '../models/api-response.model';
 import { BaseService } from './base.service';
+
+export interface OfferSearchParams {
+  search?: string;
+  status?: string;
+  page?: number;
+  size?: number;
+}
 
 /** Raw shape returned by the backend OfferResponse DTO. */
 interface BackendOffer {
@@ -31,11 +39,23 @@ export class OfferLetterService extends BaseService {
     super(http);
   }
 
-  /** HR: all auto-generated offers, sorted by assessment score desc. */
-  getAll(): Observable<OfferLetter[]> {
+  /** HR: paginated/searchable offer list, sorted by assessment score desc (backend avoids
+   *  loading every offer at once). */
+  search(params: OfferSearchParams = {}): Observable<PagedResponse<OfferLetter>> {
+    let httpParams = new HttpParams()
+      .set('page', String(params.page ?? 0))
+      .set('size', String(params.size ?? 20));
+    if (params.search) httpParams = httpParams.set('search', params.search);
+    if (params.status) httpParams = httpParams.set('status', params.status);
     return this.http
-      .get<BackendOffer[]>(API_ENDPOINTS.OFFERS.BASE)
-      .pipe(map((list) => (list || []).map((o) => this.toOffer(o))));
+      .get<PagedResponse<BackendOffer>>(API_ENDPOINTS.OFFERS.BASE, { params: httpParams })
+      .pipe(map((page) => ({ ...page, content: page.content.map((o) => this.toOffer(o)) })));
+  }
+
+  /** HR: full application-id list of GENERATED offers sorted by score desc — backs the
+   *  "Select Top N / Select All" bulk-send shortcuts, independent of the paginated table. */
+  getGeneratedIdsSortedByScore(): Observable<number[]> {
+    return this.http.get<number[]>(API_ENDPOINTS.OFFERS.GENERATED_IDS);
   }
 
   /** Candidate: own offers. Backend derives the user from JWT. */

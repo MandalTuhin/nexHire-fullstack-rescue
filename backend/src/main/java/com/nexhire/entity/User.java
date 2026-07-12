@@ -45,6 +45,12 @@ public class User {
     @Builder.Default
     private Boolean active = true;
 
+    /** P-Claude.md "User should be forced to change password after first login" — set true
+     *  for Admin-created internal users (HR/RMG/Admin), false for self-registered candidates. */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean mustChangePassword = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

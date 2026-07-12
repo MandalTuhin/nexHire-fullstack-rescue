@@ -13,6 +13,8 @@ import com.nexhire.exception.InvalidStateTransitionException;
 import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,6 +77,21 @@ public class BgvService {
 
     public List<BgvResponse> getAll() {
         return bgvRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    /** HR: paginated/searchable BGC case list, avoids loading every case at once. */
+    public PageResponse<BgvResponse> search(String search, String status, int page, int size) {
+        String pattern = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
+        BgvStatus statusFilter = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                statusFilter = BgvStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // unknown status string -> no match, leave filter null so nothing is silently mis-filtered out
+            }
+        }
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200));
+        return PageResponse.of(bgvRepository.search(pattern, statusFilter, pageable), this::toResponse);
     }
 
     public List<BgvResponse> getMine(Long userId) {

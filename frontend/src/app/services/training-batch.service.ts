@@ -8,6 +8,7 @@ import {
   TrainingBatchDetail,
   TrainingProgram,
   TrainingProgramCreateRequest,
+  TrainingProgramUpdateRequest,
 } from '../models/training-batch.model';
 import { UploadSummary } from '../models/bulk-upload.model';
 import { API_ENDPOINTS } from '../config/api-endpoints';
@@ -25,6 +26,10 @@ export class TrainingBatchService extends BaseService {
 
   createProgram(request: TrainingProgramCreateRequest): Observable<TrainingProgram> {
     return this.http.post<TrainingProgram>(API_ENDPOINTS.TRAINING_BATCHES.PROGRAMS, request);
+  }
+
+  updateProgram(id: number, request: TrainingProgramUpdateRequest): Observable<TrainingProgram> {
+    return this.http.put<TrainingProgram>(`${API_ENDPOINTS.TRAINING_BATCHES.PROGRAMS}/${id}`, request);
   }
 
   getDashboard(): Observable<TrainingBatchDashboard[]> {

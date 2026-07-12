@@ -366,12 +366,6 @@ export class AdminLayoutComponent implements OnInit {
       permission: 'MANAGE_PERMISSIONS',
     },
     {
-      label: 'Branches',
-      icon: 'account_balance',
-      route: '/admin/branches',
-      permission: 'MANAGE_PERMISSIONS',
-    },
-    {
       label: 'Blocks',
       icon: 'domain',
       route: '/admin/blocks',
@@ -399,6 +393,12 @@ export class AdminLayoutComponent implements OnInit {
       label: 'Budgets',
       icon: 'account_balance_wallet',
       route: '/admin/budgets',
+      permission: 'MANAGE_PERMISSIONS',
+    },
+    {
+      label: 'Training Programs',
+      icon: 'school',
+      route: '/admin/training-programs',
       permission: 'MANAGE_PERMISSIONS',
     },
     {

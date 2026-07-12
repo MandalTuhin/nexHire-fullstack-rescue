@@ -16,6 +16,7 @@ import { SharedModule } from './shared/shared.module';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
 import { CandidateLayoutComponent } from './layouts/candidate-layout/candidate-layout.component';
 import { HrLayoutComponent } from './layouts/hr-layout/hr-layout.component';
+import { RmgLayoutComponent } from './layouts/rmg-layout/rmg-layout.component';
 import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.component';
 
 // ─── Candidate Portal Components ─────────────────────────────────────────────
@@ -39,11 +40,13 @@ import { AssessmentsManagementComponent } from './modules/assessments/assessment
 import { OfferLettersManagementComponent } from './modules/offer-letters/offer-letters.component';
 import { BgvManagementComponent } from './modules/bgv/bgv.component';
 import { JoiningBatchesComponent } from './modules/joining-batches/joining-batches.component';
-import { TraineesManagementComponent } from './modules/trainees/trainees.component';
 import { AssetsManagementComponent } from './modules/assets/assets.component';
-import { ReleasedCandidatesComponent } from './modules/released/released.component';
 import { ProjectsComponent } from './modules/projects/projects.component';
 import { BudgetOverviewComponent } from './modules/budget-overview/budget-overview.component';
+
+// ─── RMG Portal Components ────────────────────────────────────────────────────
+import { RmgDashboardComponent } from './modules/rmg/dashboard/rmg-dashboard.component';
+import { ReleasedCandidatesComponent } from './modules/released/released.component';
 
 // ─── Admin Portal Components ─────────────────────────────────────────────────
 import { AdminDashboardComponent } from './modules/admin/admin-dashboard/admin-dashboard.component';
@@ -51,9 +54,9 @@ import { UserManagementComponent } from './modules/admin/user-management/user-ma
 import { CreateUserDialogComponent } from './modules/admin/user-management/create-user-dialog.component';
 import { ActivityLogsComponent } from './modules/admin/activity-logs/activity-logs.component';
 import { BudgetsComponent } from './modules/admin/budgets/budgets.component';
+import { TrainingProgramsComponent } from './modules/admin/training-programs/training-programs.component';
 import { SystemSettingsComponent } from './modules/admin/system-settings/system-settings.component';
 import { CitiesComponent } from './modules/admin/locations/cities/cities.component';
-import { BranchesComponent } from './modules/admin/locations/branches/branches.component';
 import { BlocksComponent } from './modules/admin/locations/blocks/blocks.component';
 
 // ─── Error Components ─────────────────────────────────────────────────────────
@@ -67,6 +70,7 @@ import { NotFoundComponent } from './modules/errors/not-found.component';
     PublicLayoutComponent,
     CandidateLayoutComponent,
     HrLayoutComponent,
+    RmgLayoutComponent,
     AdminLayoutComponent,
     // Candidate Portal
     CandidateProfileComponent,
@@ -88,20 +92,21 @@ import { NotFoundComponent } from './modules/errors/not-found.component';
     OfferLettersManagementComponent,
     BgvManagementComponent,
     JoiningBatchesComponent,
-    TraineesManagementComponent,
     AssetsManagementComponent,
-    ReleasedCandidatesComponent,
     ProjectsComponent,
     BudgetOverviewComponent,
+    // RMG Portal
+    RmgDashboardComponent,
+    ReleasedCandidatesComponent,
     // Admin Portal
     AdminDashboardComponent,
     UserManagementComponent,
     CreateUserDialogComponent,
     ActivityLogsComponent,
     BudgetsComponent,
+    TrainingProgramsComponent,
     SystemSettingsComponent,
     CitiesComponent,
-    BranchesComponent,
     BlocksComponent,
     // Errors
     UnauthorizedComponent,

@@ -16,7 +16,13 @@ public class ProjectResponse {
     private Long id;
     private String name;
     private String description;
-    private Boolean active;
-    private Integer teamSize;
+    private String client;
+    private String technology;
+    private Long locationId;
+    private String locationName;
+    private Integer totalVacancies;
+    private Integer allocatedCount;
+    private Integer remainingVacancies;
+    private String status;
     private LocalDateTime createdAt;
 }

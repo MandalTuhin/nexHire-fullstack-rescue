@@ -45,6 +45,8 @@ export interface JoiningBatch {
   trainingLocationName: string;
   trainingProgram?: string;
   block?: string;
+  trainingBlockId?: number;
+  trainingBlockName?: string;
   trainingStartDate?: string;
   trainingEndDate?: string;
   batchSize: number;
@@ -61,7 +63,9 @@ export interface JoiningBatchCreateRequest {
   joiningLocationId: number;
   trainingLocationId: number;
   trainingProgram?: string;
+  trainingProgramId?: number;
   block?: string;
+  trainingBlockId?: number;
   trainingStartDate?: string;
   trainingEndDate?: string;
   batchSize: number;

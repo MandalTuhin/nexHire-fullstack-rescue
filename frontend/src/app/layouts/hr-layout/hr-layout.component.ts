@@ -426,12 +426,6 @@ export class HrLayoutComponent implements OnInit {
       permission: 'VIEW_JOINING_BATCHES',
     },
     {
-      label: 'Trainees',
-      icon: 'school',
-      route: '/hr/trainees',
-      permission: 'VIEW_TRAINEES',
-    },
-    {
       label: 'Asset Management',
       icon: 'computer',
       route: '/hr/assets',

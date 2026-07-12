@@ -17,6 +17,9 @@ public class ProjectAssignmentResponse {
     private Long traineeId;
     private Long projectId;
     private String projectName;
+    private String technology;
+    private String locationName;
+    private String projectStatus;
     private String candidateName;
     private String candidateEmail;
     private String assignedByName;

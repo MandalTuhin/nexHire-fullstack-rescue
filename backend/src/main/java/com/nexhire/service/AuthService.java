@@ -1,12 +1,15 @@
 package com.nexhire.service;
 
+import com.nexhire.dto.ChangePasswordRequest;
 import com.nexhire.dto.LoginRequest;
 import com.nexhire.dto.LoginResponse;
 import com.nexhire.dto.RegisterRequest;
 import com.nexhire.entity.User;
 import com.nexhire.enums.LifecycleStatus;
 import com.nexhire.enums.UserRole;
+import com.nexhire.exception.BusinessRuleException;
 import com.nexhire.exception.DuplicateResourceException;
+import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.UserRepository;
 import com.nexhire.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +19,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -71,6 +75,29 @@ public class AuthService {
                 .role(user.getRole().name())
                 .lifecycleStatus(user.getLifecycleStatus() != null
                         ? user.getLifecycleStatus().name() : null)
+                .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
                 .build();
+    }
+
+    /** Authenticated user: change own password. Validates current password, strength,
+     *  and match, then clears mustChangePassword so a forced first-login change is satisfied. */
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BusinessRuleException("Current password is incorrect");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessRuleException("New password and confirmation do not match");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessRuleException("New password must be different from the current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
     }
 }

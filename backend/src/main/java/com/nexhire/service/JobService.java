@@ -3,10 +3,10 @@ package com.nexhire.service;
 import com.nexhire.dto.JobRequest;
 import com.nexhire.dto.JobResponse;
 import com.nexhire.entity.Job;
-import com.nexhire.entity.Location;
+import com.nexhire.entity.City;
 import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.JobRepository;
-import com.nexhire.repository.LocationRepository;
+import com.nexhire.repository.CityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ import java.util.List;
 public class JobService {
 
     private final JobRepository jobRepository;
-    private final LocationRepository locationRepository;
+    private final CityRepository locationRepository;
 
     public List<JobResponse> getActiveJobs() {
         return jobRepository.findByActiveTrue().stream()
@@ -32,9 +32,9 @@ public class JobService {
     }
 
     public JobResponse createJob(JobRequest request) {
-        Location location = locationRepository.findById(request.getLocationId())
+        City location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Location not found with id: " + request.getLocationId()));
+                        "City not found with id: " + request.getLocationId()));
 
         Job job = Job.builder()
                 .title(request.getTitle())

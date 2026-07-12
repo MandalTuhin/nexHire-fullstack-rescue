@@ -1,5 +1,6 @@
 package com.nexhire.entity;
 
+import com.nexhire.enums.TrainingProgramStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -8,9 +9,10 @@ import java.time.LocalDateTime;
 
 /**
  * context.md "LAP FLOW": "Training should have: cutoff_score, minimum_attendance_percentage."
- * This is the catalog HR picks from at Training Assignment time (distinct from
- * JoiningBatch.trainingProgram, the free-text description captured earlier in the Phase 5
- * wizard, before a real program+budget commitment is made).
+ * P-Claude.md section "TRAINING PROGRAMS": Admin-managed master (Java/Angular/Python/Cloud),
+ * HR selects from it while creating batches. This is the catalog HR picks from — distinct from
+ * JoiningBatch.trainingProgram, the free-text description some batches still carry from before
+ * this catalog existed.
  */
 @Entity
 @Table(name = "training_programs")
@@ -28,6 +30,9 @@ public class TrainingProgram {
     @Column(nullable = false, unique = true)
     private String name;
 
+    /** Free-form, e.g. "8 weeks" — no fixed unit mandated by the spec. */
+    private String duration;
+
     @Column(nullable = false)
     private Long costPerCandidate;
 
@@ -36,6 +41,11 @@ public class TrainingProgram {
 
     @Column(nullable = false)
     private Double minimumAttendancePercentage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private TrainingProgramStatus status = TrainingProgramStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

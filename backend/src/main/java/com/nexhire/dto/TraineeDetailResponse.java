@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -21,6 +22,7 @@ public class TraineeDetailResponse {
     private String candidateName;
     private String candidateEmail;
     private String candidatePhone;
+    private String jobTitle;
     private Long batchId;
     private String batchCode;
     private Double assessmentScore;
@@ -33,4 +35,5 @@ public class TraineeDetailResponse {
     private String remarks;
     private String applicationStatus;
     private LocalDateTime joinedAt;
+    private List<LapHistoryResponse> lapHistory;
 }

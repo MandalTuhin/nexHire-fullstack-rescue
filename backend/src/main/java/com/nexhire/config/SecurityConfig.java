@@ -48,14 +48,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/activity-logs/**").hasRole("ADMIN")
                         // Assets: managed by ADMIN, owning EMPLOYEE views own (method-level refines)
                         .requestMatchers("/api/assets/**").hasAnyRole("ADMIN", "EMPLOYEE")
-                        // Projects: ADMIN does CRUD, RMG allocates trainees (method-level refines)
+                        // Projects: ADMIN does CRUD, RMG allocates trainees, EMPLOYEE reads their
+                        // own assignment — this more specific matcher must come before the
+                        // broader ADMIN/RMG one below.
+                        .requestMatchers("/api/projects/my").hasRole("EMPLOYEE")
                         .requestMatchers("/api/projects/**").hasAnyRole("ADMIN", "RMG")
                         // Dashboard: computed metrics for management roles
                         .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "HR", "RMG")
                         // Notifications: any authenticated user
                         .requestMatchers("/api/notifications/**").authenticated()
-                        // Training: HR manages, EMPLOYEE views own
-                        .requestMatchers("/api/training/**").hasAnyRole("HR", "EMPLOYEE")
                         // Locations: HR manages/views full detail; EMPLOYEE (candidates) can only
                         // read the name-only list for the profile's Location Preferences dropdown —
                         // this more specific matcher must come before the broader HR-only one below.

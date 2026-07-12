@@ -31,7 +31,7 @@ public class Job {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id", nullable = false)
-    private Location location;
+    private City location;
 
     /** The hiring drive's date — shown to candidates on the drive listing. */
     private LocalDate driveDate;

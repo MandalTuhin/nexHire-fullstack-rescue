@@ -1,28 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { DashboardService } from '../../../services/dashboard.service';
+import { AdminDashboardStats } from '../../../models/admin.model';
 
-/** Admin Dashboard - shows system-wide overview for ADMIN role */
+/** Admin Dashboard — live counts only (P-Claude.md: Active Users, Cities, Blocks,
+ *  Budget Utilization, Active Projects, Running Batches). No hardcoded/mock values. */
 @Component({
     selector: 'app-admin-dashboard',
     template: `
     <div class="admin-dash">
       <app-page-header title="Admin Dashboard" subtitle="System administration overview"></app-page-header>
 
-      <div class="admin-grid">
+      <div class="admin-grid" *ngIf="stats">
         <mat-card class="admin-card">
           <mat-card-content>
             <div class="card-icon purple"><mat-icon>manage_accounts</mat-icon></div>
             <div class="card-body">
-              <span class="card-num">12</span>
-              <span class="card-lbl">System Users</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-        <mat-card class="admin-card">
-          <mat-card-content>
-            <div class="card-icon indigo"><mat-icon>admin_panel_settings</mat-icon></div>
-            <div class="card-body">
-              <span class="card-num">5</span>
-              <span class="card-lbl">Roles Configured</span>
+              <span class="card-num">{{ stats.activeUsers }}</span>
+              <span class="card-lbl">Active Users</span>
             </div>
           </mat-card-content>
         </mat-card>
@@ -30,7 +24,7 @@ import { Component } from '@angular/core';
           <mat-card-content>
             <div class="card-icon teal"><mat-icon>location_city</mat-icon></div>
             <div class="card-body">
-              <span class="card-num">8</span>
+              <span class="card-num">{{ stats.cities }}</span>
               <span class="card-lbl">Cities</span>
             </div>
           </mat-card-content>
@@ -39,8 +33,35 @@ import { Component } from '@angular/core';
           <mat-card-content>
             <div class="card-icon orange"><mat-icon>domain</mat-icon></div>
             <div class="card-body">
-              <span class="card-num">24</span>
-              <span class="card-lbl">Blocks Available</span>
+              <span class="card-num">{{ stats.blocks }}</span>
+              <span class="card-lbl">Blocks</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        <mat-card class="admin-card">
+          <mat-card-content>
+            <div class="card-icon indigo"><mat-icon>account_balance</mat-icon></div>
+            <div class="card-body">
+              <span class="card-num">{{ stats.budgetUtilizationPercent }}%</span>
+              <span class="card-lbl">Budget Utilization</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        <mat-card class="admin-card">
+          <mat-card-content>
+            <div class="card-icon blue"><mat-icon>business_center</mat-icon></div>
+            <div class="card-body">
+              <span class="card-num">{{ stats.activeProjects }}</span>
+              <span class="card-lbl">Active Projects</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        <mat-card class="admin-card">
+          <mat-card-content>
+            <div class="card-icon green"><mat-icon>school</mat-icon></div>
+            <div class="card-body">
+              <span class="card-num">{{ stats.runningBatches }}</span>
+              <span class="card-lbl">Running Batches</span>
             </div>
           </mat-card-content>
         </mat-card>
@@ -51,20 +72,20 @@ import { Component } from '@angular/core';
           <mat-card-title>Quick Administration</mat-card-title>
         </mat-card-header>
         <mat-card-content class="quick-links">
-          <a routerLink="/admin/roles" mat-stroked-button color="primary">
-            <mat-icon>admin_panel_settings</mat-icon> Manage Roles
-          </a>
-          <a routerLink="/admin/role-permissions" mat-stroked-button color="primary">
-            <mat-icon>lock</mat-icon> Role Permissions
+          <a routerLink="/admin/users" mat-stroked-button color="primary">
+            <mat-icon>manage_accounts</mat-icon> Manage Users
           </a>
           <a routerLink="/admin/cities" mat-stroked-button color="primary">
             <mat-icon>location_city</mat-icon> Manage Cities
           </a>
-          <a routerLink="/admin/branches" mat-stroked-button color="primary">
-            <mat-icon>account_balance</mat-icon> Manage Branches
-          </a>
           <a routerLink="/admin/blocks" mat-stroked-button color="primary">
             <mat-icon>domain</mat-icon> Manage Blocks
+          </a>
+          <a routerLink="/admin/projects" mat-stroked-button color="primary">
+            <mat-icon>business_center</mat-icon> Manage Projects
+          </a>
+          <a routerLink="/admin/training-programs" mat-stroked-button color="primary">
+            <mat-icon>school</mat-icon> Training Programs
           </a>
         </mat-card-content>
       </mat-card>
@@ -84,6 +105,8 @@ import { Component } from '@angular/core';
     .indigo { background: #4f46e5; }
     .teal { background: #0d9488; }
     .orange { background: #ea580c; }
+    .blue { background: #2563eb; }
+    .green { background: #16a34a; }
     .card-body { display: flex; flex-direction: column; }
     .card-num { font-size: 26px; font-weight: 700; color: #1e293b; }
     .card-lbl { font-size: 13px; color: #64748b; font-weight: 500; }
@@ -93,4 +116,12 @@ import { Component } from '@angular/core';
   `],
     standalone: false
 })
-export class AdminDashboardComponent {}
+export class AdminDashboardComponent implements OnInit {
+  stats: AdminDashboardStats | null = null;
+
+  constructor(private dashboardService: DashboardService) {}
+
+  ngOnInit(): void {
+    this.dashboardService.getAdminStats().subscribe((s) => (this.stats = s));
+  }
+}

@@ -1,8 +1,10 @@
 package com.nexhire.controller;
 
+import com.nexhire.dto.AdminDashboardResponse;
 import com.nexhire.dto.ChartDataResponse;
 import com.nexhire.dto.DashboardStatsResponse;
 import com.nexhire.dto.PendingActionsResponse;
+import com.nexhire.dto.RmgDashboardResponse;
 import com.nexhire.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,17 @@ public class DashboardController {
     @GetMapping("/pending-actions")
     public ResponseEntity<PendingActionsResponse> getPendingActions() {
         return ResponseEntity.ok(dashboardService.getPendingActions());
+    }
+
+    @GetMapping("/rmg-stats")
+    public ResponseEntity<RmgDashboardResponse> getRmgStats() {
+        return ResponseEntity.ok(dashboardService.getRmgStats());
+    }
+
+    @GetMapping("/admin-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdminDashboardResponse> getAdminStats() {
+        return ResponseEntity.ok(dashboardService.getAdminStats());
     }
 
     @GetMapping("/charts/applications")

@@ -27,11 +27,11 @@
 
       <mat-card class="table-card">
         <mat-card-content>
-          <app-empty-state *ngIf="!loading && filteredCases.length === 0" icon="verified" title="No background checks" subtitle="Offer acceptance auto-initiates BGC."></app-empty-state>
+          <app-empty-state *ngIf="!loading && cases.length === 0" icon="verified" title="No background checks" subtitle="Offer acceptance auto-initiates BGC."></app-empty-state>
           <app-loader *ngIf="loading"></app-loader>
 
-          <div class="table-container" *ngIf="!loading && filteredCases.length > 0">
-            <table mat-table [dataSource]="filteredCases">
+          <div class="table-container" *ngIf="!loading && cases.length > 0">
+            <table mat-table [dataSource]="cases">
               <ng-container matColumnDef="candidate">
                 <th mat-header-cell *matHeaderCellDef>Candidate</th>
                 <td mat-cell *matCellDef="let c">
@@ -78,6 +78,16 @@
               <tr mat-row *matRowDef="let row; columns: displayedColumns" (click)="openCase(row)" class="clickable-row"></tr>
             </table>
           </div>
+
+          <mat-paginator
+            *ngIf="!loading && totalRecords > 0"
+            [length]="totalRecords"
+            [pageSize]="size"
+            [pageIndex]="page"
+            [pageSizeOptions]="[10, 20, 50, 100]"
+            (page)="onPageChange($event)"
+            showFirstLastButtons
+          ></mat-paginator>
         </mat-card-content>
       </mat-card>
 

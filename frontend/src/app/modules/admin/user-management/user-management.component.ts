@@ -1,9 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { PageEvent } from '@angular/material/paginator';
+import { MatDialog } from '@angular/material/dialog';
 import {
   AdminUserService,
   AdminUser,
 } from '../../../services/admin-user.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { TableColumn } from '../../../shared/components/data-table/data-table.component';
+import { CreateUserDialogComponent } from './create-user-dialog.component';
+
+/** DataTableComponent requires rows to carry an `id`; AdminUser already has one. */
+type UserRow = AdminUser;
 
 @Component({
   selector: 'app-user-management',
@@ -11,97 +18,100 @@ import { ToastService } from '../../../shared/services/toast.service';
     <div class="user-management-container">
       <app-page-header
         title="User Management"
-        subtitle="Manage system users, update roles, and deactivate accounts."
-      ></app-page-header>
+        subtitle="Manage system users, update roles, and restrict access."
+      >
+        <button mat-raised-button color="primary" (click)="openCreateUser()">
+          <mat-icon>person_add</mat-icon> Create User
+        </button>
+      </app-page-header>
+
+      <mat-card class="filter-card">
+        <mat-card-content class="filter-row">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Search</mat-label>
+            <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Name or email" />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Role</mat-label>
+            <mat-select [(ngModel)]="roleFilter" (selectionChange)="onFilterChange()">
+              <mat-option value="">All</mat-option>
+              <mat-option value="EMPLOYEE">Employee</mat-option>
+              <mat-option value="HR">HR</mat-option>
+              <mat-option value="RMG">RMG</mat-option>
+              <mat-option value="ADMIN">Admin</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
 
       <mat-card class="table-card">
         <mat-card-content>
-          <div class="table-container" *ngIf="users.length > 0">
-            <table mat-table [dataSource]="users">
-              <ng-container matColumnDef="user">
-                <th mat-header-cell *matHeaderCellDef>User</th>
-                <td mat-cell *matCellDef="let u">
-                  <div class="user-meta">
-                    <span class="name">{{ u.name }}</span>
-                    <span class="email">{{ u.email }}</span>
-                  </div>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="lifecycle">
-                <th mat-header-cell *matHeaderCellDef>Lifecycle</th>
-                <td mat-cell *matCellDef="let u">
-                  {{ u.lifecycleStatus || '—' }}
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="role">
-                <th mat-header-cell *matHeaderCellDef>Role</th>
-                <td mat-cell *matCellDef="let u">
-                  <button
-                    mat-button
-                    [matMenuTriggerFor]="roleMenu"
-                    [ngClass]="getRoleClass(u.role)"
-                    class="role-btn"
-                  >
-                    {{ u.role }} <mat-icon>arrow_drop_down</mat-icon>
-                  </button>
-                  <mat-menu #roleMenu="matMenu">
-                    <button mat-menu-item (click)="changeRole(u, 'EMPLOYEE')">
-                      Employee
-                    </button>
-                    <button mat-menu-item (click)="changeRole(u, 'HR')">
-                      HR
-                    </button>
-                    <button mat-menu-item (click)="changeRole(u, 'RMG')">
-                      RMG
-                    </button>
-                    <button mat-menu-item (click)="changeRole(u, 'ADMIN')">
-                      Admin
-                    </button>
-                  </mat-menu>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef>Status</th>
-                <td mat-cell *matCellDef="let u">
-                  <span
-                    class="status-badge"
-                    [class.active]="u.active"
-                    [class.restricted]="!u.active"
-                  >
-                    {{ u.active ? 'Active' : 'Deactivated' }}
-                  </span>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
-                <td mat-cell *matCellDef="let u" align="end">
-                  <button
-                    mat-stroked-button
-                    color="warn"
-                    (click)="deactivate(u)"
-                    [disabled]="!u.active"
-                  >
-                    Deactivate
-                  </button>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-            </table>
-          </div>
-
-          <app-empty-state
-            *ngIf="users.length === 0"
-            icon="people_outline"
-            title="No users found"
-          ></app-empty-state>
+          <app-data-table
+            [columns]="columns"
+            [data]="rows"
+            [totalRecords]="totalRecords"
+            [pageSize]="size"
+            [loading]="loading"
+            emptyMessage="No users found"
+            (pageChange)="onPageChange($event)"
+          ></app-data-table>
         </mat-card-content>
       </mat-card>
+
+      <ng-template #userCell let-row>
+        <div class="user-meta">
+          <span class="name">{{ row.name }}</span>
+          <span class="email">{{ row.email }}</span>
+        </div>
+      </ng-template>
+
+      <ng-template #roleCell let-row>
+        <button
+          mat-button
+          [matMenuTriggerFor]="roleMenu"
+          [ngClass]="getRoleClass(row.role)"
+          class="role-btn"
+        >
+          {{ row.role }} <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #roleMenu="matMenu">
+          <button mat-menu-item (click)="changeRole(row, 'EMPLOYEE')">
+            Employee
+          </button>
+          <button mat-menu-item (click)="changeRole(row, 'HR')">
+            HR
+          </button>
+          <button mat-menu-item (click)="changeRole(row, 'RMG')">
+            RMG
+          </button>
+          <button mat-menu-item (click)="changeRole(row, 'ADMIN')">
+            Admin
+          </button>
+        </mat-menu>
+      </ng-template>
+
+      <ng-template #statusCell let-row>
+        <span
+          class="status-badge"
+          [class.active]="row.active"
+          [class.restricted]="!row.active"
+        >
+          {{ row.active ? 'Active' : 'Deactivated' }}
+        </span>
+      </ng-template>
+
+      <ng-template #actionsCell let-row>
+        <button
+          mat-stroked-button
+          color="warn"
+          (click)="deactivate(row)"
+          [disabled]="!row.active"
+        >
+          Restrict Access
+        </button>
+      </ng-template>
     </div>
   `,
   styles: [
@@ -111,16 +121,21 @@ import { ToastService } from '../../../shared/services/toast.service';
         flex-direction: column;
         gap: 24px;
       }
+      .filter-card,
       .table-card {
         border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow-card) !important;
       }
-      .table-container {
-        width: 100%;
-        overflow-x: auto;
+      .filter-row {
+        display: flex;
+        gap: 16px;
+        padding: 4px 0;
+        flex-wrap: wrap;
+        align-items: center;
       }
-      table {
-        width: 100%;
+      .filter-item {
+        flex: 1;
+        min-width: 220px;
       }
       .user-meta {
         display: flex;
@@ -176,29 +191,86 @@ import { ToastService } from '../../../shared/services/toast.service';
   ],
   standalone: false,
 })
-export class UserManagementComponent implements OnInit {
-  users: AdminUser[] = [];
-  displayedColumns: string[] = [
-    'user',
-    'lifecycle',
-    'role',
-    'status',
-    'actions',
-  ];
+export class UserManagementComponent implements OnInit, AfterViewInit {
+  @ViewChild('userCell') userCellTpl!: TemplateRef<any>;
+  @ViewChild('roleCell') roleCellTpl!: TemplateRef<any>;
+  @ViewChild('statusCell') statusCellTpl!: TemplateRef<any>;
+  @ViewChild('actionsCell') actionsCellTpl!: TemplateRef<any>;
+
+  columns: TableColumn[] = [];
+
+  rows: UserRow[] = [];
+  totalRecords = 0;
+  loading = false;
+
+  page = 0;
+  size = 20;
+
+  search = '';
+  roleFilter = '';
 
   constructor(
     private adminUserService: AdminUserService,
     private toast: ToastService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
     this.load();
   }
 
+  openCreateUser(): void {
+    this.dialog
+      .open(CreateUserDialogComponent, { width: '420px' })
+      .afterClosed()
+      .subscribe((created) => {
+        if (created) {
+          this.page = 0;
+          this.load();
+        }
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.columns = [
+      { field: 'user', label: 'User', sortable: false, cellTemplate: this.userCellTpl },
+      { field: 'role', label: 'Role', sortable: false, cellTemplate: this.roleCellTpl },
+      { field: 'status', label: 'Status', sortable: false, cellTemplate: this.statusCellTpl },
+      { field: 'actions', label: 'Actions', sortable: false, cellTemplate: this.actionsCellTpl },
+    ];
+  }
+
   load(): void {
+    this.loading = true;
     this.adminUserService
-      .getAllUsers()
-      .subscribe((data) => (this.users = data));
+      .search({ search: this.search, role: this.roleFilter, page: this.page, size: this.size })
+      .subscribe({
+        next: (result) => {
+          this.rows = result.content;
+          this.totalRecords = result.totalElements;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.toast.error('Failed to load users.');
+        },
+      });
+  }
+
+  onSearchChange(): void {
+    this.page = 0;
+    this.load();
+  }
+
+  onFilterChange(): void {
+    this.page = 0;
+    this.load();
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.page = event.pageIndex;
+    this.size = event.pageSize;
+    this.load();
   }
 
   getRoleClass(role: string): string {

@@ -1,19 +1,26 @@
 package com.nexhire.service;
 
+import com.nexhire.dto.AdminDashboardResponse;
 import com.nexhire.dto.ChartDataResponse;
 import com.nexhire.dto.DashboardStatsResponse;
 import com.nexhire.dto.PendingActionsResponse;
-import com.nexhire.entity.HiringBudget;
-import com.nexhire.entity.TrainingSeat;
+import com.nexhire.dto.RmgDashboardResponse;
+import com.nexhire.entity.Block;
+import com.nexhire.entity.City;
+import com.nexhire.entity.Project;
+import com.nexhire.entity.ProjectAssignment;
 import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.BgvStatus;
 import com.nexhire.enums.JoiningBatchStatus;
+import com.nexhire.enums.ProjectStatus;
 import com.nexhire.enums.TraineeFinalResult;
 import com.nexhire.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -52,17 +59,26 @@ public class DashboardService {
     private final JoiningBatchRepository joiningBatchRepository;
     private final JoiningLetterRepository joiningLetterRepository;
     private final TraineeRepository traineeRepository;
-    private final HiringBudgetRepository hiringBudgetRepository;
-    private final TrainingSeatRepository trainingSeatRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectAssignmentRepository projectAssignmentRepository;
+    private final UserRepository userRepository;
+    private final CityRepository cityRepository;
+    private final BlockRepository blockRepository;
 
     public DashboardStatsResponse getStats() {
-        List<HiringBudget> budgets = hiringBudgetRepository.findAll();
-        long budgetUsed = budgets.stream().mapToLong(HiringBudget::getUsedAmount).sum();
-        long budgetTotal = budgets.stream().mapToLong(HiringBudget::getBudgetAmount).sum();
+        // Budget/seat totals are derived from the City passbook + Block capacity — the same
+        // source of truth the Admin Dashboard and Budget Overview page use — not the retired
+        // per-location HiringBudget/TrainingSeat tables.
+        List<City> cities = cityRepository.findAll();
+        long budgetUsed = cities.stream().mapToLong(City::getUsedBudget).sum();
+        long budgetAvailable = cities.stream().mapToLong(City::getAvailableBudget).sum();
 
-        List<TrainingSeat> seats = trainingSeatRepository.findAll();
-        long seatsUsed = seats.stream().mapToLong(TrainingSeat::getOccupiedSeats).sum();
-        long seatsTotal = seats.stream().mapToLong(TrainingSeat::getTotalSeats).sum();
+        List<Block> blocks = blockRepository.findAll();
+        long seatsTotal = blocks.stream().mapToLong(Block::getCapacity).sum();
+        long seatsUsed = blocks.stream()
+                .filter(b -> b.getCurrentActiveBatch() != null)
+                .mapToLong(b -> b.getCurrentActiveBatch().getBatchSize())
+                .sum();
 
         return DashboardStatsResponse.builder()
                 .totalApplications(applicationRepository.count())
@@ -101,7 +117,7 @@ public class DashboardService {
                 .totalVacancyUsed(seatsUsed)
                 .totalVacancyAvailable(Math.max(0, seatsTotal - seatsUsed))
                 .totalBudgetUsed(budgetUsed)
-                .totalBudgetAvailable(Math.max(0, budgetTotal - budgetUsed))
+                .totalBudgetAvailable(budgetAvailable)
                 .build();
     }
 
@@ -114,6 +130,59 @@ public class DashboardService {
                 .candidatesEligibleForBatch(applicationRepository.countByStatus(ApplicationStatus.SELECTED_USER_CREATED))
                 .trainingBatchesRequiringResultUpload(joiningBatchRepository.countByStatus(JoiningBatchStatus.TRAINING_IN_PROGRESS))
                 .lapCandidatesRequiringReview(traineeRepository.countByLapEnabledTrue())
+                .build();
+    }
+
+    /** RMG Dashboard (P-Claude.md): Released Candidates Waiting, Active Projects, Remaining
+     *  Vacancies, Recent Allocations. */
+    public RmgDashboardResponse getRmgStats() {
+        List<Project> activeProjects = projectRepository.findByStatus(ProjectStatus.ACTIVE);
+        long remainingVacancies = activeProjects.stream()
+                .mapToLong(p -> Math.max(0, p.getTotalVacancies() - p.getAllocatedCount()))
+                .sum();
+
+        List<RmgDashboardResponse.RecentAllocation> recent = projectAssignmentRepository
+                .findAllByOrderByAssignedAtDesc(PageRequest.of(0, 10)).stream()
+                .map(this::toRecentAllocation)
+                .toList();
+
+        return RmgDashboardResponse.builder()
+                .releasedCandidatesWaiting(traineeRepository.countByApplicationStatus(ApplicationStatus.RELEASED))
+                .activeProjects(activeProjects.size())
+                .remainingVacancies(remainingVacancies)
+                .recentAllocations(recent)
+                .build();
+    }
+
+    /** Admin Dashboard (P-Claude.md): Active Users, Cities, Blocks, Budget Utilization,
+     *  Active Projects, Running Batches. */
+    public AdminDashboardResponse getAdminStats() {
+        List<City> cities = cityRepository.findAll();
+        long totalBudget = cities.stream().mapToLong(City::getTotalBudget).sum();
+        long committedBudget = cities.stream()
+                .mapToLong(c -> c.getReservedBudget() + c.getUsedBudget())
+                .sum();
+        double utilizationPercent = totalBudget == 0 ? 0.0
+                : Math.round((committedBudget * 10000.0) / totalBudget) / 100.0;
+
+        return AdminDashboardResponse.builder()
+                .activeUsers(userRepository.countByActiveTrue())
+                .cities(cities.size())
+                .blocks(blockRepository.count())
+                .budgetUtilizationPercent(utilizationPercent)
+                .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
+                .runningBatches(joiningBatchRepository.countByStatus(JoiningBatchStatus.TRAINING_IN_PROGRESS))
+                .build();
+    }
+
+    private RmgDashboardResponse.RecentAllocation toRecentAllocation(ProjectAssignment a) {
+        return RmgDashboardResponse.RecentAllocation.builder()
+                .id(a.getId())
+                .candidateName(a.getTrainee().getUser().getName())
+                .projectName(a.getProject().getName())
+                .assignedAt(a.getAssignedAt() != null
+                        ? a.getAssignedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
+                        : null)
                 .build();
     }
 

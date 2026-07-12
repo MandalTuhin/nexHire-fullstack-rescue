@@ -42,7 +42,7 @@ public class JoiningLetter {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id", nullable = false)
-    private Location location;
+    private City location;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

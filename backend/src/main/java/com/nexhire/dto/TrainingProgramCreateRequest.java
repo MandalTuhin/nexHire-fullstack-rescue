@@ -16,6 +16,8 @@ public class TrainingProgramCreateRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String duration;
+
     @NotNull(message = "Cost per candidate is required")
     private Long costPerCandidate;
 

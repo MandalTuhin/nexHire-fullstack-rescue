@@ -4,7 +4,7 @@ import com.nexhire.dto.AssessmentRequest;
 import com.nexhire.entity.AssessmentResult;
 import com.nexhire.entity.Job;
 import com.nexhire.entity.JobApplication;
-import com.nexhire.entity.Location;
+import com.nexhire.entity.City;
 import com.nexhire.entity.User;
 import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.UserRole;
@@ -47,7 +47,7 @@ class AssessmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        Location location = Location.builder().id(1L).name("Bangalore").city("Bangalore").build();
+        City location = City.builder().id(1L).name("Bangalore").build();
         User candidate = User.builder().id(1L).name("John").email("john@test.com").build();
         Job job = Job.builder().id(1L).title("Java Dev").description("Desc").location(location).build();
         application = JobApplication.builder().id(1L).user(candidate).job(job)

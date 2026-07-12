@@ -21,7 +21,6 @@ public class TrainingBatchDashboardResponse {
     private String trainingLocationName;
     private String trainingProgram;
     private String block;
-    private String trainer;
     private LocalDate trainingStartDate;
     private LocalDate trainingEndDate;
     private String status;

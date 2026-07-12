@@ -6,19 +6,33 @@ import { JoiningBatch } from './joining-batch.model';
 
 export type TraineeFinalResult = 'PENDING' | 'PASSED' | 'COMPLETED' | 'FAILED' | 'LAP';
 
+export type TrainingProgramStatus = 'ACTIVE' | 'INACTIVE';
+
 export interface TrainingProgram {
   id: number;
   name: string;
+  duration?: string;
+  costPerCandidate: number;
+  cutoffScore: number;
+  minimumAttendancePercentage: number;
+  status: TrainingProgramStatus;
+}
+
+export interface TrainingProgramCreateRequest {
+  name: string;
+  duration?: string;
   costPerCandidate: number;
   cutoffScore: number;
   minimumAttendancePercentage: number;
 }
 
-export interface TrainingProgramCreateRequest {
-  name: string;
-  costPerCandidate: number;
-  cutoffScore: number;
-  minimumAttendancePercentage: number;
+export interface TrainingProgramUpdateRequest {
+  name?: string;
+  duration?: string;
+  costPerCandidate?: number;
+  cutoffScore?: number;
+  minimumAttendancePercentage?: number;
+  status?: TrainingProgramStatus;
 }
 
 export interface AssignTrainingRequest {
@@ -57,7 +71,6 @@ export interface TrainingBatchDashboard {
   trainingLocationName: string;
   trainingProgram?: string;
   block?: string;
-  trainer?: string;
   trainingStartDate?: string;
   trainingEndDate?: string;
   status: string;

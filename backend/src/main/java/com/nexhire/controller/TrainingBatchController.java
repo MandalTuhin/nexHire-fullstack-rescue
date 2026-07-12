@@ -27,16 +27,35 @@ public class TrainingBatchController {
     private final TrainingBatchService trainingBatchService;
     private final TraineeExcelService traineeExcelService;
 
-    // ─── Training Program catalog ────────────────────────────────────────────────
+    // ─── Candidate self-service ───────────────────────────────────────────────────
+
+    /** EMPLOYEE: the logged-in candidate's own trainee record. */
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<TraineeDetailResponse> getMyTrainee(Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.getMyTrainee(userId));
+    }
+
+    // ─── Training Program catalog (P-Claude.md: Admin-managed, HR selects at batch time) ─────
 
     @GetMapping("/programs")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
     public ResponseEntity<List<TrainingProgramResponse>> getPrograms() {
         return ResponseEntity.ok(trainingBatchService.getPrograms());
     }
 
     @PostMapping("/programs")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TrainingProgramResponse> createProgram(@Valid @RequestBody TrainingProgramCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(trainingBatchService.createProgram(request));
+    }
+
+    @PutMapping("/programs/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TrainingProgramResponse> updateProgram(
+            @PathVariable Long id, @RequestBody TrainingProgramUpdateRequest request) {
+        return ResponseEntity.ok(trainingBatchService.updateProgram(id, request));
     }
 
     // ─── Dashboard / Detail / Assignment ─────────────────────────────────────────
@@ -62,6 +81,13 @@ public class TrainingBatchController {
     public ResponseEntity<TrainingBatchDetailResponse> completeBatch(@PathVariable Long id, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(trainingBatchService.completeBatch(id, userId));
+    }
+
+    /** Archives a finished batch (COMPLETED/COMPLETED_WITH_EXCEPTIONS -> CLOSED). */
+    @PostMapping("/{id}/close")
+    public ResponseEntity<TrainingBatchDetailResponse> closeBatch(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.closeBatch(id, userId));
     }
 
     // ─── LAP ────────────────────────────────────────────────────────────────────

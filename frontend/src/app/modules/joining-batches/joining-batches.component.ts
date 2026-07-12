@@ -3,10 +3,11 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { JoiningBatchService } from '../../services/joining-batch.service';
 import { TrainingBatchService } from '../../services/training-batch.service';
-import { LocationBudgetService } from '../../services/location-budget.service';
+import { CityAdminService } from '../../services/city-admin.service';
+import { BlockAdminService } from '../../services/block-admin.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog/confirmation-dialog.component';
-import { LocationBudget } from '../../models/location-budget.model';
+import { BlockAdmin, CityAdmin } from '../../models/city-admin.model';
 import { EligibleJoiningCandidate, JoiningBatch } from '../../models/joining-batch.model';
 import { TraineeDetail, TrainingBatchDetail, TrainingProgram } from '../../models/training-batch.model';
 import { UploadSummary } from '../../models/bulk-upload.model';
@@ -25,7 +26,9 @@ export class JoiningBatchesComponent implements OnInit {
   batches: JoiningBatch[] = [];
   loading = false;
 
-  locations: LocationBudget[] = [];
+  locations: CityAdmin[] = [];
+  wizardBlocks: BlockAdmin[] = [];
+  loadingBlocks = false;
 
   // Wizard state
   wizardStep = 0;
@@ -65,7 +68,8 @@ export class JoiningBatchesComponent implements OnInit {
     private fb: FormBuilder,
     private batchService: JoiningBatchService,
     private trainingBatchService: TrainingBatchService,
-    private locationService: LocationBudgetService,
+    private cityService: CityAdminService,
+    private blockAdminService: BlockAdminService,
     private toastService: ToastService,
     private dialog: MatDialog,
   ) {}
@@ -73,7 +77,7 @@ export class JoiningBatchesComponent implements OnInit {
   ngOnInit(): void {
     this.buildForms();
     this.loadBatches();
-    this.locationService.getAll().subscribe((locs) => (this.locations = locs));
+    this.cityService.getAll().subscribe((locs) => (this.locations = locs));
     this.trainingBatchService.getPrograms().subscribe((p) => (this.trainingPrograms = p));
   }
 
@@ -85,13 +89,33 @@ export class JoiningBatchesComponent implements OnInit {
     });
     this.trainingForm = this.fb.group({
       trainingLocationId: [null, Validators.required],
-      trainingProgram: ['', Validators.required],
-      block: [''],
+      trainingProgramId: [null, Validators.required],
+      trainingBlockId: [null],
       trainingStartDate: [null],
       trainingEndDate: [null],
     });
     this.sizeForm = this.fb.group({
       batchSize: [60, [Validators.required, Validators.min(1)]],
+    });
+    this.wizardBlocks = [];
+    this.trainingForm.get('trainingLocationId')!.valueChanges.subscribe((cityId) => {
+      this.trainingForm.get('trainingBlockId')!.setValue(null);
+      this.loadWizardBlocks(cityId);
+    });
+  }
+
+  private loadWizardBlocks(cityId: number | null): void {
+    this.wizardBlocks = [];
+    if (!cityId) return;
+    this.loadingBlocks = true;
+    this.blockAdminService.getAll(cityId, true).subscribe({
+      next: (list) => {
+        this.wizardBlocks = list;
+        this.loadingBlocks = false;
+      },
+      error: () => {
+        this.loadingBlocks = false;
+      },
     });
   }
 
@@ -190,14 +214,16 @@ export class JoiningBatchesComponent implements OnInit {
       const d = this.detailsForm.value;
       const t = this.trainingForm.value;
       const s = this.sizeForm.value;
+      const program = this.trainingPrograms.find((p) => p.id === t.trainingProgramId);
       this.batchService
         .create({
           batchName: d.batchName || undefined,
           joiningDate: this.toIso(d.joiningDate)!,
           joiningLocationId: d.joiningLocationId,
           trainingLocationId: t.trainingLocationId,
-          trainingProgram: t.trainingProgram,
-          block: t.block || undefined,
+          trainingProgram: program?.name,
+          trainingProgramId: t.trainingProgramId,
+          trainingBlockId: t.trainingBlockId || undefined,
           trainingStartDate: this.toIso(t.trainingStartDate),
           trainingEndDate: this.toIso(t.trainingEndDate),
           batchSize: s.batchSize,
@@ -316,7 +342,7 @@ export class JoiningBatchesComponent implements OnInit {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
         title: 'Assign to Training',
-        message: `Assign this batch to "${program?.name}"? This deducts budget/seats at ${this.selectedBatch.trainingLocationName} for every candidate who accepted their joining letter, and cannot be undone.`,
+        message: `Assign this batch to "${program?.name}"? This charges the training cost against ${this.selectedBatch.trainingLocationName}'s budget for every candidate who accepted their joining letter, and cannot be undone.`,
         type: 'warning',
         confirmText: 'Assign & Deduct',
       },

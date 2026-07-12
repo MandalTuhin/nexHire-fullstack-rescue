@@ -10,6 +10,7 @@ import {
   LoginRequest,
   RegisterRequest,
   LoggedInUser,
+  ChangePasswordRequest,
 } from '../../models/user.model';
 
 /**
@@ -23,6 +24,7 @@ interface BackendAuthResponse {
   email: string;
   role: string;
   lifecycleStatus: string | null;
+  mustChangePassword?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -54,22 +56,52 @@ export class AuthService {
       .post<BackendAuthResponse>(API_ENDPOINTS.AUTH.LOGIN, request)
       .pipe(
         map((res) => this.persistAuth(res)),
-        tap((user) => this.navigateToPortal(user.role)),
+        tap((user) => this.navigateToPortal(user.role, user.mustChangePassword)),
       );
   }
 
-  /** Redirect user to their designated portal based on backend role. */
-  navigateToPortal(role: string): void {
+  /** Redirect user to their designated portal based on backend role. Admin-created
+   *  internal users (HR/RMG/Admin) with a temp password go straight to Change
+   *  Password instead of the dashboard until they've set their own. */
+  navigateToPortal(role: string, mustChangePassword = false): void {
     const r = role?.toUpperCase();
-    if (r === 'EMPLOYEE' || r === 'CANDIDATE') {
-      this.router.navigate(['/candidate']);
-    } else if (r === 'HR' || r === 'RMG' || r === 'TRAINING_MANAGER') {
-      this.router.navigate(['/hr']);
-    } else if (r === 'ADMIN') {
-      this.router.navigate(['/admin']);
-    } else {
+    const portal = this.portalPrefix(r);
+    if (!portal) {
       this.router.navigate(['/auth/login']);
+      return;
     }
+    if (mustChangePassword) {
+      this.router.navigate([`/${portal}/change-password`]);
+    } else {
+      this.router.navigate([`/${portal}`]);
+    }
+  }
+
+  private portalPrefix(normalizedRole: string): string | null {
+    if (normalizedRole === 'EMPLOYEE' || normalizedRole === 'CANDIDATE') {
+      return 'candidate';
+    } else if (normalizedRole === 'HR' || normalizedRole === 'TRAINING_MANAGER') {
+      return 'hr';
+    } else if (normalizedRole === 'RMG') {
+      return 'rmg';
+    } else if (normalizedRole === 'ADMIN') {
+      return 'admin';
+    }
+    return null;
+  }
+
+  // ─── Change Password ────────────────────────────────────────────────────────
+  changePassword(request: ChangePasswordRequest): Observable<{ message: string }> {
+    return this.http
+      .put<{ message: string }>(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, request)
+      .pipe(
+        tap(() => {
+          const user = this.currentUserService.getUser();
+          if (user) {
+            this.currentUserService.setUser({ ...user, mustChangePassword: false });
+          }
+        }),
+      );
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -117,6 +149,7 @@ export class AuthService {
       lifecycleStatus: data.lifecycleStatus ?? undefined,
       permissions: [],
       active: true,
+      mustChangePassword: data.mustChangePassword ?? false,
     };
   }
 

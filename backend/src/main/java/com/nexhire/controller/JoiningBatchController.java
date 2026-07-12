@@ -63,4 +63,15 @@ public class JoiningBatchController {
         Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(joiningBatchService.sendLetters(id, userId));
     }
+
+    /** Cancels a batch before training starts — releases any booked Block/budget reservation. */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<JoiningBatchResponse> cancelBatch(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(joiningBatchService.cancelBatch(id, reason, userId));
+    }
 }

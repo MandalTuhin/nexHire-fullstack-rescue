@@ -20,9 +20,8 @@ public class TraineeResponse {
     private String candidateEmail;
     private String jobTitle;
     private String applicationStatus;
-    private Integer progress;
-    private String topic;
-    private Boolean completed;
+    private Double score;
+    private Double attendancePercentage;
+    private String finalResult;
     private LocalDateTime joinedAt;
-    private LocalDateTime updatedAt;
 }

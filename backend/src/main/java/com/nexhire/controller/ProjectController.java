@@ -1,5 +1,6 @@
 package com.nexhire.controller;
 
+import com.nexhire.dto.BulkActionResult;
 import com.nexhire.dto.ProjectAssignmentResponse;
 import com.nexhire.dto.ProjectRequest;
 import com.nexhire.dto.ProjectResponse;
@@ -70,5 +71,24 @@ public class ProjectController {
         Long assignedById = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(projectService.assignTrainee(projectId, traineeId, assignedById));
+    }
+
+    /** EMPLOYEE: the logged-in candidate's own project assignment (null until RMG assigns one). */
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ProjectAssignmentResponse> getMyProject(Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(projectService.getMyProject(userId));
+    }
+
+    /** RMG: bulk-assign multiple selected trainees to a single project (multi-select allocation). */
+    @PostMapping("/{projectId}/bulk-assign")
+    @PreAuthorize("hasRole('RMG')")
+    public ResponseEntity<BulkActionResult> bulkAssign(
+            @PathVariable Long projectId,
+            @RequestBody List<Long> traineeIds,
+            Authentication authentication) {
+        Long assignedById = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(projectService.bulkAssign(projectId, traineeIds, assignedById));
     }
 }

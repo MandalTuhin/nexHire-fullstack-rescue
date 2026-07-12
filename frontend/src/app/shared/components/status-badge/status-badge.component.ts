@@ -165,6 +165,7 @@ export class StatusBadgeComponent {
     UNDER_REPAIR: { class: 'badge-orange', label: 'Under Repair' },
     // Project
     ACTIVE: { class: 'badge-success', label: 'Active' },
+    FILLED: { class: 'badge-warning', label: 'Filled' },
     INACTIVE: { class: 'badge-secondary', label: 'Inactive' },
     CLOSED: { class: 'badge-danger', label: 'Closed' },
     DRAFT: { class: 'badge-warning', label: 'Draft' },

@@ -16,7 +16,12 @@ public class ProjectRequest {
     private String name;
 
     private String description;
+    private String client;
+    private String technology;
+    private Long locationId;
+    private Integer totalVacancies;
 
-    /** Optional on update; ignored on create (new projects default to active). */
-    private Boolean active;
+    /** ACTIVE / FILLED / INACTIVE. Optional on update; ignored on create (new projects default
+     *  to ACTIVE). FILLED is normally derived automatically — only set this to force INACTIVE. */
+    private String status;
 }

@@ -3,6 +3,7 @@ package com.nexhire.service;
 import com.nexhire.dto.BulkActionResult;
 import com.nexhire.dto.OfferRequest;
 import com.nexhire.dto.OfferResponse;
+import com.nexhire.dto.PageResponse;
 import com.nexhire.entity.AssessmentResult;
 import com.nexhire.entity.JobApplication;
 import com.nexhire.entity.OfferLetter;
@@ -15,6 +16,8 @@ import com.nexhire.repository.JobApplicationRepository;
 import com.nexhire.repository.OfferLetterRepository;
 import com.nexhire.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +48,34 @@ public class OfferService {
                     return Double.compare(sb, sa);
                 })
                 .toList();
+    }
+
+    /** HR: paginated/searchable offer list, sorted by score desc, avoids loading every offer at once. */
+    public PageResponse<OfferResponse> search(String search, String status, int page, int size) {
+        String pattern = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200));
+        return PageResponse.of(offerLetterRepository.search(pattern, mapUiStatus(status), pageable), this::toResponse);
+    }
+
+    /** Lightweight, full (non-paginated) id list for HR's "Select Top N / Select All" bulk-send
+     *  shortcuts, sorted by score desc — independent of the paginated table above so those
+     *  actions still operate over the whole eligible set, not just the visible page. */
+    public List<Long> getGeneratedApplicationIdsSortedByScore() {
+        return offerLetterRepository.findApplicationIdsByStatusOrderByScoreDesc(ApplicationStatus.OFFER_GENERATED);
+    }
+
+    /** Maps the frontend's short offer-status vocabulary (GENERATED/SENT/ACCEPTED/REJECTED) to
+     *  the underlying ApplicationStatus this service actually stores (mirror of the frontend's
+     *  OfferLetterService.mapStatus, inverted). Null/blank/unrecognized -> no filter. */
+    private ApplicationStatus mapUiStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        return switch (status.trim().toUpperCase()) {
+            case "SENT" -> ApplicationStatus.OFFER_SENT;
+            case "ACCEPTED" -> ApplicationStatus.OFFER_ACCEPTED;
+            case "REJECTED" -> ApplicationStatus.OFFER_REJECTED;
+            case "GENERATED" -> ApplicationStatus.OFFER_GENERATED;
+            default -> null;
+        };
     }
 
     @Transactional
