@@ -12,3 +12,4 @@ nexHire-frontend/.angular/
 .DS_Store
 .vscode/
 .idea/
+*.kate-swp
