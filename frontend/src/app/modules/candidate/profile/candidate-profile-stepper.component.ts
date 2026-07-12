@@ -216,9 +216,11 @@ export class CandidateProfileStepperComponent implements OnInit {
     this.academicForm.get('tenthPassingYear')?.valueChanges.subscribe(() => this.updateTenthYearVsDobError());
   }
 
-  /** Two checks within academicForm:
+  /** Three checks within academicForm:
    *  1. 12th passing year must be after 10th passing year.
-   *  2. Graduation start year must be before its passing year, and — for curated
+   *  2. Graduation start year must be on/after 12th passing year (can't start college before
+   *     finishing school).
+   *  3. Graduation start year must be before its passing year, and — for curated
    *     (non-"Other") degrees — the gap must match that degree's real duration (e.g. B.Tech
    *     is 4 years, not 5). */
   private academicFormValidator(): ValidatorFn {
@@ -235,6 +237,15 @@ export class CandidateProfileStepperComponent implements OnInit {
       }
 
       const start = group.get('graduationStartYear')?.value;
+      const startControl = group.get('graduationStartYear');
+      const startExisting = startControl?.errors ?? {};
+      const { beforeTwelfth, ...startRest } = startExisting;
+      if (twelfth != null && start != null && Number(start) < Number(twelfth)) {
+        startControl?.setErrors({ ...startRest, beforeTwelfth: true });
+      } else {
+        startControl?.setErrors(Object.keys(startRest).length ? startRest : null);
+      }
+
       const end = group.get('graduationPassingYear')?.value;
       const degree = group.get('graduationDegree')?.value;
       const endControl = group.get('graduationPassingYear');

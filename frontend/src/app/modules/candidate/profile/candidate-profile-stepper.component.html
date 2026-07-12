@@ -220,6 +220,7 @@
                 <input matInput type="number" formControlName="graduationStartYear" />
                 <mat-error *ngIf="academicForm.get('graduationStartYear')?.hasError('required')">Starting year is required</mat-error>
                 <mat-error *ngIf="academicForm.get('graduationStartYear')?.hasError('max')">Starting year cannot be in the future</mat-error>
+                <mat-error *ngIf="academicForm.get('graduationStartYear')?.hasError('beforeTwelfth')">Can't be before your 12th passing year</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Passing Year</mat-label>
