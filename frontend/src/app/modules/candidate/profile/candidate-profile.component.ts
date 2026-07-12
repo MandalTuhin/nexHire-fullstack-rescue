@@ -173,9 +173,8 @@ export class CandidateProfileComponent implements OnInit {
             this.currentUserService.setUser(user);
           }
         },
-        error: (e) => {
+        error: () => {
           this.saving = false;
-          this.toast.error(e.error?.message || 'Failed to update profile.');
         },
       });
   }

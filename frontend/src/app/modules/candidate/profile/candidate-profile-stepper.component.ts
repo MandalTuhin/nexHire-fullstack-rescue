@@ -482,10 +482,9 @@ export class CandidateProfileStepperComponent implements OnInit {
         this.uploadingResume = false;
         this.toast.success('Resume uploaded successfully.');
       },
-      error: (err) => {
+      error: () => {
         this.uploadingResume = false;
         this.resumeFile = null;
-        this.toast.error(err.error?.message || 'Failed to upload resume.');
       },
     });
   }
@@ -650,9 +649,8 @@ export class CandidateProfileStepperComponent implements OnInit {
           this.applyLocks();
           onSuccess(profile);
         },
-        error: (err) => {
+        error: () => {
           this.saving = false;
-          this.toast.error(err.error?.message || 'Failed to save profile.');
         },
       });
     };

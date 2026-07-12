@@ -141,7 +141,7 @@ export class CandidateOffersComponent implements OnInit {
         this.toastService.success('Offer accepted! Background verification will begin shortly.');
         this.ngOnInit();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Action failed'),
+      error: () => {},
     });
   }
 
@@ -151,7 +151,7 @@ export class CandidateOffersComponent implements OnInit {
         this.toastService.success('Offer rejected.');
         this.ngOnInit();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Action failed'),
+      error: () => {},
     });
   }
 }

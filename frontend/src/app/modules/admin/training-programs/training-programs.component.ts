@@ -256,9 +256,8 @@ export class TrainingProgramsComponent implements OnInit {
             this.resetForm();
             this.loadPrograms();
           },
-          error: (e) => {
+          error: () => {
             this.saving = false;
-            this.toastService.error(e.error?.message || 'Failed to update program.');
           },
         });
     } else {
@@ -276,9 +275,8 @@ export class TrainingProgramsComponent implements OnInit {
             this.resetForm();
             this.loadPrograms();
           },
-          error: (e) => {
+          error: () => {
             this.saving = false;
-            this.toastService.error(e.error?.message || 'Failed to create program.');
           },
         });
     }

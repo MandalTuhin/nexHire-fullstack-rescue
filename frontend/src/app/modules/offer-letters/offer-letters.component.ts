@@ -305,7 +305,7 @@ export class OfferLettersManagementComponent implements OnInit {
           this.toastService.success('Offer sent.');
           this.loadOffers();
         },
-        error: (e) => this.toastService.error(e.error?.message || 'Failed to send offer'),
+        error: () => {},
       });
     });
   }
@@ -340,7 +340,7 @@ export class OfferLettersManagementComponent implements OnInit {
             );
           }
         },
-        error: (e) => this.toastService.error(e.error?.message || 'Bulk send failed'),
+        error: () => {},
       });
     });
   }

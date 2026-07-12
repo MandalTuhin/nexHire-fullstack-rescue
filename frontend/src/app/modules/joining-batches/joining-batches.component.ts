@@ -212,7 +212,6 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.toastService.error('Failed to load joining batches.');
       },
     });
   }
@@ -257,7 +256,6 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loadingEligible = false;
-        this.toastService.error('Failed to load eligible candidates.');
       },
     });
   }
@@ -320,9 +318,8 @@ export class JoiningBatchesComponent implements OnInit {
             this.loadBatches();
             this.openDetail(batch.id);
           },
-          error: (e) => {
+          error: () => {
             this.creating = false;
-            this.toastService.error(e.error?.message || 'Failed to create batch.');
           },
         });
     });
@@ -364,7 +361,6 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loadingDetail = false;
-        this.toastService.error('Failed to load batch detail.');
       },
     });
   }
@@ -408,9 +404,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success('Joining letter sent.');
           this.loadBatches();
         },
-        error: (e) => {
+        error: () => {
           this.sending = false;
-          this.toastService.error(e.error?.message || 'Failed to send joining letter.');
         },
       });
     });
@@ -455,9 +450,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success(`${member.candidateName} removed from the batch.`);
           this.refreshDetail();
         },
-        error: (e) => {
+        error: () => {
           this.removingMemberId = null;
-          this.toastService.error(e.error?.message || 'Failed to remove candidate.');
         },
       });
     });
@@ -472,9 +466,8 @@ export class JoiningBatchesComponent implements OnInit {
         this.toastService.success(`Joining letter resent to ${member.candidateName}.`);
         this.refreshDetail();
       },
-      error: (e) => {
+      error: () => {
         this.resendingMemberId = null;
-        this.toastService.error(e.error?.message || 'Failed to resend letter.');
       },
     });
   }
@@ -491,7 +484,6 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loadingReplacementEligible = false;
-        this.toastService.error('Failed to load eligible candidates.');
       },
     });
   }
@@ -520,9 +512,8 @@ export class JoiningBatchesComponent implements OnInit {
         this.selectedReplacements.clear();
         this.refreshDetail();
       },
-      error: (e) => {
+      error: () => {
         this.addingReplacements = false;
-        this.toastService.error(e.error?.message || 'Failed to add replacement candidate(s).');
       },
     });
   }
@@ -552,9 +543,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success(`Training assigned — ${d.trainees.length} trainee(s) created.`);
           this.loadBatches();
         },
-        error: (e) => {
+        error: () => {
           this.assigning = false;
-          this.toastService.error(e.error?.message || 'Failed to assign training.');
         },
       });
     });
@@ -625,9 +615,8 @@ export class JoiningBatchesComponent implements OnInit {
             this.clearTraineeSelection();
             this.refreshDetail();
           },
-          error: (e) => {
+          error: () => {
             this.bulkActing = false;
-            this.toastService.error(e.error?.message || 'Bulk release failed.');
           },
         });
       });
@@ -658,9 +647,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.clearTraineeSelection();
           this.refreshDetail();
         },
-        error: (e) => {
+        error: () => {
           this.bulkActing = false;
-          this.toastService.error(e.error?.message || 'Bulk move-to-LAP failed.');
         },
       });
       return;
@@ -672,7 +660,7 @@ export class JoiningBatchesComponent implements OnInit {
         this.closeLapDialog();
         this.refreshDetail();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to move to LAP.'),
+      error: () => {},
     });
   }
 
@@ -682,7 +670,7 @@ export class JoiningBatchesComponent implements OnInit {
         this.toastService.success('Trainee removed from LAP — back to In Progress. Re-upload their result or Release/Flag once decided.');
         this.refreshDetail();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to remove from LAP.'),
+      error: () => {},
     });
   }
 
@@ -704,7 +692,7 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success(`${trainee.candidateName} released.`);
           this.refreshDetail();
         },
-        error: (e) => this.toastService.error(e.error?.message || 'Failed to release trainee.'),
+        error: () => {},
       });
     });
   }
@@ -733,9 +721,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.clearTraineeSelection();
           this.refreshDetail();
         },
-        error: (e) => {
+        error: () => {
           this.bulkActing = false;
-          this.toastService.error(e.error?.message || 'Bulk flag failed.');
         },
       });
       return;
@@ -747,7 +734,7 @@ export class JoiningBatchesComponent implements OnInit {
         this.closeFlagDialog();
         this.refreshDetail();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to flag trainee.'),
+      error: () => {},
     });
   }
 
@@ -776,9 +763,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} released, ${lapCount} moved to LAP.`);
           this.loadBatches();
         },
-        error: (e) => {
+        error: () => {
           this.completing = false;
-          this.toastService.error(e.error?.message || 'Failed to complete batch.');
         },
       });
     });
@@ -789,7 +775,7 @@ export class JoiningBatchesComponent implements OnInit {
   downloadExcelTemplate(): void {
     this.trainingBatchService.downloadExcelTemplate().subscribe({
       next: (blob) => this.download(blob, 'trainee-results-template.xlsx'),
-      error: () => this.toastService.error('Failed to download template.'),
+      error: () => {},
     });
   }
 
@@ -807,9 +793,8 @@ export class JoiningBatchesComponent implements OnInit {
         this.validatingExcel = false;
         this.excelPreview = summary;
       },
-      error: (e) => {
+      error: () => {
         this.validatingExcel = false;
-        this.toastService.error(e.error?.message || 'Validation failed.');
       },
     });
   }
@@ -828,9 +813,8 @@ export class JoiningBatchesComponent implements OnInit {
         this.refreshDetail();
         this.loadExcelHistory();
       },
-      error: (e) => {
+      error: () => {
         this.committingExcel = false;
-        this.toastService.error(e.error?.message || 'Commit failed.');
       },
     });
   }
@@ -857,7 +841,6 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.exporting = false;
-        this.toastService.error('Failed to export trainees.');
       },
     });
   }

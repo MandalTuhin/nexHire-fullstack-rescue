@@ -53,9 +53,7 @@ import { AdminDashboardComponent } from './modules/admin/admin-dashboard/admin-d
 import { UserManagementComponent } from './modules/admin/user-management/user-management.component';
 import { CreateUserDialogComponent } from './modules/admin/user-management/create-user-dialog.component';
 import { ActivityLogsComponent } from './modules/admin/activity-logs/activity-logs.component';
-import { BudgetsComponent } from './modules/admin/budgets/budgets.component';
 import { TrainingProgramsComponent } from './modules/admin/training-programs/training-programs.component';
-import { SystemSettingsComponent } from './modules/admin/system-settings/system-settings.component';
 import { CitiesComponent } from './modules/admin/locations/cities/cities.component';
 import { BlocksComponent } from './modules/admin/locations/blocks/blocks.component';
 
@@ -103,9 +101,7 @@ import { NotFoundComponent } from './modules/errors/not-found.component';
     UserManagementComponent,
     CreateUserDialogComponent,
     ActivityLogsComponent,
-    BudgetsComponent,
     TrainingProgramsComponent,
-    SystemSettingsComponent,
     CitiesComponent,
     BlocksComponent,
     // Errors

@@ -341,9 +341,8 @@ export class ProjectsComponent implements OnInit {
         this.resetForm();
         this.loadProjects();
       },
-      error: (e) => {
+      error: () => {
         this.saving = false;
-        this.toastService.error(e.error?.message || 'Failed to save project.');
       },
     });
   }
@@ -377,10 +376,7 @@ export class ProjectsComponent implements OnInit {
         }
         this.loadProjects();
       },
-      error: (e) =>
-        this.toastService.error(
-          e.error?.message || 'Failed to delete project.',
-        ),
+      error: () => {},
     });
   }
 

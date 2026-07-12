@@ -100,9 +100,8 @@ export class AssessmentsManagementComponent implements OnInit, AfterViewInit {
         this.totalRecords = page.totalElements;
         this.loading = false;
       },
-      error: (e) => {
+      error: () => {
         this.loading = false;
-        this.toastService.error(e.error?.message || 'Failed to load candidates');
       },
     });
   }
@@ -147,7 +146,7 @@ export class AssessmentsManagementComponent implements OnInit, AfterViewInit {
         a.click();
         window.URL.revokeObjectURL(url);
       },
-      error: () => this.toastService.error('Failed to download template.'),
+      error: () => {},
     });
   }
 
@@ -165,9 +164,8 @@ export class AssessmentsManagementComponent implements OnInit, AfterViewInit {
         this.validating = false;
         this.preview = summary;
       },
-      error: (e) => {
+      error: () => {
         this.validating = false;
-        this.toastService.error(e.error?.message || 'Validation failed.');
       },
     });
   }
@@ -196,9 +194,8 @@ export class AssessmentsManagementComponent implements OnInit, AfterViewInit {
           this.load();
           this.loadHistory();
         },
-        error: (e) => {
+        error: () => {
           this.committing = false;
-          this.toastService.error(e.error?.message || 'Commit failed.');
         },
       });
     });

@@ -147,7 +147,7 @@ export class CandidateJoiningComponent implements OnInit {
         this.toast.success('Joining accepted! HR will confirm your training assignment soon.');
         this.load();
       },
-      error: (err) => this.toast.error(err.error?.message || 'Failed to accept joining letter'),
+      error: () => {},
     });
   }
 
@@ -157,7 +157,7 @@ export class CandidateJoiningComponent implements OnInit {
         this.toast.success('Joining letter declined.');
         this.load();
       },
-      error: (err) => this.toast.error(err.error?.message || 'Failed to decline joining letter'),
+      error: () => {},
     });
   }
 }

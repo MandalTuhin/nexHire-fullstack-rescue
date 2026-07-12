@@ -55,4 +55,12 @@ public class UserManagementController {
         Long adminId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(userManagementService.deactivate(id, adminId));
     }
+
+    @PutMapping("/{id}/reactivate")
+    public ResponseEntity<UserResponse> reactivate(
+            @PathVariable Long id,
+            Authentication authentication) {
+        Long adminId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(userManagementService.reactivate(id, adminId));
+    }
 }

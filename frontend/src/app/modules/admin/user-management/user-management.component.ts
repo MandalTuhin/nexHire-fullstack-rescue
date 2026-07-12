@@ -98,18 +98,26 @@ type UserRow = AdminUser;
           [class.active]="row.active"
           [class.restricted]="!row.active"
         >
-          {{ row.active ? 'Active' : 'Deactivated' }}
+          {{ row.active ? 'Active' : 'Restricted' }}
         </span>
       </ng-template>
 
       <ng-template #actionsCell let-row>
         <button
+          *ngIf="row.active"
           mat-stroked-button
           color="warn"
           (click)="deactivate(row)"
-          [disabled]="!row.active"
         >
           Restrict Access
+        </button>
+        <button
+          *ngIf="!row.active"
+          mat-stroked-button
+          color="primary"
+          (click)="reactivate(row)"
+        >
+          Restore Access
         </button>
       </ng-template>
     </div>
@@ -252,7 +260,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit {
         },
         error: () => {
           this.loading = false;
-          this.toast.error('Failed to load users.');
         },
       });
   }
@@ -293,8 +300,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit {
         user.role = updated.role;
         this.toast.success(`Role updated to ${updated.role}`);
       },
-      error: (e) =>
-        this.toast.error(e.error?.message || 'Failed to update role'),
+      error: () => {},
     });
   }
 
@@ -302,10 +308,19 @@ export class UserManagementComponent implements OnInit, AfterViewInit {
     this.adminUserService.deactivate(user.id).subscribe({
       next: () => {
         user.active = false;
-        this.toast.success('User deactivated');
+        this.toast.success('Access restricted');
       },
-      error: (e) =>
-        this.toast.error(e.error?.message || 'Failed to deactivate user'),
+      error: () => {},
+    });
+  }
+
+  reactivate(user: AdminUser): void {
+    this.adminUserService.reactivate(user.id).subscribe({
+      next: () => {
+        user.active = true;
+        this.toast.success('Access restored');
+      },
+      error: () => {},
     });
   }
 }

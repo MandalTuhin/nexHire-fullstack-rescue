@@ -218,9 +218,8 @@ export class BlocksComponent implements OnInit {
         this.resetForm();
         this.loadBlocks();
       },
-      error: (e) => {
+      error: () => {
         this.saving = false;
-        this.toastService.error(e.error?.message || 'Failed to save block.');
       },
     });
   }
@@ -244,7 +243,7 @@ export class BlocksComponent implements OnInit {
         if (this.editingId === block.id) this.resetForm();
         this.loadBlocks();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to delete block.'),
+      error: () => {},
     });
   }
 

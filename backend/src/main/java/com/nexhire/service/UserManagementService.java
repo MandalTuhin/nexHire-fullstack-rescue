@@ -137,6 +137,26 @@ public class UserManagementService {
         return toResponse(user);
     }
 
+    /** ADMIN: restore a previously-restricted user's access. */
+    @Transactional
+    public UserResponse reactivate(Long userId, Long adminId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        user.setActive(true);
+        userRepository.save(user);
+
+        User admin = userRepository.findById(adminId).orElse(null);
+        activityLogRepository.save(ActivityLog.builder()
+                .user(admin != null ? admin : user)
+                .actionType("USER_REACTIVATED")
+                .description("Access restored for " + user.getEmail())
+                .timestamp(LocalDateTime.now())
+                .build());
+
+        return toResponse(user);
+    }
+
     private UserResponse toResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())

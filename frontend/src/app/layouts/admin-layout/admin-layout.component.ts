@@ -390,21 +390,9 @@ export class AdminLayoutComponent implements OnInit {
       permission: 'MANAGE_PROJECTS',
     },
     {
-      label: 'Budgets',
-      icon: 'account_balance_wallet',
-      route: '/admin/budgets',
-      permission: 'MANAGE_PERMISSIONS',
-    },
-    {
       label: 'Training Programs',
       icon: 'school',
       route: '/admin/training-programs',
-      permission: 'MANAGE_PERMISSIONS',
-    },
-    {
-      label: 'System Settings',
-      icon: 'settings',
-      route: '/admin/settings',
       permission: 'MANAGE_PERMISSIONS',
     },
   ];

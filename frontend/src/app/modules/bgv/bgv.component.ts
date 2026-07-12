@@ -78,7 +78,6 @@ export class BgvManagementComponent implements OnInit {
         },
         error: () => {
           this.loading = false;
-          this.toastService.error('Failed to load BGC cases.');
         },
       });
   }
@@ -105,7 +104,6 @@ export class BgvManagementComponent implements OnInit {
       },
       error: () => {
         this.loadingDetail = false;
-        this.toastService.error('Failed to load case detail.');
       },
     });
   }
@@ -134,7 +132,7 @@ export class BgvManagementComponent implements OnInit {
           this.loadCases();
           if (this.selectedCase?.bgvId === c.bgvId) this.openCase(c);
         },
-        error: (e) => this.toastService.error(e.error?.message || 'Update failed.'),
+        error: () => {},
       });
     });
   }
@@ -156,14 +154,14 @@ export class BgvManagementComponent implements OnInit {
         if (this.selectedCase) this.openCase(this.selectedCase);
         this.loadCases();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Review failed.'),
+      error: () => {},
     });
   }
 
   downloadDocument(documentId: number): void {
     this.bgvService.downloadDocument(documentId).subscribe({
       next: (blob) => window.open(window.URL.createObjectURL(blob), '_blank'),
-      error: () => this.toastService.error('Unable to load document.'),
+      error: () => {},
     });
   }
 
@@ -189,7 +187,7 @@ export class BgvManagementComponent implements OnInit {
           if (this.selectedCase) this.openCase(this.selectedCase);
           this.loadCases();
         },
-        error: (e) => this.toastService.error(e.error?.message || 'Failed to send to vendor.'),
+        error: () => {},
       });
   }
 
@@ -205,7 +203,7 @@ export class BgvManagementComponent implements OnInit {
         a.click();
         window.URL.revokeObjectURL(url);
       },
-      error: () => this.toastService.error('Failed to download template.'),
+      error: () => {},
     });
   }
 
@@ -223,9 +221,8 @@ export class BgvManagementComponent implements OnInit {
         this.validating = false;
         this.preview = summary;
       },
-      error: (e) => {
+      error: () => {
         this.validating = false;
-        this.toastService.error(e.error?.message || 'Validation failed.');
       },
     });
   }
@@ -252,9 +249,8 @@ export class BgvManagementComponent implements OnInit {
           this.loadCases();
           this.loadHistory();
         },
-        error: (e) => {
+        error: () => {
           this.committing = false;
-          this.toastService.error(e.error?.message || 'Commit failed.');
         },
       });
     });

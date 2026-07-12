@@ -27,15 +27,6 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filter-item">
-          <mat-label>Status</mat-label>
-          <mat-select [(ngModel)]="statuses" (selectionChange)="onFilterChange()" multiple>
-            <mat-optgroup *ngFor="let group of statusGroups" [label]="group.label">
-              <mat-option *ngFor="let s of group.statuses" [value]="s">{{ s }}</mat-option>
-            </mat-optgroup>
-          </mat-select>
-        </mat-form-field>
-
         <button mat-button (click)="showMoreFilters = !showMoreFilters">
           <mat-icon>{{ showMoreFilters ? 'expand_less' : 'tune' }}</mat-icon>
           More Filters

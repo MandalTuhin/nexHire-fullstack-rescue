@@ -48,9 +48,7 @@ import { UserManagementComponent } from './modules/admin/user-management/user-ma
 import { ActivityLogsComponent } from './modules/admin/activity-logs/activity-logs.component';
 import { CitiesComponent } from './modules/admin/locations/cities/cities.component';
 import { BlocksComponent } from './modules/admin/locations/blocks/blocks.component';
-import { BudgetsComponent } from './modules/admin/budgets/budgets.component';
 import { TrainingProgramsComponent } from './modules/admin/training-programs/training-programs.component';
-import { SystemSettingsComponent } from './modules/admin/system-settings/system-settings.component';
 
 // ─── Error Pages ─────────────────────────────────────────────────────────────
 import { UnauthorizedComponent } from './modules/errors/unauthorized.component';
@@ -214,20 +212,8 @@ const routes: Routes = [
         data: { permissions: ['MANAGE_PERMISSIONS'] },
       },
       {
-        path: 'budgets',
-        component: BudgetsComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['MANAGE_PERMISSIONS'] },
-      },
-      {
         path: 'training-programs',
         component: TrainingProgramsComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['MANAGE_PERMISSIONS'] },
-      },
-      {
-        path: 'settings',
-        component: SystemSettingsComponent,
         canActivate: [PermissionGuard],
         data: { permissions: ['MANAGE_PERMISSIONS'] },
       },

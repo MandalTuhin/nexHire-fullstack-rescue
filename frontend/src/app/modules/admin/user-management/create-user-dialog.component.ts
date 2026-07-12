@@ -83,9 +83,8 @@ export class CreateUserDialogComponent {
         this.toast.success(`${created.role} user ${created.email} created.`);
         this.dialogRef.close(created);
       },
-      error: (e) => {
+      error: () => {
         this.submitting = false;
-        this.toast.error(e.error?.message || 'Failed to create user');
       },
     });
   }

@@ -240,11 +240,10 @@ export class LoginComponent implements OnInit {
         this.toastService.success(`Welcome back, ${user.fullName}!`);
         // Portal navigation is handled by AuthService.navigateToPortal()
       },
-      error: (err) => {
+      error: () => {
+        // The global ErrorInterceptor already shows a clean "Invalid email address or
+        // password." toast for a failed login — nothing further to show here.
         this.isLoading = false;
-        this.toastService.error(
-          err.message || 'Login failed. Please check your credentials.',
-        );
       },
     });
   }

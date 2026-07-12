@@ -146,8 +146,11 @@ public class OfferService {
         return fileStorageService.retrieve(offer.getPdfFile().getId());
     }
 
+    /** Candidate: only offers HR has actually sent — a generated-but-unsent offer is an internal
+     *  HR-side draft and must not be visible/downloadable by the candidate yet. */
     public List<OfferResponse> getMyOffers(Long userId) {
         return offerLetterRepository.findByApplicationUserId(userId).stream()
+                .filter(o -> o.getSentAt() != null)
                 .map(this::toResponse)
                 .toList();
     }
@@ -215,11 +218,25 @@ public class OfferService {
                 .assessmentScore(score)
                 .content(offer.getContent())
                 .pdfFileId(offer.getPdfFile() != null ? offer.getPdfFile().getId() : null)
-                .status(app.getStatus().name())
+                .status(resolveOfferStatus(offer, app))
                 .generatedAt(offer.getGeneratedAt())
                 .sentByName(offer.getSentBy() != null ? offer.getSentBy().getName() : null)
                 .sentAt(offer.getSentAt())
                 .respondedAt(offer.getRespondedAt())
                 .build();
+    }
+
+    /** The offer's own status is a fixed point-in-time outcome (generated/sent/accepted/rejected),
+     *  but `application.status` keeps advancing past OFFER_ACCEPTED (BGC, joining, training...) as
+     *  the candidate's pipeline progresses. Once responded to, derive the offer's status from
+     *  whether it was accepted or rejected rather than mirroring the ever-changing application
+     *  status, so the offer card doesn't fall back to "Generated" once BGC starts. */
+    private String resolveOfferStatus(OfferLetter offer, JobApplication app) {
+        if (offer.getRespondedAt() == null) {
+            return app.getStatus().name();
+        }
+        return app.getStatus() == ApplicationStatus.OFFER_REJECTED
+                ? ApplicationStatus.OFFER_REJECTED.name()
+                : ApplicationStatus.OFFER_ACCEPTED.name();
     }
 }

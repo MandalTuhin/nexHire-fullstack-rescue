@@ -271,12 +271,8 @@ export class ApplicationFormComponent implements OnInit {
           );
           this.router.navigate(['/candidate/applications']);
         },
-        error: (err) => {
+        error: () => {
           this.isSubmitting = false;
-          this.toastService.error(
-            err.error?.message ||
-              'Unable to submit application. Please try again later.',
-          );
         },
       });
   }

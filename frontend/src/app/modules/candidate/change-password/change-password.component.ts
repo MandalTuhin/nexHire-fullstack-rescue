@@ -84,9 +84,8 @@ export class ChangePasswordComponent {
         this.toast.success('Password updated successfully.');
         this.form.reset();
       },
-      error: (e) => {
+      error: () => {
         this.submitting = false;
-        this.toast.error(e.error?.message || 'Failed to update password');
       },
     });
   }

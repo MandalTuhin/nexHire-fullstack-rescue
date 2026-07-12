@@ -237,9 +237,8 @@ export class RegisterComponent implements OnInit {
         this.toastService.success('Registration successful! Please login.');
         this.router.navigate(['/auth/login']);
       },
-      error: (err) => {
+      error: () => {
         this.isLoading = false;
-        this.toastService.error(err.message || 'Registration failed. Try again.');
       }
     });
   }

@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, timer } from 'rxjs';
 import { switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { SKIP_LOADER } from '../core/interceptors/loader-context';
+import { SUPPRESS_ERROR_TOAST } from '../core/interceptors/error-context';
 
 const BASE = environment.apiBaseUrl;
 
@@ -40,12 +41,14 @@ export class NotificationService {
       .subscribe();
   }
 
-  /** Silent — deliberately skips the global loader overlay so this background poll
-   *  never flashes a full-screen "loading" state over the whole app. */
+  /** Silent — deliberately skips the global loader overlay so this background poll never
+   *  flashes a full-screen "loading" state over the whole app, and suppresses the error toast
+   *  too (this fires every 30s; a transient blip shouldn't repeatedly toast the user — a real
+   *  session expiry is still handled, just without the extra toast on this specific request). */
   fetchUnreadCount(): Observable<{ count: number }> {
     return this.http
       .get<{ count: number }>(`${BASE}/api/notifications/unread-count`, {
-        context: new HttpContext().set(SKIP_LOADER, true),
+        context: new HttpContext().set(SKIP_LOADER, true).set(SUPPRESS_ERROR_TOAST, true),
       })
       .pipe(tap((res) => this._unreadCount$.next(res.count)));
   }

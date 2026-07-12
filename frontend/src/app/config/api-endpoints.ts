@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number) => `${BASE}/api/users/${id}`,
     UPDATE_ROLE: (id: number) => `${BASE}/api/users/${id}/role`,
     DEACTIVATE: (id: number) => `${BASE}/api/users/${id}/deactivate`,
+    REACTIVATE: (id: number) => `${BASE}/api/users/${id}/reactivate`,
   },
 
   // ─── Roles ─────────────────────────────────────────────────────────────────

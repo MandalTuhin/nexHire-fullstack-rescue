@@ -69,6 +69,10 @@ export class AdminUserService extends BaseService {
     return this.http.put<AdminUser>(API_ENDPOINTS.USERS.DEACTIVATE(id), {});
   }
 
+  reactivate(id: number): Observable<AdminUser> {
+    return this.http.put<AdminUser>(API_ENDPOINTS.USERS.REACTIVATE(id), {});
+  }
+
   getRoles(): Observable<{ name: string; description: string }[]> {
     return this.http.get<{ name: string; description: string }[]>(
       API_ENDPOINTS.ROLES.BASE,

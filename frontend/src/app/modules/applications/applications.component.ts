@@ -6,7 +6,6 @@ import { TableColumn, SortEvent } from '../../shared/components/data-table/data-
 import {
   Application,
   ApplicationFilterRequest,
-  ApplicationStatus,
   SmartFilter,
 } from '../../models/application.model';
 
@@ -41,7 +40,6 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
   // Primary filters
   search = '';
   smartFilter: SmartFilter | '' = '';
-  statuses: ApplicationStatus[] = [];
 
   // Secondary ("more filters") — collapsed by default
   showMoreFilters = false;
@@ -62,58 +60,6 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
     { value: 'ELIGIBLE_FOR_BGC', label: 'Eligible for BGC' },
     { value: 'BGC_CLEARED', label: 'BGC Cleared' },
     { value: 'ELIGIBLE_FOR_BATCH', label: 'Eligible for Joining Batch' },
-  ];
-
-  readonly statusGroups: { label: string; statuses: ApplicationStatus[] }[] = [
-    { label: 'Application', statuses: ['APPLIED'] },
-    {
-      label: 'Assessment',
-      statuses: ['ASSESSMENT_ASSIGNED', 'ASSESSMENT_SCORE_UPLOADED', 'ASSESSMENT_PASSED', 'ASSESSMENT_FAILED'],
-    },
-    {
-      label: 'Offer',
-      statuses: ['OFFER_GENERATED', 'OFFER_SENT', 'OFFER_ACCEPTED', 'OFFER_REJECTED'],
-    },
-    {
-      label: 'Background Check',
-      statuses: [
-        'BGC_INITIATED',
-        'BGC_DOCUMENTS_PENDING',
-        'BGC_DOCUMENTS_SUBMITTED',
-        'BGC_VERIFICATION_IN_PROGRESS',
-        'BGC_CLEARED',
-        'BGC_FAILED',
-      ],
-    },
-    {
-      label: 'Selection',
-      statuses: ['EMPLOYEE_CREATED', 'SELECTED_USER_CREATED'],
-    },
-    {
-      label: 'Joining',
-      statuses: [
-        'JOINING_BATCH_ASSIGNED',
-        'JOINING_LETTER_GENERATED',
-        'JOINING_LETTER_SENT',
-        'JOINING_ON_HOLD',
-        'JOINING_ACCEPTED',
-        'JOINING_REJECTED',
-      ],
-    },
-    {
-      label: 'Training & Beyond',
-      statuses: [
-        'TRAINING_ASSIGNED',
-        'TRAINING_IN_PROGRESS',
-        'TRAINING_RESULT_UPLOADED',
-        'TRAINING_COMPLETED',
-        'LAP',
-        'COMPLETED_WITH_EXCEPTIONS',
-        'RELEASED',
-        'PROJECT_ASSIGNED',
-        'ONBOARDED',
-      ],
-    },
   ];
 
   constructor(
@@ -143,9 +89,8 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
         this.totalRecords = page.totalElements;
         this.loading = false;
       },
-      error: (e) => {
+      error: () => {
         this.loading = false;
-        this.toast.error(e.error?.message || 'Failed to load applications');
       },
     });
   }
@@ -153,7 +98,6 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
   private buildFilter(): ApplicationFilterRequest {
     return {
       search: this.search || undefined,
-      statuses: this.statuses.length ? this.statuses : undefined,
       smartFilter: this.smartFilter || undefined,
       locationPreference: this.locationPreference || undefined,
       qualification: this.qualification || undefined,
@@ -187,7 +131,6 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
   clearFilters(): void {
     this.search = '';
     this.smartFilter = '';
-    this.statuses = [];
     this.locationPreference = '';
     this.qualification = '';
     this.scoreMin = null;
@@ -227,9 +170,8 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
         a.click();
         window.URL.revokeObjectURL(url);
       },
-      error: (e) => {
+      error: () => {
         this.exporting = false;
-        this.toast.error(e.error?.message || 'Export failed');
       },
     });
   }

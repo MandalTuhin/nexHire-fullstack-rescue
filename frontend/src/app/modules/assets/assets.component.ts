@@ -239,8 +239,7 @@ export class AssetsManagementComponent implements OnInit {
           this.showCreateForm = false;
           this.load();
         },
-        error: (e) =>
-          this.toast.error(e.error?.message || 'Failed to create asset'),
+        error: () => {},
       });
   }
 
@@ -252,8 +251,7 @@ export class AssetsManagementComponent implements OnInit {
         this.toast.success('Asset assigned');
         this.load();
       },
-      error: (e) =>
-        this.toast.error(e.error?.message || 'Failed to assign asset'),
+      error: () => {},
     });
   }
 }

@@ -294,7 +294,7 @@ export class ReleasedCandidatesComponent implements OnInit {
         this.toast.success(`${t.candidateName} assigned to project`);
         this.load();
       },
-      error: (e) => this.toast.error(e.error?.message || 'Failed to assign'),
+      error: () => {},
     });
   }
 
@@ -320,7 +320,7 @@ export class ReleasedCandidatesComponent implements OnInit {
           this.toast.warning(`${result.successCount} assigned, ${result.failureCount} failed.`);
         }
       },
-      error: (e) => this.toast.error(e.error?.message || 'Bulk assignment failed'),
+      error: () => {},
     });
   }
 }

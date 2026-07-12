@@ -224,9 +224,8 @@ export class CitiesComponent implements OnInit {
         this.resetForm();
         this.loadCities();
       },
-      error: (e) => {
+      error: () => {
         this.saving = false;
-        this.toastService.error(e.error?.message || 'Failed to save city.');
       },
     });
   }
@@ -251,7 +250,7 @@ export class CitiesComponent implements OnInit {
         this.budgetNote = '';
         this.loadCities();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to allocate budget.'),
+      error: () => {},
     });
   }
 
@@ -264,7 +263,7 @@ export class CitiesComponent implements OnInit {
         this.budgetNote = '';
         this.loadCities();
       },
-      error: (e) => this.toastService.error(e.error?.message || 'Failed to adjust budget.'),
+      error: () => {},
     });
   }
 
