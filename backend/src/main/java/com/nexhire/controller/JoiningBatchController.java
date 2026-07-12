@@ -1,6 +1,7 @@
 package com.nexhire.controller;
 
 import com.nexhire.dto.*;
+import com.nexhire.service.ActivityLogService;
 import com.nexhire.service.JoiningBatchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.List;
 public class JoiningBatchController {
 
     private final JoiningBatchService joiningBatchService;
+    private final ActivityLogService activityLogService;
 
     /** Step 4/5 of the wizard: eligible candidates for the chosen joining location, pre-sorted
      *  by location-preference priority (preference 1 first, no-match last). */
@@ -73,5 +75,37 @@ public class JoiningBatchController {
         Long userId = (Long) authentication.getPrincipal();
         String reason = body != null ? body.get("reason") : null;
         return ResponseEntity.ok(joiningBatchService.cancelBatch(id, reason, userId));
+    }
+
+    /** Removes a rejected/expired candidate from the batch so a replacement can be added. */
+    @DeleteMapping("/{id}/members/{applicationId}")
+    public ResponseEntity<JoiningBatchResponse> removeMember(
+            @PathVariable Long id, @PathVariable Long applicationId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(joiningBatchService.removeMember(id, applicationId, userId));
+    }
+
+    /** Adds replacement candidate(s) after a removal — HR then calls send-letters again, which
+     *  (being incremental) only sends/reserves for these new members. */
+    @PostMapping("/{id}/members")
+    public ResponseEntity<JoiningBatchResponse> addReplacementMembers(
+            @PathVariable Long id, @RequestBody List<Long> applicationIds, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(joiningBatchService.addReplacementMembers(id, applicationIds, userId));
+    }
+
+    /** Resends a joining letter to one candidate whose letter expired, resetting their
+     *  response deadline, without re-sending to the rest of the batch. */
+    @PostMapping("/{id}/members/{applicationId}/resend-letter")
+    public ResponseEntity<JoiningBatchResponse> resendLetter(
+            @PathVariable Long id, @PathVariable Long applicationId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(joiningBatchService.resendLetter(id, applicationId, userId));
+    }
+
+    /** Batch-scoped activity/audit trail for the Batch Details page. */
+    @GetMapping("/{id}/activity")
+    public ResponseEntity<List<ActivityLogResponse>> getActivity(@PathVariable Long id) {
+        return ResponseEntity.ok(activityLogService.getLogsForEntity("JOINING_BATCH", id));
     }
 }

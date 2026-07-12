@@ -106,6 +106,51 @@ public class TrainingBatchController {
         return ResponseEntity.ok(trainingBatchService.removeFromLap(traineeId, userId));
     }
 
+    /** Bulk move-to-LAP — batches can run into the hundreds. */
+    @PostMapping("/trainees/bulk-lap")
+    public ResponseEntity<BulkActionResult> bulkMoveToLap(
+            @Valid @RequestBody BulkTraineeActionRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.bulkMoveToLap(request.getTraineeIds(), request.getNote(), userId));
+    }
+
+    // ─── Release / Flag ───────────────────────────────────────────────────────────
+
+    /** "Release Candidate" — explicit override release, most importantly for a trainee who
+     *  cleared LAP (the automatic completeBatch() release path permanently excludes LAP
+     *  trainees, so this is the only way to release one afterwards). */
+    @PostMapping("/trainees/{traineeId}/release")
+    public ResponseEntity<TraineeDetailResponse> releaseTrainee(@PathVariable Long traineeId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.releaseTrainee(traineeId, userId));
+    }
+
+    /** Bulk release — e.g. releasing every LAP-cleared trainee in one action. */
+    @PostMapping("/trainees/bulk-release")
+    public ResponseEntity<BulkActionResult> bulkRelease(
+            @RequestBody List<Long> traineeIds, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.bulkRelease(traineeIds, userId));
+    }
+
+    /** "Flag Candidate" — permanently marks a trainee unsuccessful (failed even after LAP),
+     *  excluding them from project allocation. */
+    @PostMapping("/trainees/{traineeId}/flag")
+    public ResponseEntity<TraineeDetailResponse> flagTrainee(
+            @PathVariable Long traineeId, @RequestBody(required = false) LapUpdateRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        String reason = request != null ? request.getRemarks() : null;
+        return ResponseEntity.ok(trainingBatchService.flagTrainee(traineeId, reason, userId));
+    }
+
+    /** Bulk flag — e.g. flagging every trainee who failed again after LAP in one action. */
+    @PostMapping("/trainees/bulk-flag")
+    public ResponseEntity<BulkActionResult> bulkFlag(
+            @Valid @RequestBody BulkTraineeActionRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(trainingBatchService.bulkFlag(request.getTraineeIds(), request.getNote(), userId));
+    }
+
     // ─── Trainee result Excel bulk upload (batch-scoped) ─────────────────────────
 
     @GetMapping("/excel/template")
@@ -133,5 +178,17 @@ public class TrainingBatchController {
     @GetMapping("/{id}/excel/history")
     public ResponseEntity<List<UploadSummaryResponse>> history(@PathVariable Long id) {
         return ResponseEntity.ok(traineeExcelService.history(id));
+    }
+
+    /** Trainee list export — includes Trainee ID so HR can prepare the result-upload file
+     *  without querying the database directly. */
+    @GetMapping("/{id}/export")
+    public ResponseEntity<ByteArrayResource> exportTrainees(@PathVariable Long id) {
+        byte[] bytes = traineeExcelService.exportTrainees(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("trainees-batch-" + id + ".xlsx").build().toString())
+                .body(new ByteArrayResource(bytes));
     }
 }

@@ -32,6 +32,8 @@ export interface JoiningBatchMember {
   locationPreferenceRank?: number;
   applicationStatus: string;
   joiningLetterStatus: 'NOT_GENERATED' | 'GENERATED' | 'SENT';
+  /** When this member's response window closes — null until a letter has been sent. */
+  responseDeadline?: string;
 }
 
 export interface JoiningBatch {

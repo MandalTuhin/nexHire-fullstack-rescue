@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,4 +21,8 @@ public class JoiningBatchMemberResponse {
     private Integer locationPreferenceRank;
     private String applicationStatus;
     private String joiningLetterStatus;
+    /** When this member's joining letter response window closes — null until a letter has been
+     *  sent. Past this without an accept/reject, JoiningLetterExpiryService marks them
+     *  JOINING_EXPIRED. */
+    private LocalDateTime responseDeadline;
 }

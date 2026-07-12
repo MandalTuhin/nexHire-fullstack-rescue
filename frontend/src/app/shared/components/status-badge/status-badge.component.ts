@@ -103,6 +103,7 @@ export class StatusBadgeComponent {
     JOINING_LETTER_SENT: { class: 'badge-info', label: 'Joining Letter Sent' },
     JOINING_ACCEPTED: { class: 'badge-success', label: 'Joining Accepted' },
     JOINING_REJECTED: { class: 'badge-danger', label: 'Joining Rejected' },
+    JOINING_EXPIRED: { class: 'badge-danger', label: 'Joining Expired' },
     // JoiningBatchStatus (COMPLETED/CLOSED shared with generic keys below)
     CREATED: { class: 'badge-secondary', label: 'Created' },
     JOINING_ACCEPTANCE_IN_PROGRESS: { class: 'badge-warning', label: 'Acceptance In Progress' },
@@ -117,6 +118,7 @@ export class StatusBadgeComponent {
     TRAINING_RESULT_UPLOADED: { class: 'badge-purple', label: 'Result Uploaded' },
     TRAINING_COMPLETED: { class: 'badge-success', label: 'Training Completed' },
     LAP: { class: 'badge-orange', label: 'LAP' },
+    TRAINING_FAILED: { class: 'badge-danger', label: 'Flagged — Unsuccessful' },
     COMPLETED_WITH_EXCEPTIONS: { class: 'badge-orange', label: 'Completed (Exceptions)' },
     RELEASED: { class: 'badge-secondary', label: 'Released' },
     PROJECT_ASSIGNED: { class: 'badge-teal', label: 'Project Assigned' },

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   AssignTrainingRequest,
+  TraineeBulkActionResult,
   TraineeDetail,
   TrainingBatchDashboard,
   TrainingBatchDetail,
@@ -54,6 +55,34 @@ export class TrainingBatchService extends BaseService {
 
   removeFromLap(traineeId: number): Observable<TraineeDetail> {
     return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.REMOVE_FROM_LAP(traineeId), {});
+  }
+
+  bulkMoveToLap(traineeIds: number[], remarks?: string): Observable<TraineeBulkActionResult> {
+    return this.http.post<TraineeBulkActionResult>(API_ENDPOINTS.TRAINING_BATCHES.BULK_LAP, { traineeIds, note: remarks });
+  }
+
+  /** "Release Candidate" — explicit override release, most importantly for a trainee who
+   *  cleared LAP (the automatic Complete Batch & Release path permanently excludes LAP
+   *  trainees). */
+  releaseTrainee(traineeId: number): Observable<TraineeDetail> {
+    return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.RELEASE(traineeId), {});
+  }
+
+  bulkRelease(traineeIds: number[]): Observable<TraineeBulkActionResult> {
+    return this.http.post<TraineeBulkActionResult>(API_ENDPOINTS.TRAINING_BATCHES.BULK_RELEASE, traineeIds);
+  }
+
+  /** "Flag Candidate" — permanently marks a trainee unsuccessful (failed even after LAP). */
+  flagTrainee(traineeId: number, reason?: string): Observable<TraineeDetail> {
+    return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.FLAG(traineeId), { remarks: reason });
+  }
+
+  bulkFlag(traineeIds: number[], reason?: string): Observable<TraineeBulkActionResult> {
+    return this.http.post<TraineeBulkActionResult>(API_ENDPOINTS.TRAINING_BATCHES.BULK_FLAG, { traineeIds, note: reason });
+  }
+
+  exportTrainees(batchId: number): Observable<Blob> {
+    return this.http.get(API_ENDPOINTS.TRAINING_BATCHES.EXPORT(batchId), { responseType: 'blob' });
   }
 
   downloadExcelTemplate(): Observable<Blob> {

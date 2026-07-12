@@ -1,7 +1,7 @@
 <div class="joining-batches-page">
   <!-- ─── LIST VIEW ─────────────────────────────────────────────────────── -->
   <ng-container *ngIf="view === 'list'">
-    <app-page-header title="Joining Batches" subtitle="Batch candidates by joining location and generate joining letters">
+    <app-page-header title="Joining Batches" subtitle="Batch candidates by joining location and send joining letters">
       <button mat-raised-button color="primary" (click)="startWizard()">
         <mat-icon>add</mat-icon> Create Batch
       </button>
@@ -69,16 +69,15 @@
       <mat-horizontal-stepper [selectedIndex]="wizardStep" linear #stepper labelPosition="bottom">
         <mat-step [stepControl]="detailsForm" label="Joining Details">
           <form [formGroup]="detailsForm" class="step-form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Batch Name (optional)</mat-label>
-              <input matInput formControlName="batchName" placeholder="e.g. Bangalore Batch 1" />
-            </mat-form-field>
+            <p class="step-hint">Batch Name is generated automatically from the joining location and date.</p>
             <div class="form-grid two-col">
               <mat-form-field appearance="outline">
                 <mat-label>Joining Date</mat-label>
-                <input matInput [matDatepicker]="jdPicker" formControlName="joiningDate" />
+                <input matInput [matDatepicker]="jdPicker" [min]="todayIso" formControlName="joiningDate" />
                 <mat-datepicker-toggle matSuffix [for]="jdPicker"></mat-datepicker-toggle>
                 <mat-datepicker #jdPicker></mat-datepicker>
+                <mat-error *ngIf="detailsForm.get('joiningDate')?.hasError('required')">Joining date is required</mat-error>
+                <mat-error *ngIf="detailsForm.get('joiningDate')?.hasError('pastDate')">Joining date cannot be in the past</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Joining Location</mat-label>
@@ -129,12 +128,16 @@
                 <input matInput [matDatepicker]="tsPicker" formControlName="trainingStartDate" />
                 <mat-datepicker-toggle matSuffix [for]="tsPicker"></mat-datepicker-toggle>
                 <mat-datepicker #tsPicker></mat-datepicker>
+                <mat-error *ngIf="trainingForm.get('trainingStartDate')?.hasError('required')">Training start date is required</mat-error>
+                <mat-error *ngIf="trainingForm.get('trainingStartDate')?.hasError('afterJoining')">Must be after the joining date</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Training End Date</mat-label>
                 <input matInput [matDatepicker]="tePicker" formControlName="trainingEndDate" />
                 <mat-datepicker-toggle matSuffix [for]="tePicker"></mat-datepicker-toggle>
                 <mat-datepicker #tePicker></mat-datepicker>
+                <mat-error *ngIf="trainingForm.get('trainingEndDate')?.hasError('required')">Training end date is required</mat-error>
+                <mat-error *ngIf="trainingForm.get('trainingEndDate')?.hasError('afterStart')">Must be after the training start date</mat-error>
               </mat-form-field>
             </div>
             <div class="step-actions">
@@ -161,9 +164,10 @@
         <mat-step label="Eligible Candidates">
           <div class="step-form">
             <p class="step-hint">
-              Candidates are sorted by location preference priority for
+              Candidates are sorted for
               <strong>{{ getLocationName(detailsForm.value.joiningLocationId) }}</strong> —
-              preference 1 first. Pre-selected up to your batch size; adjust as needed.
+              location preference match first, then by assessment score (highest first).
+              Pre-selected up to your batch size; adjust as needed.
             </p>
 
             <app-loader *ngIf="loadingEligible"></app-loader>
@@ -242,17 +246,26 @@
         </mat-card-content>
       </mat-card>
 
-      <div class="detail-actions">
-        <button mat-raised-button color="primary" [disabled]="generating" (click)="generateLetters()">
-          <mat-icon>description</mat-icon> {{ generating ? 'Generating…' : 'Generate Joining Letters' }}
-        </button>
+      <!-- Only shown while there's still someone to send a letter to — actions already
+           completed (generate/send) aren't re-shown once done. -->
+      <div class="detail-actions" *ngIf="hasPendingLetters">
         <button mat-raised-button color="accent" [disabled]="sending" (click)="sendLetters()">
-          <mat-icon>send</mat-icon> {{ sending ? 'Sending…' : 'Send Joining Letters' }}
+          <mat-icon>send</mat-icon> {{ sending ? 'Sending…' : 'Send Joining Letter' }}
         </button>
       </div>
 
       <mat-card class="table-card">
-        <mat-card-header><mat-card-title>Batch Members</mat-card-title></mat-card-header>
+        <mat-card-header>
+          <mat-card-title>Batch Members</mat-card-title>
+          <button
+            mat-stroked-button
+            color="primary"
+            *ngIf="!showAddReplacement && hasReplaceableMembers()"
+            (click)="openAddReplacement()"
+          >
+            <mat-icon>person_add</mat-icon> Add Replacement
+          </button>
+        </mat-card-header>
         <mat-card-content>
           <div class="table-container">
             <table mat-table [dataSource]="selectedBatch.members || []">
@@ -275,20 +288,90 @@
               </ng-container>
               <ng-container matColumnDef="letterStatus">
                 <th mat-header-cell *matHeaderCellDef>Letter</th>
-                <td mat-cell *matCellDef="let m">{{ m.joiningLetterStatus }}</td>
+                <td mat-cell *matCellDef="let m">
+                  {{ m.joiningLetterStatus }}
+                  <span class="deadline-hint" *ngIf="m.responseDeadline && m.applicationStatus === 'JOINING_LETTER_SENT'">
+                    (respond by {{ m.responseDeadline | date: 'mediumDate' }})
+                  </span>
+                </td>
               </ng-container>
               <ng-container matColumnDef="status">
                 <th mat-header-cell *matHeaderCellDef>Application Status</th>
                 <td mat-cell *matCellDef="let m"><app-status-badge [status]="m.applicationStatus"></app-status-badge></td>
               </ng-container>
-              <tr mat-header-row *matHeaderRowDef="['rank','candidate','employeeCode','letterStatus','status']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['rank','candidate','employeeCode','letterStatus','status']"></tr>
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
+                <td mat-cell *matCellDef="let m" align="end">
+                  <button
+                    mat-button
+                    *ngIf="canResend(m)"
+                    [disabled]="resendingMemberId === m.applicationId"
+                    (click)="resendLetter(m)"
+                  >
+                    Resend
+                  </button>
+                  <button
+                    mat-button
+                    color="warn"
+                    *ngIf="isReplaceable(m)"
+                    [disabled]="removingMemberId === m.applicationId"
+                    (click)="removeMember(m)"
+                  >
+                    Remove
+                  </button>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="['rank','candidate','employeeCode','letterStatus','status','actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['rank','candidate','employeeCode','letterStatus','status','actions']"></tr>
             </table>
+          </div>
+
+          <!-- Add Replacement panel -->
+          <div class="add-replacement-panel" *ngIf="showAddReplacement">
+            <h4>Add Replacement Candidate(s)</h4>
+            <app-loader *ngIf="loadingReplacementEligible"></app-loader>
+            <app-empty-state *ngIf="!loadingReplacementEligible && replacementEligible.length === 0" icon="people_outline" title="No eligible candidates available"></app-empty-state>
+            <div class="table-container" *ngIf="!loadingReplacementEligible && replacementEligible.length > 0">
+              <table mat-table [dataSource]="replacementEligible">
+                <ng-container matColumnDef="select">
+                  <th mat-header-cell *matHeaderCellDef></th>
+                  <td mat-cell *matCellDef="let c">
+                    <mat-checkbox [checked]="selectedReplacements.has(c.applicationId)" (change)="toggleReplacement(c.applicationId)"></mat-checkbox>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="candidate">
+                  <th mat-header-cell *matHeaderCellDef>Candidate</th>
+                  <td mat-cell *matCellDef="let c">
+                    <div class="candidate-info">
+                      <span class="name">{{ c.candidateName }}</span>
+                      <span class="email">{{ c.candidateEmail }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="score">
+                  <th mat-header-cell *matHeaderCellDef>Score</th>
+                  <td mat-cell *matCellDef="let c">{{ c.assessmentScore ?? '—' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="['select','candidate','score']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['select','candidate','score']"></tr>
+              </table>
+            </div>
+            <div class="step-actions">
+              <button mat-stroked-button [disabled]="addingReplacements" (click)="cancelAddReplacement()">Cancel</button>
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="selectedReplacements.size === 0 || addingReplacements"
+                (click)="confirmAddReplacements()"
+              >
+                {{ addingReplacements ? 'Adding…' : 'Add ' + selectedReplacements.size + ' Candidate(s)' }}
+              </button>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
 
-      <!-- Phase 6: Assign to Training -->
+      <!-- Assign to Training -->
       <mat-card class="table-card" *ngIf="selectedBatch.status === 'READY_FOR_TRAINING'">
         <mat-card-header>
           <mat-card-title>Assign to Training</mat-card-title>
@@ -309,23 +392,49 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- Phase 6: Trainees -->
+      <!-- Trainees -->
       <mat-card class="table-card" *ngIf="trainees.length > 0">
         <mat-card-header>
           <mat-card-title>Trainees{{ assignedTrainingName ? ' — ' + assignedTrainingName : '' }}</mat-card-title>
-          <button
-            mat-raised-button
-            color="accent"
-            *ngIf="selectedBatch.status === 'TRAINING_IN_PROGRESS'"
-            [disabled]="completing"
-            (click)="completeBatch()"
-          >
-            <mat-icon>flag</mat-icon> {{ completing ? 'Completing…' : 'Complete Batch & Release' }}
-          </button>
+          <div class="header-actions">
+            <button mat-stroked-button [disabled]="exporting" (click)="exportTrainees()">
+              <mat-icon>download</mat-icon> {{ exporting ? 'Exporting…' : 'Export' }}
+            </button>
+            <button
+              mat-raised-button
+              color="accent"
+              *ngIf="selectedBatch.status === 'TRAINING_IN_PROGRESS'"
+              [disabled]="completing"
+              (click)="completeBatch()"
+            >
+              <mat-icon>flag</mat-icon> {{ completing ? 'Completing…' : 'Complete Batch & Release' }}
+            </button>
+          </div>
         </mat-card-header>
         <mat-card-content>
+          <mat-form-field appearance="outline" class="search-field">
+            <mat-label>Search trainees</mat-label>
+            <input matInput [(ngModel)]="traineeSearch" placeholder="Name, email or employee ID" />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <app-bulk-action-bar
+            [selectedCount]="selectedTrainees.size"
+            [actions]="traineeBulkActions"
+            (actionClicked)="onTraineeBulkAction($event)"
+            (selectionCleared)="clearTraineeSelection()"
+          ></app-bulk-action-bar>
+
           <div class="table-container">
-            <table mat-table [dataSource]="trainees">
+            <table mat-table [dataSource]="filteredTrainees">
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef>
+                  <mat-checkbox [checked]="isAllFilteredSelected()" (change)="toggleAllFiltered()"></mat-checkbox>
+                </th>
+                <td mat-cell *matCellDef="let t">
+                  <mat-checkbox [checked]="selectedTrainees.has(t.traineeId)" (change)="toggleTrainee(t.traineeId)" [disabled]="t.released"></mat-checkbox>
+                </td>
+              </ng-container>
               <ng-container matColumnDef="candidate">
                 <th mat-header-cell *matHeaderCellDef>Candidate</th>
                 <td mat-cell *matCellDef="let t">
@@ -338,6 +447,10 @@
               <ng-container matColumnDef="employeeCode">
                 <th mat-header-cell *matHeaderCellDef>Employee ID</th>
                 <td mat-cell *matCellDef="let t">{{ t.employeeCode }}</td>
+              </ng-container>
+              <ng-container matColumnDef="traineeId">
+                <th mat-header-cell *matHeaderCellDef>Trainee ID</th>
+                <td mat-cell *matCellDef="let t">{{ t.traineeId }}</td>
               </ng-container>
               <ng-container matColumnDef="score">
                 <th mat-header-cell *matHeaderCellDef>Score</th>
@@ -361,22 +474,27 @@
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
                 <td mat-cell *matCellDef="let t" align="end">
-                  <button mat-button *ngIf="!t.lapEnabled && !t.released" (click)="openLapDialog(t)">Move to LAP</button>
-                  <button mat-button *ngIf="t.lapEnabled" color="primary" (click)="removeFromLap(t)">Remove from LAP</button>
+                  <ng-container *ngIf="!t.released">
+                    <button mat-button *ngIf="!t.lapEnabled" (click)="openLapDialog(t)">Move to LAP</button>
+                    <button mat-button *ngIf="t.lapEnabled" color="primary" (click)="removeFromLap(t)">Remove from LAP</button>
+                    <button mat-button color="primary" (click)="releaseTrainee(t)">Release</button>
+                    <button mat-button color="warn" (click)="openFlagDialog(t)">Flag</button>
+                  </ng-container>
                 </td>
               </ng-container>
-              <tr mat-header-row *matHeaderRowDef="['candidate','employeeCode','score','attendance','result','released','actions']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['candidate','employeeCode','score','attendance','result','released','actions']"></tr>
+              <tr mat-header-row *matHeaderRowDef="['select','candidate','employeeCode','traineeId','score','attendance','result','released','actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['select','candidate','employeeCode','traineeId','score','attendance','result','released','actions']"></tr>
             </table>
+            <app-empty-state *ngIf="filteredTrainees.length === 0" icon="search_off" title="No trainees match your search"></app-empty-state>
           </div>
         </mat-card-content>
       </mat-card>
 
-      <!-- Phase 6: Trainee Result Excel Upload -->
+      <!-- Trainee Result Excel Upload -->
       <mat-card class="excel-card" *ngIf="trainees.length > 0">
         <mat-card-header>
           <mat-card-title>Trainee Result Upload (Excel)</mat-card-title>
-          <mat-card-subtitle>Bulk-upload score, attendance and final result for this batch</mat-card-subtitle>
+          <mat-card-subtitle>Bulk-upload score, attendance and final result for this batch — export the trainee list above first if you need Trainee IDs</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <div class="excel-actions-row">
@@ -440,21 +558,62 @@
           </div>
         </mat-card-content>
       </mat-card>
+
+      <!-- Activity / History -->
+      <mat-card class="table-card">
+        <mat-card-header>
+          <mat-card-title>Batch Activity</mat-card-title>
+          <button mat-button (click)="toggleActivity()">
+            <mat-icon>{{ showActivity ? 'expand_less' : 'history' }}</mat-icon>
+            {{ showActivity ? 'Hide' : 'Show' }}
+          </button>
+        </mat-card-header>
+        <mat-card-content *ngIf="showActivity">
+          <app-loader *ngIf="loadingActivity"></app-loader>
+          <app-empty-state *ngIf="!loadingActivity && activityLog.length === 0" icon="history" title="No activity recorded yet"></app-empty-state>
+          <div class="activity-list" *ngIf="!loadingActivity && activityLog.length > 0">
+            <div class="activity-row" *ngFor="let a of activityLog">
+              <span class="activity-time">{{ a.timestamp | date: 'medium' }}</span>
+              <span class="activity-desc"><strong>{{ a.actionType }}</strong> — {{ a.description }}</span>
+              <span class="activity-user" *ngIf="a.userName">by {{ a.userName }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </ng-container>
   </ng-container>
 
-  <!-- Move to LAP modal -->
-  <div class="modal-overlay" *ngIf="lapDialogTrainee" (click)="lapDialogTrainee = null">
+  <!-- Move to LAP modal (single + bulk) -->
+  <div class="modal-overlay" *ngIf="lapDialogTrainee || lapBulkIds" (click)="closeLapDialog()">
     <div class="modal" (click)="$event.stopPropagation()">
       <h3>Move to LAP</h3>
-      <p class="modal-sub">{{ lapDialogTrainee.candidateName }} — Learning Assistance Program</p>
+      <p class="modal-sub" *ngIf="lapDialogTrainee">{{ lapDialogTrainee.candidateName }} — Learning Assistance Program</p>
+      <p class="modal-sub" *ngIf="lapBulkIds">{{ lapBulkIds.length }} trainee(s) — Learning Assistance Program</p>
       <mat-form-field appearance="outline" class="full">
         <mat-label>Remarks (optional)</mat-label>
         <textarea matInput rows="3" [(ngModel)]="lapRemarks"></textarea>
       </mat-form-field>
       <div class="modal-actions">
-        <button mat-button (click)="lapDialogTrainee = null">Cancel</button>
-        <button mat-raised-button color="warn" (click)="confirmMoveToLap()">Move to LAP</button>
+        <button mat-button [disabled]="bulkActing" (click)="closeLapDialog()">Cancel</button>
+        <button mat-raised-button color="warn" [disabled]="bulkActing" (click)="confirmMoveToLap()">Move to LAP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flag modal (single + bulk) -->
+  <div class="modal-overlay" *ngIf="flagDialogTrainee || flagBulkIds" (click)="closeFlagDialog()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Flag Candidate</h3>
+      <p class="modal-sub" *ngIf="flagDialogTrainee">{{ flagDialogTrainee.candidateName }} — mark as permanently unsuccessful</p>
+      <p class="modal-sub" *ngIf="flagBulkIds">{{ flagBulkIds.length }} trainee(s) — mark as permanently unsuccessful</p>
+      <p class="modal-warning">This excludes the trainee from project allocation. This cannot be undone from this screen.</p>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Reason</mat-label>
+        <textarea matInput rows="3" [(ngModel)]="flagReason" placeholder="e.g. Failed to meet cutoff after LAP retraining"></textarea>
+      </mat-form-field>
+      <div class="modal-actions">
+        <button mat-button [disabled]="bulkActing" (click)="closeFlagDialog()">Cancel</button>
+        <button mat-raised-button color="warn" [disabled]="bulkActing" (click)="confirmFlag()">Flag</button>
       </div>
     </div>
   </div>

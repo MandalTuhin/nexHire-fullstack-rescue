@@ -3,6 +3,7 @@ package com.nexhire.service;
 import com.nexhire.dto.JoiningLetterResponse;
 import com.nexhire.entity.Employee;
 import com.nexhire.entity.JobApplication;
+import com.nexhire.entity.JoiningBatch;
 import com.nexhire.entity.JoiningLetter;
 import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.exception.InvalidStateTransitionException;
@@ -11,6 +12,7 @@ import com.nexhire.repository.EmployeeRepository;
 import com.nexhire.repository.JobApplicationRepository;
 import com.nexhire.repository.JoiningLetterRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,7 @@ public class JoiningLetterService {
     private final FileStorageService fileStorageService;
     private final AuditLogService auditLogService;
     private final JoiningBatchService joiningBatchService;
+    private final BudgetService budgetService;
 
     public List<JoiningLetterResponse> getMyJoiningLetters(Long userId) {
         return joiningLetterRepository.findByApplicationUserId(userId).stream()
@@ -112,10 +115,49 @@ public class JoiningLetterService {
                 "Joining letter rejected by " + application.getUser().getEmail());
 
         if (letter.getBatch() != null) {
+            releaseCandidateBudgetShare(letter.getBatch(), userId);
             joiningBatchService.refreshBatchStatusAfterResponse(letter.getBatch().getId());
         }
 
         return toResponse(letter);
+    }
+
+    /** Releases this one candidate's share of the batch's reserved budget back to available —
+     *  the reservation was sized for the whole batch when letters went out, so a rejection (or
+     *  expiry, see JoiningLetterExpiryService) shouldn't leave their share stuck as reserved
+     *  when HR is expected to be able to replace them and re-reserve for the replacement
+     *  instead. No-op if the batch's training program (and therefore per-candidate cost) was
+     *  never known. */
+    private void releaseCandidateBudgetShare(JoiningBatch batch, Long actingUserId) {
+        if (batch.getAssignedTraining() == null) return;
+        long perCandidateCost = batch.getAssignedTraining().getCostPerCandidate();
+        budgetService.releasePartialReservation(batch.getTrainingLocation(), batch, perCandidateCost, actingUserId);
+    }
+
+    /** Runs hourly: any joining letter still awaiting a response past its deadline is expired —
+     *  the candidate is excluded from the training lifecycle the same way a rejection is (see
+     *  JoiningBatchService.recomputeBatchStatus — only JOINING_LETTER_SENT counts as "pending"),
+     *  their share of the batch's reserved budget is released, and HR can resend a fresh letter
+     *  or remove/replace them (JoiningBatchService.resendLetter / removeMember). */
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void expireOverdueJoiningLetters() {
+        List<JoiningLetter> overdue = joiningLetterRepository.findByApplication_StatusAndResponseDeadlineBefore(
+                ApplicationStatus.JOINING_LETTER_SENT, LocalDateTime.now());
+
+        for (JoiningLetter letter : overdue) {
+            JobApplication application = letter.getApplication();
+            application.setStatus(ApplicationStatus.JOINING_EXPIRED);
+            applicationRepository.save(application);
+
+            auditLogService.log(null, "JOINING_EXPIRED", "APPLICATION", application.getId(),
+                    "Joining letter response deadline passed without a reply — " + application.getUser().getEmail());
+
+            if (letter.getBatch() != null) {
+                releaseCandidateBudgetShare(letter.getBatch(), null);
+                joiningBatchService.refreshBatchStatusAfterResponse(letter.getBatch().getId());
+            }
+        }
     }
 
     private JoiningLetterResponse toResponse(JoiningLetter letter) {

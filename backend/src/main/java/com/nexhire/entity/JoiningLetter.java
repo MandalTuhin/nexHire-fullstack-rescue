@@ -55,4 +55,9 @@ public class JoiningLetter {
     private LocalDateTime sentAt;
 
     private LocalDateTime respondedAt;
+
+    /** Set alongside sentAt — the candidate must accept/reject by this time or the letter is
+     *  auto-expired (see JoiningLetterExpiryService). Null for letters sent before this field
+     *  existed, which the expiry job simply never matches. */
+    private LocalDateTime responseDeadline;
 }

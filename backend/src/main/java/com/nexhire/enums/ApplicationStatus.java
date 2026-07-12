@@ -41,12 +41,20 @@ public enum ApplicationStatus {
     JOINING_ON_HOLD,
     JOINING_ACCEPTED,
     JOINING_REJECTED,
+    /** Candidate neither accepted nor rejected before the joining letter's response deadline —
+     *  see JoiningLetterExpiryService. Excludes the candidate from the training lifecycle same
+     *  as JOINING_REJECTED, but HR can still resend a fresh letter or remove/replace them. */
+    JOINING_EXPIRED,
 
     TRAINING_ASSIGNED,
     TRAINING_IN_PROGRESS,
     TRAINING_RESULT_UPLOADED,
     TRAINING_COMPLETED,
     LAP,
+    /** Trainee failed even after a Learning Assistance Program attempt — a permanent, HR-flagged
+     *  outcome (TrainingBatchService.flagTrainee) distinct from FAILED/LAP, which are still
+     *  recoverable. Never eligible for release/project allocation. */
+    TRAINING_FAILED,
     COMPLETED_WITH_EXCEPTIONS,
     RELEASED,
 

@@ -90,3 +90,10 @@ export interface TrainingBatchDetail {
   assignedTrainingMinAttendance?: number;
   trainees: TraineeDetail[];
 }
+
+export interface TraineeBulkActionResult {
+  totalRequested: number;
+  successCount: number;
+  failureCount: number;
+  failures: { id: number; reason: string }[];
+}

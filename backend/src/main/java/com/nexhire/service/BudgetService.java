@@ -39,7 +39,13 @@ public class BudgetService {
 
     /** Reserves `amount` against the city's available budget for this batch. Throws if
      *  insufficient — the caller (JoiningBatchService.sendLetters) must not send letters if
-     *  this throws, per P-Claude.md: "If Budget is insufficient, Joining Letters cannot be sent." */
+     *  this throws, per P-Claude.md: "If Budget is insufficient, Joining Letters cannot be sent."
+     *
+     *  Accumulates onto any existing reservation for this batch rather than overwriting it —
+     *  sendLetters() can be called more than once for the same batch (e.g. after a rejected/
+     *  expired candidate is replaced and a fresh letter goes out to just the replacement), and
+     *  each call only reserves the incremental amount for the candidates it's actually sending
+     *  to, so the running total must accumulate correctly across calls. */
     @Transactional
     public void reserve(City city, long amount, JoiningBatch batch, Long actingUserId) {
         if (city.getAvailableBudget() < amount) {
@@ -50,10 +56,29 @@ public class BudgetService {
         city.setReservedBudget(city.getReservedBudget() + amount);
         cityRepository.save(city);
 
-        batch.setReservedBudgetAmount(amount);
+        long existing = batch.getReservedBudgetAmount() != null ? batch.getReservedBudgetAmount() : 0L;
+        batch.setReservedBudgetAmount(existing + amount);
 
         log(city, BudgetTransactionType.RESERVED, amount, batch, actingUserId,
                 "Reserved for batch " + batch.getBatchCode());
+    }
+
+    /** Releases one candidate's share of a batch's reservation (they rejected or their joining
+     *  letter expired) without touching the rest of the batch's reservation — distinct from
+     *  cancelReservation(), which releases the whole remaining amount when the entire batch is
+     *  cancelled. Clamps to whatever's actually left reserved, and is a no-op if nothing is. */
+    @Transactional
+    public void releasePartialReservation(City city, JoiningBatch batch, long amount, Long actingUserId) {
+        Long reserved = batch.getReservedBudgetAmount();
+        if (reserved == null || reserved <= 0 || amount <= 0) return;
+        long toRelease = Math.min(amount, reserved);
+
+        city.setReservedBudget(city.getReservedBudget() - toRelease);
+        cityRepository.save(city);
+        batch.setReservedBudgetAmount(reserved - toRelease);
+
+        log(city, BudgetTransactionType.RESERVATION_RELEASED, toRelease, batch, actingUserId,
+                "Partial reservation released — a candidate left batch " + batch.getBatchCode());
     }
 
     /** Releases a reservation in full when its batch is cancelled before training happens —

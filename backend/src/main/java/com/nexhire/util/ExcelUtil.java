@@ -62,6 +62,12 @@ public final class ExcelUtil {
     }
 
     public static byte[] writeTemplate(String sheetName, String[] headers, String[][] sampleRows) {
+        return writeRows(sheetName, headers, sampleRows == null ? List.of() : List.of(sampleRows));
+    }
+
+    /** General-purpose data export — same header styling as writeTemplate, but for an arbitrary
+     *  number of real data rows (e.g. the trainee list export) rather than a couple of samples. */
+    public static byte[] writeRows(String sheetName, String[] headers, List<String[]> rows) {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet(sheetName);
             CellStyle headerStyle = workbook.createCellStyle();
@@ -77,12 +83,11 @@ public final class ExcelUtil {
                 sheet.setColumnWidth(c, 20 * 256);
             }
 
-            if (sampleRows != null) {
-                for (int r = 0; r < sampleRows.length; r++) {
-                    Row row = sheet.createRow(r + 1);
-                    for (int c = 0; c < sampleRows[r].length; c++) {
-                        row.createCell(c).setCellValue(sampleRows[r][c]);
-                    }
+            for (int r = 0; r < rows.size(); r++) {
+                Row row = sheet.createRow(r + 1);
+                String[] values = rows.get(r);
+                for (int c = 0; c < values.length; c++) {
+                    row.createCell(c).setCellValue(values[c] == null ? "" : values[c]);
                 }
             }
 
@@ -90,7 +95,7 @@ public final class ExcelUtil {
             workbook.write(out);
             return out.toByteArray();
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to build Excel template", e);
+            throw new UncheckedIOException("Failed to build Excel file", e);
         }
     }
 

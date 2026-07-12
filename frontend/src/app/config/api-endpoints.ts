@@ -103,6 +103,11 @@ export const API_ENDPOINTS = {
     AUTO_CREATE: `${BASE}/api/joining-batches/auto-create`,
     GENERATE_LETTERS: (id: number) => `${BASE}/api/joining-batches/${id}/generate-letters`,
     SEND_LETTERS: (id: number) => `${BASE}/api/joining-batches/${id}/send-letters`,
+    REMOVE_MEMBER: (id: number, applicationId: number) => `${BASE}/api/joining-batches/${id}/members/${applicationId}`,
+    ADD_MEMBERS: (id: number) => `${BASE}/api/joining-batches/${id}/members`,
+    RESEND_LETTER: (id: number, applicationId: number) =>
+      `${BASE}/api/joining-batches/${id}/members/${applicationId}/resend-letter`,
+    ACTIVITY: (id: number) => `${BASE}/api/joining-batches/${id}/activity`,
   },
   TRAINING_BATCHES: {
     BASE: `${BASE}/api/training-batches`,
@@ -112,10 +117,16 @@ export const API_ENDPOINTS = {
     COMPLETE: (id: number) => `${BASE}/api/training-batches/${id}/complete`,
     MOVE_TO_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/lap`,
     REMOVE_FROM_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/remove-lap`,
+    BULK_LAP: `${BASE}/api/training-batches/trainees/bulk-lap`,
+    RELEASE: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/release`,
+    BULK_RELEASE: `${BASE}/api/training-batches/trainees/bulk-release`,
+    FLAG: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/flag`,
+    BULK_FLAG: `${BASE}/api/training-batches/trainees/bulk-flag`,
     EXCEL_TEMPLATE: `${BASE}/api/training-batches/excel/template`,
     EXCEL_VALIDATE: (id: number) => `${BASE}/api/training-batches/${id}/excel/validate`,
     EXCEL_COMMIT: (id: number) => `${BASE}/api/training-batches/${id}/excel/commit`,
     EXCEL_HISTORY: (id: number) => `${BASE}/api/training-batches/${id}/excel/history`,
+    EXPORT: (id: number) => `${BASE}/api/training-batches/${id}/export`,
   },
 
   // ─── Locations (id/name lookups for dropdowns — budget passbook lives under CITIES) ─────

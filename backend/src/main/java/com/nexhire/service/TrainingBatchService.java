@@ -212,7 +212,37 @@ public class TrainingBatchService {
     public TraineeDetailResponse moveToLap(Long traineeId, String remarks, Long actingUserId) {
         Trainee trainee = traineeRepository.findById(traineeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+        doMoveToLap(trainee, remarks, actingUserId);
+        return toTraineeDetail(trainee);
+    }
 
+    /** HR: bulk move-to-LAP — batches can run into the hundreds, so processing them one at a
+     *  time in the UI isn't realistic. Per-item try/catch, no rollback-on-partial-failure —
+     *  matches the established bulkAssign/bulkSend/bulkTransition idiom elsewhere in the
+     *  codebase (e.g. ProjectService.bulkAssign, OfferService.bulkSend). */
+    @Transactional
+    public BulkActionResult bulkMoveToLap(List<Long> traineeIds, String remarks, Long actingUserId) {
+        int success = 0;
+        List<BulkActionResult.Failure> failures = new ArrayList<>();
+        for (Long traineeId : traineeIds) {
+            try {
+                Trainee trainee = traineeRepository.findById(traineeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+                doMoveToLap(trainee, remarks, actingUserId);
+                success++;
+            } catch (Exception e) {
+                failures.add(BulkActionResult.Failure.builder().id(traineeId).reason(e.getMessage()).build());
+            }
+        }
+        return BulkActionResult.builder()
+                .totalRequested(traineeIds.size())
+                .successCount(success)
+                .failureCount(failures.size())
+                .failures(failures)
+                .build();
+    }
+
+    private void doMoveToLap(Trainee trainee, String remarks, Long actingUserId) {
         trainee.setLapEnabled(true);
         trainee.setFinalResult(TraineeFinalResult.LAP);
         trainee.setReleased(false);
@@ -232,8 +262,6 @@ public class TrainingBatchService {
         notificationService.notify(application.getUser().getId(), "LAP",
                 "Learning Assistance Program",
                 "You've been enrolled in the Learning Assistance Program (LAP) to help you meet the training requirements.");
-
-        return toTraineeDetail(trainee);
     }
 
     @Transactional
@@ -256,14 +284,154 @@ public class TrainingBatchService {
         return toTraineeDetail(trainee);
     }
 
+    /** HR: "Release Candidate" — an explicit override release usable on any not-yet-released
+     *  trainee, most importantly one who cleared LAP (isReleaseEligible() permanently excludes
+     *  lapEnabled/LAP-result trainees from the automatic completeBatch() release path, so
+     *  without this action there was previously no way to release someone after LAP at all —
+     *  see class-level context). Clears lapEnabled if still set, since HR releasing them is by
+     *  definition the resolution of that LAP episode. */
+    @Transactional
+    public TraineeDetailResponse releaseTrainee(Long traineeId, Long actingUserId) {
+        Trainee trainee = traineeRepository.findById(traineeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+        if (trainee.getReleased()) {
+            throw new BusinessRuleException("Trainee " + trainee.getUser().getEmail() + " is already released");
+        }
+        User actingUser = userRepository.findById(actingUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        doRelease(trainee, actingUser);
+        return toTraineeDetail(trainee);
+    }
+
+    /** HR: bulk release — e.g. releasing the 18 of 20 LAP trainees who cleared it together,
+     *  rather than one at a time. Same per-item try/catch idiom as bulkMoveToLap. */
+    @Transactional
+    public BulkActionResult bulkRelease(List<Long> traineeIds, Long actingUserId) {
+        User actingUser = userRepository.findById(actingUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        int success = 0;
+        List<BulkActionResult.Failure> failures = new ArrayList<>();
+        for (Long traineeId : traineeIds) {
+            try {
+                Trainee trainee = traineeRepository.findById(traineeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+                if (trainee.getReleased()) {
+                    throw new BusinessRuleException("Already released");
+                }
+                doRelease(trainee, actingUser);
+                success++;
+            } catch (Exception e) {
+                failures.add(BulkActionResult.Failure.builder().id(traineeId).reason(e.getMessage()).build());
+            }
+        }
+        return BulkActionResult.builder()
+                .totalRequested(traineeIds.size())
+                .successCount(success)
+                .failureCount(failures.size())
+                .failures(failures)
+                .build();
+    }
+
+    private void doRelease(Trainee trainee, User releasedBy) {
+        ReleaseRecord record = releaseRecordRepository.findByTraineeId(trainee.getId())
+                .orElseGet(() -> ReleaseRecord.builder().trainee(trainee).build());
+        record.setReleasedBy(releasedBy);
+        record.setReleasedAt(LocalDateTime.now());
+        releaseRecordRepository.save(record);
+
+        trainee.setReleased(true);
+        trainee.setLapEnabled(false);
+        traineeRepository.save(trainee);
+
+        JobApplication application = trainee.getApplication();
+        application.setStatus(ApplicationStatus.RELEASED);
+        applicationRepository.save(application);
+
+        notificationService.notify(application.getUser().getId(), "RELEASED",
+                "Training Completed — Released",
+                "Congratulations! You've completed training and are now eligible for project allocation.");
+
+        auditLogService.log(releasedBy.getId(), "TRAINEE_RELEASED", "APPLICATION", application.getId(),
+                "Trainee " + trainee.getUser().getEmail() + " released");
+    }
+
+    /** HR: "Flag Candidate" — a trainee who failed even after a LAP attempt is permanently
+     *  marked unsuccessful and excluded from project allocation (RMG only queries
+     *  ApplicationStatus.RELEASED). Distinct from FAILED/LAP, which are still recoverable —
+     *  this is the terminal outcome for someone who isn't. */
+    @Transactional
+    public TraineeDetailResponse flagTrainee(Long traineeId, String reason, Long actingUserId) {
+        Trainee trainee = traineeRepository.findById(traineeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+        if (trainee.getReleased()) {
+            throw new BusinessRuleException("Cannot flag " + trainee.getUser().getEmail() + " — already released");
+        }
+        doFlag(trainee, reason, actingUserId);
+        return toTraineeDetail(trainee);
+    }
+
+    /** HR: bulk flag — e.g. flagging the 2 of 20 LAP trainees who failed again together. */
+    @Transactional
+    public BulkActionResult bulkFlag(List<Long> traineeIds, String reason, Long actingUserId) {
+        int success = 0;
+        List<BulkActionResult.Failure> failures = new ArrayList<>();
+        for (Long traineeId : traineeIds) {
+            try {
+                Trainee trainee = traineeRepository.findById(traineeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
+                if (trainee.getReleased()) {
+                    throw new BusinessRuleException("Already released");
+                }
+                doFlag(trainee, reason, actingUserId);
+                success++;
+            } catch (Exception e) {
+                failures.add(BulkActionResult.Failure.builder().id(traineeId).reason(e.getMessage()).build());
+            }
+        }
+        return BulkActionResult.builder()
+                .totalRequested(traineeIds.size())
+                .successCount(success)
+                .failureCount(failures.size())
+                .failures(failures)
+                .build();
+    }
+
+    private void doFlag(Trainee trainee, String reason, Long actingUserId) {
+        trainee.setFinalResult(TraineeFinalResult.FAILED);
+        trainee.setLapEnabled(false);
+        trainee.setReleased(false);
+        trainee.setFlagReason(reason);
+        traineeRepository.save(trainee);
+
+        JobApplication application = trainee.getApplication();
+        application.setStatus(ApplicationStatus.TRAINING_FAILED);
+        applicationRepository.save(application);
+
+        auditLogService.log(actingUserId, "TRAINEE_FLAGGED", "APPLICATION", application.getId(),
+                "Trainee " + trainee.getUser().getEmail() + " flagged as unsuccessful"
+                        + (reason != null && !reason.isBlank() ? " (" + reason + ")" : ""));
+        logLapHistory(trainee, "FLAGGED", reason, actingUserId);
+    }
+
     // ─── Completion / Release ───────────────────────────────────────────────────
 
+    /** HR: "Complete Batch & Release" — releases every trainee who met the cutoff/attendance
+     *  bar, and auto-moves anyone who was explicitly marked FAILED (via the result upload) into
+     *  LAP instead of leaving them stranded with no next step. Trainees still PENDING (no result
+     *  uploaded at all) are left untouched — auto-LAP-ing someone with no uploaded result would
+     *  be presumptuous. Once a trainee clears LAP later, HR releases or permanently flags them
+     *  via the dedicated releaseTrainee()/flagTrainee() actions below, not by re-running this. */
     @Transactional
     public TrainingBatchDetailResponse completeBatch(Long batchId, Long actingUserId) {
         JoiningBatch batch = joiningBatchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
+        if (batch.getStatus() != JoiningBatchStatus.TRAINING_IN_PROGRESS) {
+            throw new InvalidStateTransitionException(
+                    "Cannot complete batch: status must be TRAINING_IN_PROGRESS, current is " + batch.getStatus());
+        }
 
-        User releasedBy = userRepository.findById(actingUserId)
+        User actingUser = userRepository.findById(actingUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         List<Trainee> trainees = traineeRepository.findAll().stream()
@@ -271,29 +439,18 @@ public class TrainingBatchService {
                 .toList();
 
         int releasedCount = 0;
+        int lapCount = 0;
         for (Trainee trainee : trainees) {
             if (trainee.getReleased()) {
                 releasedCount++;
                 continue;
             }
             if (isReleaseEligible(trainee, batch.getAssignedTraining())) {
-                ReleaseRecord record = releaseRecordRepository.findByTraineeId(trainee.getId())
-                        .orElseGet(() -> ReleaseRecord.builder().trainee(trainee).build());
-                record.setReleasedBy(releasedBy);
-                record.setReleasedAt(LocalDateTime.now());
-                releaseRecordRepository.save(record);
-                trainee.setReleased(true);
-                traineeRepository.save(trainee);
-
-                JobApplication application = trainee.getApplication();
-                application.setStatus(ApplicationStatus.RELEASED);
-                applicationRepository.save(application);
-
-                notificationService.notify(application.getUser().getId(), "RELEASED",
-                        "Training Completed — Released",
-                        "Congratulations! You've completed training and are now eligible for project allocation.");
-
+                doRelease(trainee, actingUser);
                 releasedCount++;
+            } else if (trainee.getFinalResult() == TraineeFinalResult.FAILED && !Boolean.TRUE.equals(trainee.getLapEnabled())) {
+                doMoveToLap(trainee, "Auto-moved to LAP after batch completion (uploaded result: FAILED)", actingUserId);
+                lapCount++;
             }
         }
 
@@ -307,7 +464,8 @@ public class TrainingBatchService {
         }
 
         auditLogService.log(actingUserId, "BATCH_COMPLETED", "JOINING_BATCH", batchId,
-                "Batch " + batch.getBatchCode() + " completed: " + releasedCount + "/" + trainees.size() + " released");
+                "Batch " + batch.getBatchCode() + " completed: " + releasedCount + "/" + trainees.size()
+                        + " released, " + lapCount + " auto-moved to LAP");
 
         return getDetail(batchId);
     }

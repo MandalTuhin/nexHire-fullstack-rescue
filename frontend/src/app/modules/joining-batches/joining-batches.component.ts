@@ -1,18 +1,27 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { JoiningBatchService } from '../../services/joining-batch.service';
+import { JoiningBatchService, ActivityLogEntry } from '../../services/joining-batch.service';
 import { TrainingBatchService } from '../../services/training-batch.service';
 import { CityAdminService } from '../../services/city-admin.service';
 import { BlockAdminService } from '../../services/block-admin.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { BulkAction } from '../../shared/components/bulk-action-bar/bulk-action-bar.component';
 import { BlockAdmin, CityAdmin } from '../../models/city-admin.model';
-import { EligibleJoiningCandidate, JoiningBatch } from '../../models/joining-batch.model';
+import { EligibleJoiningCandidate, JoiningBatch, JoiningBatchMember } from '../../models/joining-batch.model';
 import { TraineeDetail, TrainingBatchDetail, TrainingProgram } from '../../models/training-batch.model';
 import { UploadSummary } from '../../models/bulk-upload.model';
 
 type ViewMode = 'list' | 'wizard' | 'detail';
+
+/** Statuses eligible for HR to remove-and-replace before training starts. */
+const REPLACEABLE_STATUSES = new Set(['JOINING_REJECTED', 'JOINING_EXPIRED']);
+
+/** Batch statuses where membership can still be modified — mirrors the backend's
+ *  CANCELLABLE_STATUSES guard (JoiningBatchService), so the UI doesn't invite an action the
+ *  server would reject anyway. */
+const MODIFIABLE_BATCH_STATUSES = new Set(['CREATED', 'JOINING_LETTER_SENT', 'JOINING_ACCEPTANCE_IN_PROGRESS', 'READY_FOR_TRAINING']);
 
 @Component({
   selector: 'app-joining-batches',
@@ -39,14 +48,23 @@ export class JoiningBatchesComponent implements OnInit {
   loadingEligible = false;
   selected = new Set<number>();
   creating = false;
+  readonly todayIso = new Date();
 
   // Detail view state
   selectedBatch: JoiningBatch | null = null;
   loadingDetail = false;
-  generating = false;
   sending = false;
 
-  // Phase 6: training assignment / LAP / release / trainee results
+  // Remove & Replace
+  showAddReplacement = false;
+  replacementEligible: EligibleJoiningCandidate[] = [];
+  loadingReplacementEligible = false;
+  selectedReplacements = new Set<number>();
+  addingReplacements = false;
+  removingMemberId: number | null = null;
+  resendingMemberId: number | null = null;
+
+  // Training assignment / LAP / release / trainee results
   trainingPrograms: TrainingProgram[] = [];
   selectedTrainingProgramId: number | null = null;
   assigning = false;
@@ -54,8 +72,23 @@ export class JoiningBatchesComponent implements OnInit {
   assignedTrainingName: string | null = null;
   completing = false;
 
+  // Trainee search + bulk selection
+  traineeSearch = '';
+  selectedTrainees = new Set<number>();
+  bulkActing = false;
+  readonly traineeBulkActions: BulkAction[] = [
+    { id: 'lap', label: 'Move to LAP', icon: 'support', color: 'warn' },
+    { id: 'release', label: 'Release', icon: 'check_circle', color: 'primary' },
+    { id: 'flag', label: 'Flag', icon: 'flag', color: 'warn' },
+  ];
+
   lapDialogTrainee: TraineeDetail | null = null;
+  lapBulkIds: number[] | null = null;
   lapRemarks = '';
+
+  flagDialogTrainee: TraineeDetail | null = null;
+  flagBulkIds: number[] | null = null;
+  flagReason = '';
 
   excelFile: File | null = null;
   validatingExcel = false;
@@ -63,6 +96,12 @@ export class JoiningBatchesComponent implements OnInit {
   excelPreview: UploadSummary | null = null;
   excelHistory: UploadSummary[] = [];
   showExcelHistory = false;
+
+  exporting = false;
+
+  activityLog: ActivityLogEntry[] = [];
+  loadingActivity = false;
+  showActivity = false;
 
   constructor(
     private fb: FormBuilder,
@@ -83,17 +122,19 @@ export class JoiningBatchesComponent implements OnInit {
 
   private buildForms(): void {
     this.detailsForm = this.fb.group({
-      batchName: [''],
-      joiningDate: [null, Validators.required],
+      joiningDate: [null, [Validators.required, this.notPastDateValidator()]],
       joiningLocationId: [null, Validators.required],
     });
-    this.trainingForm = this.fb.group({
-      trainingLocationId: [null, Validators.required],
-      trainingProgramId: [null, Validators.required],
-      trainingBlockId: [null],
-      trainingStartDate: [null],
-      trainingEndDate: [null],
-    });
+    this.trainingForm = this.fb.group(
+      {
+        trainingLocationId: [null, Validators.required],
+        trainingProgramId: [null, Validators.required],
+        trainingBlockId: [null],
+        trainingStartDate: [null, Validators.required],
+        trainingEndDate: [null, Validators.required],
+      },
+      { validators: this.trainingDateOrderValidator() },
+    );
     this.sizeForm = this.fb.group({
       batchSize: [60, [Validators.required, Validators.min(1)]],
     });
@@ -102,6 +143,49 @@ export class JoiningBatchesComponent implements OnInit {
       this.trainingForm.get('trainingBlockId')!.setValue(null);
       this.loadWizardBlocks(cityId);
     });
+  }
+
+  /** HR should never be able to pick a past joining date. */
+  private notPastDateValidator() {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value: Date | string | null = control.value;
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      date.setHours(0, 0, 0, 0);
+      return date < today ? { pastDate: true } : null;
+    };
+  }
+
+  /** Training start must be after the joining date; training end must be after training
+   *  start. Cross-field, so it lives on trainingForm as a group validator reading
+   *  detailsForm's joiningDate too. */
+  private trainingDateOrderValidator() {
+    return (group: AbstractControl): ValidationErrors | null => {
+      const start: Date | string | null = group.get('trainingStartDate')?.value;
+      const end: Date | string | null = group.get('trainingEndDate')?.value;
+      const joining: Date | string | null = this.detailsForm?.get('joiningDate')?.value;
+      const endControl = group.get('trainingEndDate');
+      const startControl = group.get('trainingStartDate');
+
+      const startExisting = startControl?.errors ?? {};
+      const { afterJoining, ...startRest } = startExisting;
+      if (joining && start && new Date(start) <= new Date(joining)) {
+        startControl?.setErrors({ ...startRest, afterJoining: true });
+      } else {
+        startControl?.setErrors(Object.keys(startRest).length ? startRest : null);
+      }
+
+      const endExisting = endControl?.errors ?? {};
+      const { afterStart, ...endRest } = endExisting;
+      if (start && end && new Date(end) <= new Date(start)) {
+        endControl?.setErrors({ ...endRest, afterStart: true });
+      } else {
+        endControl?.setErrors(Object.keys(endRest).length ? endRest : null);
+      }
+      return null;
+    };
   }
 
   private loadWizardBlocks(cityId: number | null): void {
@@ -166,7 +250,8 @@ export class JoiningBatchesComponent implements OnInit {
       next: (list) => {
         this.eligible = list;
         this.loadingEligible = false;
-        // Pre-select up to batchSize, already sorted by preference priority.
+        // Pre-select up to batchSize — already sorted location-match first, then by
+        // assessment score descending within each match tier (see backend).
         const size = this.sizeForm.value.batchSize;
         this.selected = new Set(list.slice(0, size).map((c) => c.applicationId));
       },
@@ -217,7 +302,6 @@ export class JoiningBatchesComponent implements OnInit {
       const program = this.trainingPrograms.find((p) => p.id === t.trainingProgramId);
       this.batchService
         .create({
-          batchName: d.batchName || undefined,
           joiningDate: this.toIso(d.joiningDate)!,
           joiningLocationId: d.joiningLocationId,
           trainingLocationId: t.trainingLocationId,
@@ -232,7 +316,7 @@ export class JoiningBatchesComponent implements OnInit {
         .subscribe({
           next: (batch) => {
             this.creating = false;
-            this.toastService.success(`Batch ${batch.batchCode} created with ${batch.currentHeadcount} candidate(s).`);
+            this.toastService.success(`Batch ${batch.batchCode} (${batch.batchName}) created with ${batch.currentHeadcount} candidate(s).`);
             this.loadBatches();
             this.openDetail(batch.id);
           },
@@ -266,6 +350,11 @@ export class JoiningBatchesComponent implements OnInit {
     this.excelPreview = null;
     this.excelFile = null;
     this.showExcelHistory = false;
+    this.showAddReplacement = false;
+    this.selectedReplacements.clear();
+    this.selectedTrainees.clear();
+    this.traineeSearch = '';
+    this.showActivity = false;
     this.trainingBatchService.getDetail(id).subscribe({
       next: (d: TrainingBatchDetail) => {
         this.selectedBatch = d.batch;
@@ -290,28 +379,21 @@ export class JoiningBatchesComponent implements OnInit {
     this.trainees = [];
   }
 
-  generateLetters(): void {
-    if (!this.selectedBatch) return;
-    this.generating = true;
-    this.batchService.generateLetters(this.selectedBatch.id).subscribe({
-      next: (b) => {
-        this.generating = false;
-        this.selectedBatch = b;
-        this.toastService.success('Joining letters generated for all members.');
-      },
-      error: (e) => {
-        this.generating = false;
-        this.toastService.error(e.error?.message || 'Failed to generate letters.');
-      },
-    });
+  // ─── Joining Letters (unified generate + send) ───────────────────────────────
+
+  /** True while at least one member still needs a letter — governs whether the single
+   *  "Send Joining Letter" action is shown on an existing batch's detail page. */
+  get hasPendingLetters(): boolean {
+    return !!this.selectedBatch?.members?.some((m) => m.joiningLetterStatus === 'NOT_GENERATED');
   }
 
   sendLetters(): void {
     if (!this.selectedBatch) return;
+    const pendingCount = (this.selectedBatch.members || []).filter((m) => m.joiningLetterStatus === 'NOT_GENERATED').length;
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
-        title: 'Send Joining Letters',
-        message: `Send joining letters to all ${this.selectedBatch.currentHeadcount} candidate(s) in this batch?`,
+        title: 'Send Joining Letter',
+        message: `Generate and send the joining letter to ${pendingCount} candidate(s) who don't have one yet? This also reserves the training budget for them.`,
         type: 'info',
         confirmText: 'Send',
       },
@@ -323,18 +405,129 @@ export class JoiningBatchesComponent implements OnInit {
         next: (b) => {
           this.sending = false;
           this.selectedBatch = b;
-          this.toastService.success('Joining letters sent.');
+          this.toastService.success('Joining letter sent.');
           this.loadBatches();
         },
         error: (e) => {
           this.sending = false;
-          this.toastService.error(e.error?.message || 'Failed to send letters.');
+          this.toastService.error(e.error?.message || 'Failed to send joining letter.');
         },
       });
     });
   }
 
-  // ─── Phase 6: Training Assignment ────────────────────────────────────────────
+  // ─── Remove & Replace ─────────────────────────────────────────────────────────
+
+  /** Whether membership can still be edited at all — mirrors the backend guard, so Remove/Add
+   *  Replacement aren't offered once training has started (or the batch is otherwise done). */
+  get batchModifiable(): boolean {
+    return !!this.selectedBatch && MODIFIABLE_BATCH_STATUSES.has(this.selectedBatch.status);
+  }
+
+  isReplaceable(member: JoiningBatchMember): boolean {
+    return this.batchModifiable && REPLACEABLE_STATUSES.has(member.applicationStatus);
+  }
+
+  canResend(member: JoiningBatchMember): boolean {
+    return this.batchModifiable && member.applicationStatus === 'JOINING_EXPIRED';
+  }
+
+  hasReplaceableMembers(): boolean {
+    return (this.selectedBatch?.members ?? []).some((m) => this.isReplaceable(m));
+  }
+
+  removeMember(member: JoiningBatchMember): void {
+    if (!this.selectedBatch) return;
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Remove Candidate',
+        message: `Remove ${member.candidateName} from this batch? They'll no longer count toward headcount, and you'll be able to add a replacement.`,
+        type: 'warning',
+        confirmText: 'Remove',
+      },
+    });
+    dialogRef.afterClosed().subscribe((confirm) => {
+      if (!confirm || !this.selectedBatch) return;
+      this.removingMemberId = member.applicationId;
+      this.batchService.removeMember(this.selectedBatch.id, member.applicationId).subscribe({
+        next: () => {
+          this.removingMemberId = null;
+          this.toastService.success(`${member.candidateName} removed from the batch.`);
+          this.refreshDetail();
+        },
+        error: (e) => {
+          this.removingMemberId = null;
+          this.toastService.error(e.error?.message || 'Failed to remove candidate.');
+        },
+      });
+    });
+  }
+
+  resendLetter(member: JoiningBatchMember): void {
+    if (!this.selectedBatch) return;
+    this.resendingMemberId = member.applicationId;
+    this.batchService.resendLetter(this.selectedBatch.id, member.applicationId).subscribe({
+      next: () => {
+        this.resendingMemberId = null;
+        this.toastService.success(`Joining letter resent to ${member.candidateName}.`);
+        this.refreshDetail();
+      },
+      error: (e) => {
+        this.resendingMemberId = null;
+        this.toastService.error(e.error?.message || 'Failed to resend letter.');
+      },
+    });
+  }
+
+  openAddReplacement(): void {
+    if (!this.selectedBatch) return;
+    this.showAddReplacement = true;
+    this.selectedReplacements.clear();
+    this.loadingReplacementEligible = true;
+    this.batchService.getEligible(this.selectedBatch.joiningLocationId).subscribe({
+      next: (list) => {
+        this.replacementEligible = list;
+        this.loadingReplacementEligible = false;
+      },
+      error: () => {
+        this.loadingReplacementEligible = false;
+        this.toastService.error('Failed to load eligible candidates.');
+      },
+    });
+  }
+
+  cancelAddReplacement(): void {
+    this.showAddReplacement = false;
+    this.selectedReplacements.clear();
+  }
+
+  toggleReplacement(applicationId: number): void {
+    if (this.selectedReplacements.has(applicationId)) {
+      this.selectedReplacements.delete(applicationId);
+    } else {
+      this.selectedReplacements.add(applicationId);
+    }
+  }
+
+  confirmAddReplacements(): void {
+    if (!this.selectedBatch || this.selectedReplacements.size === 0) return;
+    this.addingReplacements = true;
+    this.batchService.addReplacementMembers(this.selectedBatch.id, Array.from(this.selectedReplacements)).subscribe({
+      next: () => {
+        this.addingReplacements = false;
+        this.toastService.success(`${this.selectedReplacements.size} replacement candidate(s) added. Send the joining letter to notify them.`);
+        this.showAddReplacement = false;
+        this.selectedReplacements.clear();
+        this.refreshDetail();
+      },
+      error: (e) => {
+        this.addingReplacements = false;
+        this.toastService.error(e.error?.message || 'Failed to add replacement candidate(s).');
+      },
+    });
+  }
+
+  // ─── Training Assignment ────────────────────────────────────────────────────
 
   assignTraining(): void {
     if (!this.selectedBatch || !this.selectedTrainingProgramId) return;
@@ -367,19 +560,116 @@ export class JoiningBatchesComponent implements OnInit {
     });
   }
 
-  // ─── LAP ────────────────────────────────────────────────────────────────────
+  // ─── Trainee search + selection ──────────────────────────────────────────────
+
+  get filteredTrainees(): TraineeDetail[] {
+    const q = this.traineeSearch.trim().toLowerCase();
+    if (!q) return this.trainees;
+    return this.trainees.filter(
+      (t) =>
+        t.candidateName.toLowerCase().includes(q) ||
+        t.candidateEmail.toLowerCase().includes(q) ||
+        (t.employeeCode || '').toLowerCase().includes(q),
+    );
+  }
+
+  toggleTrainee(traineeId: number): void {
+    if (this.selectedTrainees.has(traineeId)) this.selectedTrainees.delete(traineeId);
+    else this.selectedTrainees.add(traineeId);
+  }
+
+  isAllFilteredSelected(): boolean {
+    const filtered = this.filteredTrainees;
+    return filtered.length > 0 && filtered.every((t) => this.selectedTrainees.has(t.traineeId));
+  }
+
+  toggleAllFiltered(): void {
+    if (this.isAllFilteredSelected()) {
+      this.filteredTrainees.forEach((t) => this.selectedTrainees.delete(t.traineeId));
+    } else {
+      this.filteredTrainees.forEach((t) => this.selectedTrainees.add(t.traineeId));
+    }
+  }
+
+  clearTraineeSelection(): void {
+    this.selectedTrainees.clear();
+  }
+
+  onTraineeBulkAction(actionId: string): void {
+    const ids = Array.from(this.selectedTrainees);
+    if (ids.length === 0) return;
+    if (actionId === 'lap') {
+      this.lapBulkIds = ids;
+      this.lapDialogTrainee = null;
+      this.lapRemarks = '';
+    } else if (actionId === 'flag') {
+      this.flagBulkIds = ids;
+      this.flagDialogTrainee = null;
+      this.flagReason = '';
+    } else if (actionId === 'release') {
+      const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+        data: {
+          title: 'Release Trainees',
+          message: `Release ${ids.length} trainee(s)? They'll become eligible for project allocation.`,
+          type: 'warning',
+          confirmText: 'Release',
+        },
+      });
+      dialogRef.afterClosed().subscribe((confirm) => {
+        if (!confirm) return;
+        this.bulkActing = true;
+        this.trainingBatchService.bulkRelease(ids).subscribe({
+          next: (r) => {
+            this.bulkActing = false;
+            this.toastService.success(`Released ${r.successCount}/${r.totalRequested} trainee(s).`);
+            this.clearTraineeSelection();
+            this.refreshDetail();
+          },
+          error: (e) => {
+            this.bulkActing = false;
+            this.toastService.error(e.error?.message || 'Bulk release failed.');
+          },
+        });
+      });
+    }
+  }
+
+  // ─── LAP (single + bulk share one modal) ─────────────────────────────────────
 
   openLapDialog(trainee: TraineeDetail): void {
     this.lapDialogTrainee = trainee;
+    this.lapBulkIds = null;
     this.lapRemarks = '';
   }
 
+  closeLapDialog(): void {
+    this.lapDialogTrainee = null;
+    this.lapBulkIds = null;
+  }
+
   confirmMoveToLap(): void {
+    if (this.lapBulkIds) {
+      this.bulkActing = true;
+      this.trainingBatchService.bulkMoveToLap(this.lapBulkIds, this.lapRemarks).subscribe({
+        next: (r) => {
+          this.bulkActing = false;
+          this.toastService.success(`Moved ${r.successCount}/${r.totalRequested} trainee(s) to LAP.`);
+          this.closeLapDialog();
+          this.clearTraineeSelection();
+          this.refreshDetail();
+        },
+        error: (e) => {
+          this.bulkActing = false;
+          this.toastService.error(e.error?.message || 'Bulk move-to-LAP failed.');
+        },
+      });
+      return;
+    }
     if (!this.lapDialogTrainee) return;
     this.trainingBatchService.moveToLap(this.lapDialogTrainee.traineeId, this.lapRemarks).subscribe({
       next: () => {
         this.toastService.success('Trainee moved to LAP.');
-        this.lapDialogTrainee = null;
+        this.closeLapDialog();
         this.refreshDetail();
       },
       error: (e) => this.toastService.error(e.error?.message || 'Failed to move to LAP.'),
@@ -389,10 +679,75 @@ export class JoiningBatchesComponent implements OnInit {
   removeFromLap(trainee: TraineeDetail): void {
     this.trainingBatchService.removeFromLap(trainee.traineeId).subscribe({
       next: () => {
-        this.toastService.success('Trainee removed from LAP.');
+        this.toastService.success('Trainee removed from LAP — back to In Progress. Re-upload their result or Release/Flag once decided.');
         this.refreshDetail();
       },
       error: (e) => this.toastService.error(e.error?.message || 'Failed to remove from LAP.'),
+    });
+  }
+
+  // ─── Release (single) ────────────────────────────────────────────────────────
+
+  releaseTrainee(trainee: TraineeDetail): void {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Release Candidate',
+        message: `Release ${trainee.candidateName}? They'll become eligible for project allocation.`,
+        type: 'warning',
+        confirmText: 'Release',
+      },
+    });
+    dialogRef.afterClosed().subscribe((confirm) => {
+      if (!confirm) return;
+      this.trainingBatchService.releaseTrainee(trainee.traineeId).subscribe({
+        next: () => {
+          this.toastService.success(`${trainee.candidateName} released.`);
+          this.refreshDetail();
+        },
+        error: (e) => this.toastService.error(e.error?.message || 'Failed to release trainee.'),
+      });
+    });
+  }
+
+  // ─── Flag (single + bulk share one modal) ────────────────────────────────────
+
+  openFlagDialog(trainee: TraineeDetail): void {
+    this.flagDialogTrainee = trainee;
+    this.flagBulkIds = null;
+    this.flagReason = '';
+  }
+
+  closeFlagDialog(): void {
+    this.flagDialogTrainee = null;
+    this.flagBulkIds = null;
+  }
+
+  confirmFlag(): void {
+    if (this.flagBulkIds) {
+      this.bulkActing = true;
+      this.trainingBatchService.bulkFlag(this.flagBulkIds, this.flagReason).subscribe({
+        next: (r) => {
+          this.bulkActing = false;
+          this.toastService.success(`Flagged ${r.successCount}/${r.totalRequested} trainee(s).`);
+          this.closeFlagDialog();
+          this.clearTraineeSelection();
+          this.refreshDetail();
+        },
+        error: (e) => {
+          this.bulkActing = false;
+          this.toastService.error(e.error?.message || 'Bulk flag failed.');
+        },
+      });
+      return;
+    }
+    if (!this.flagDialogTrainee) return;
+    this.trainingBatchService.flagTrainee(this.flagDialogTrainee.traineeId, this.flagReason).subscribe({
+      next: () => {
+        this.toastService.success('Trainee flagged as unsuccessful.');
+        this.closeFlagDialog();
+        this.refreshDetail();
+      },
+      error: (e) => this.toastService.error(e.error?.message || 'Failed to flag trainee.'),
     });
   }
 
@@ -403,7 +758,7 @@ export class JoiningBatchesComponent implements OnInit {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
         title: 'Complete Batch',
-        message: 'This releases every eligible trainee (score/attendance meeting the program cutoff, not on LAP) for project allocation. LAP/failed trainees are skipped, not blocked. Continue?',
+        message: 'This releases every eligible trainee (score/attendance meeting the program cutoff, not on LAP) for project allocation, and auto-moves anyone marked FAILED into LAP so they aren’t left stranded. Continue?',
         type: 'warning',
         confirmText: 'Complete & Release',
       },
@@ -417,7 +772,8 @@ export class JoiningBatchesComponent implements OnInit {
           this.selectedBatch = d.batch;
           this.trainees = d.trainees;
           const releasedCount = d.trainees.filter((t) => t.released).length;
-          this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} trainee(s) released.`);
+          const lapCount = d.trainees.filter((t) => !t.released && t.lapEnabled).length;
+          this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} released, ${lapCount} moved to LAP.`);
           this.loadBatches();
         },
         error: (e) => {
@@ -432,14 +788,7 @@ export class JoiningBatchesComponent implements OnInit {
 
   downloadExcelTemplate(): void {
     this.trainingBatchService.downloadExcelTemplate().subscribe({
-      next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'trainee-results-template.xlsx';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
+      next: (blob) => this.download(blob, 'trainee-results-template.xlsx'),
       error: () => this.toastService.error('Failed to download template.'),
     });
   }
@@ -473,7 +822,9 @@ export class JoiningBatchesComponent implements OnInit {
         this.committingExcel = false;
         this.excelPreview = summary;
         this.excelFile = null;
-        this.toastService.success(`Upload complete: ${summary.successRows} succeeded, ${summary.failedRows} failed.`);
+        this.toastService.success(
+          `Upload complete: ${summary.successRows} succeeded, ${summary.failedRows} failed. Use "Complete Batch & Release" below to release passers.`,
+        );
         this.refreshDetail();
         this.loadExcelHistory();
       },
@@ -492,5 +843,49 @@ export class JoiningBatchesComponent implements OnInit {
   private loadExcelHistory(): void {
     if (!this.selectedBatch) return;
     this.trainingBatchService.excelHistory(this.selectedBatch.id).subscribe((h) => (this.excelHistory = h));
+  }
+
+  // ─── Export ─────────────────────────────────────────────────────────────────
+
+  exportTrainees(): void {
+    if (!this.selectedBatch) return;
+    this.exporting = true;
+    this.trainingBatchService.exportTrainees(this.selectedBatch.id).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.download(blob, `trainees-${this.selectedBatch!.batchCode}.xlsx`);
+      },
+      error: () => {
+        this.exporting = false;
+        this.toastService.error('Failed to export trainees.');
+      },
+    });
+  }
+
+  private download(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  // ─── Activity / History ───────────────────────────────────────────────────────
+
+  toggleActivity(): void {
+    this.showActivity = !this.showActivity;
+    if (this.showActivity && this.selectedBatch) {
+      this.loadingActivity = true;
+      this.batchService.getActivity(this.selectedBatch.id).subscribe({
+        next: (log) => {
+          this.activityLog = log;
+          this.loadingActivity = false;
+        },
+        error: () => {
+          this.loadingActivity = false;
+        },
+      });
+    }
   }
 }

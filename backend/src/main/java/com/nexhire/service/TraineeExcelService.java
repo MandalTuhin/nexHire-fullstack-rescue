@@ -4,12 +4,14 @@ import com.nexhire.dto.RowErrorResponse;
 import com.nexhire.dto.UploadSummaryResponse;
 import com.nexhire.entity.BulkUploadLog;
 import com.nexhire.entity.Employee;
+import com.nexhire.entity.JoiningBatch;
 import com.nexhire.entity.Trainee;
 import com.nexhire.entity.User;
 import com.nexhire.enums.ApplicationStatus;
 import com.nexhire.enums.TraineeFinalResult;
 import com.nexhire.enums.UploadStatus;
 import com.nexhire.enums.UploadType;
+import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.*;
 import com.nexhire.util.ExcelUtil;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,11 @@ public class TraineeExcelService {
 
     private static final String[] HEADERS = {"EmployeeId", "TraineeId", "Score", "AttendancePercentage", "FinalResult", "Remarks"};
 
+    private static final String[] EXPORT_HEADERS = {
+            "Employee ID", "Trainee ID", "Candidate Name", "Email", "Batch Name",
+            "Training Program", "Joining Status", "Training Status",
+    };
+
     private final TraineeRepository traineeRepository;
     private final EmployeeRepository employeeRepository;
     private final JobApplicationRepository applicationRepository;
@@ -43,6 +50,7 @@ public class TraineeExcelService {
     private final BulkUploadLogRepository uploadLogRepository;
     private final BulkUploadErrorRowRepository errorRowRepository;
     private final AuditLogService auditLogService;
+    private final JoiningBatchRepository joiningBatchRepository;
 
     public byte[] template() {
         return ExcelUtil.writeTemplate("Trainee Results", HEADERS, new String[][]{
@@ -129,6 +137,50 @@ public class TraineeExcelService {
                 .errors(result.errors)
                 .previewRows(List.of())
                 .build();
+    }
+
+    /** Trainee list export for a batch — the "Trainee ID" column here is exactly the identifier
+     *  HR needs to fill in the result-upload template (see HEADERS above), which otherwise has
+     *  no way to be looked up without querying the database directly. */
+    public byte[] exportTrainees(Long batchId) {
+        JoiningBatch batch = joiningBatchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
+
+        List<Trainee> trainees = traineeRepository.findAll().stream()
+                .filter(t -> t.getBatch() != null && t.getBatch().getId().equals(batchId))
+                .toList();
+
+        List<String[]> rows = new ArrayList<>();
+        for (Trainee trainee : trainees) {
+            var application = trainee.getApplication();
+            Employee employee = employeeRepository.findByApplicationId(application.getId()).orElse(null);
+            rows.add(new String[]{
+                    employee != null ? employee.getEmployeeCode() : "",
+                    String.valueOf(trainee.getId()),
+                    trainee.getUser().getName(),
+                    trainee.getUser().getEmail(),
+                    batch.getBatchName(),
+                    batch.getAssignedTraining() != null ? batch.getAssignedTraining().getName() : batch.getTrainingProgram(),
+                    "Accepted",
+                    trainingStatusLabel(trainee),
+            });
+        }
+
+        return ExcelUtil.writeRows("Trainees - " + batch.getBatchCode(), EXPORT_HEADERS, rows);
+    }
+
+    private String trainingStatusLabel(Trainee trainee) {
+        if (Boolean.TRUE.equals(trainee.getReleased())) return "Released";
+        // flagReason is only ever set by TrainingBatchService.flagTrainee() — a reliable signal
+        // that this is a permanent post-LAP fail, distinct from a plain uploaded FAILED result.
+        if (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank()) return "Flagged";
+        if (Boolean.TRUE.equals(trainee.getLapEnabled())) return "LAP";
+        return switch (trainee.getFinalResult()) {
+            case FAILED -> "Failed";
+            case PASSED, COMPLETED -> "Passed (pending release)";
+            case LAP -> "LAP";
+            case PENDING -> "In Progress";
+        };
     }
 
     public List<UploadSummaryResponse> history(Long batchId) {
