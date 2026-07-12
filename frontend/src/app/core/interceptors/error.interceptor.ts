@@ -5,6 +5,7 @@ import { catchError } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { CurrentUserService } from '../auth/current-user.service';
 import { ToastService } from '../../shared/services/toast.service';
+import { SUPPRESS_404_TOAST } from './error-context';
 
 /**
  * ErrorInterceptor: Handles HTTP errors globally.
@@ -34,7 +35,9 @@ export class ErrorInterceptor implements HttpInterceptor {
           this.toastService.warning('You do not have permission to perform this action.');
           this.router.navigate(['/error/403']);
         } else if (error.status === 404) {
-          this.toastService.error('The requested resource was not found.');
+          if (!req.context.get(SUPPRESS_404_TOAST)) {
+            this.toastService.error('The requested resource was not found.');
+          }
         } else if (error.status === 0) {
           this.toastService.error('Unable to connect to server. Please check your connection.');
         } else if (error.status >= 500) {

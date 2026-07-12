@@ -141,7 +141,15 @@ public class CandidateProfileService {
             }
         }
 
+        // Flush the delete before inserting the replacement rows. CandidateLocationPreference
+        // has unique constraints on (user_id, preference_rank) and (user_id, location_name);
+        // without an explicit flush here, Hibernate queues both the delete and the inserts in
+        // the same flush and runs inserts before deletes, so re-saving the SAME preferences
+        // (the common case — every resave after the first) trips the unique constraint and
+        // 500s. Flushing forces the delete to hit the DB first.
         locationPreferenceRepository.deleteByUserId(user.getId());
+        locationPreferenceRepository.flush();
+
         List<CandidateLocationPreference> entities = new ArrayList<>();
         for (int i = 0; i < cleaned.size(); i++) {
             entities.add(CandidateLocationPreference.builder()

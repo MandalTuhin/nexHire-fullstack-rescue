@@ -126,47 +126,6 @@
   margin-top: 4px;
 }
 
-.certifications-block {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.cert-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  .section-heading {
-    margin: 0;
-  }
-}
-
-.cert-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface-muted);
-}
-
-.cert-entry-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cert-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-}
-
 .resume-section {
   margin-top: 4px;
 }

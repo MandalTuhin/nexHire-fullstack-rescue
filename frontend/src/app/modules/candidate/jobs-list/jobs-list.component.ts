@@ -39,9 +39,6 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
               <div class="logo"><mat-icon>work</mat-icon></div>
               <div>
                 <h3>{{ job.jobTitle }}</h3>
-                <span class="loc"
-                  ><mat-icon>location_on</mat-icon> {{ job.location }}</span
-                >
                 <span class="drive-date" *ngIf="job.driveDate">
                   <mat-icon>event</mat-icon> Drive date: {{ job.driveDate | date: 'mediumDate' }}
                 </span>
@@ -130,18 +127,6 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
         margin: 0;
         font-size: 17px;
         color: #1e293b;
-      }
-      .loc {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-        color: #64748b;
-      }
-      .loc mat-icon {
-        font-size: 14px;
-        width: 14px;
-        height: 14px;
       }
       .drive-date {
         display: inline-flex;

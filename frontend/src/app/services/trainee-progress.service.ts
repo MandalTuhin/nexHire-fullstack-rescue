@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { BaseService } from './base.service';
+import { SUPPRESS_404_TOAST } from '../core/interceptors/error-context';
 
 export interface LapHistoryEntry {
   id: number;
@@ -50,8 +51,11 @@ export class TraineeProgressService extends BaseService {
     super(http);
   }
 
-  /** EMPLOYEE: own trainee record. */
+  /** EMPLOYEE: own trainee record. 404s until the candidate reaches training — an expected
+   *  empty state, not an error, so the global 404 toast is suppressed for this call. */
   getMyTraining(): Observable<TraineeRecord> {
-    return this.http.get<TraineeRecord>(API_ENDPOINTS.TRAINEES.MY);
+    return this.http.get<TraineeRecord>(API_ENDPOINTS.TRAINEES.MY, {
+      context: new HttpContext().set(SUPPRESS_404_TOAST, true),
+    });
   }
 }
