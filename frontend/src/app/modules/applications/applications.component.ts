@@ -57,8 +57,8 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
     { value: 'ASSESSMENT_ASSIGNED', label: 'Assessment Assigned' },
     { value: 'ASSESSMENT_PASSED', label: 'Assessment Passed' },
     { value: 'OFFER_ACCEPTED', label: 'Offer Accepted' },
-    { value: 'ELIGIBLE_FOR_BGC', label: 'Eligible for BGC' },
-    { value: 'BGC_CLEARED', label: 'BGC Cleared' },
+    { value: 'ELIGIBLE_FOR_BGC', label: 'Eligible for Background Check' },
+    { value: 'BGC_CLEARED', label: 'Background Check Cleared' },
     { value: 'ELIGIBLE_FOR_BATCH', label: 'Eligible for Joining Batch' },
   ];
 
@@ -76,7 +76,7 @@ export class ApplicationsManagementComponent implements OnInit, AfterViewInit {
       { field: 'candidate', label: 'Candidate', sortable: true, cellTemplate: this.candidateCellTpl },
       { field: 'passoutYear', label: 'Passout Year', sortable: false },
       { field: 'status', label: 'Status', sortable: false, cellTemplate: this.statusCellTpl },
-      { field: 'bgvStatus', label: 'BGC', sortable: false, cellTemplate: this.bgcCellTpl },
+      { field: 'bgvStatus', label: 'Background Check', sortable: false, cellTemplate: this.bgcCellTpl },
       { field: 'appliedDate', label: 'Applied', sortable: true, cellTemplate: this.dateCellTpl },
     ];
   }

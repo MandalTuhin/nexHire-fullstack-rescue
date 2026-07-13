@@ -93,9 +93,7 @@ import { CityAdmin, CityStatus } from '../../../../models/city-admin.model';
                 <ng-container matColumnDef="status">
                   <th mat-header-cell *matHeaderCellDef>Status</th>
                   <td mat-cell *matCellDef="let city">
-                    <span class="status-chip" [class.active]="city.status === 'ACTIVE'" [class.inactive]="city.status !== 'ACTIVE'">
-                      {{ city.status }}
-                    </span>
+                    <app-status-badge [status]="city.status"></app-status-badge>
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="actions">
@@ -164,20 +162,6 @@ import { CityAdmin, CityStatus } from '../../../../models/city-admin.model';
       }
       table {
         width: 100%;
-      }
-      .status-chip {
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-      .status-chip.active {
-        background: #dcfce7;
-        color: #166534;
-      }
-      .status-chip.inactive {
-        background: #fee2e2;
-        color: #991b1b;
       }
     `,
   ],

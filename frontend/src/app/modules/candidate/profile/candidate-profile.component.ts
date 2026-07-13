@@ -95,7 +95,7 @@ import { ToastService } from '../../../shared/services/toast.service';
         font-size: 11px;
         font-weight: 600;
         background: #e0e7ff;
-        color: #4338ca;
+        color: var(--brand-700);
         padding: 2px 10px;
         border-radius: 12px;
       }

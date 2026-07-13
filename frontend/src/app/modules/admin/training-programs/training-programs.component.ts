@@ -110,9 +110,7 @@ import { TrainingProgram, TrainingProgramStatus } from '../../../models/training
                 <ng-container matColumnDef="status">
                   <th mat-header-cell *matHeaderCellDef>Status</th>
                   <td mat-cell *matCellDef="let p">
-                    <span class="status-chip" [class.active]="p.status === 'ACTIVE'" [class.inactive]="p.status !== 'ACTIVE'">
-                      {{ p.status }}
-                    </span>
+                    <app-status-badge [status]="p.status"></app-status-badge>
                   </td>
                 </ng-container>
 
@@ -182,20 +180,6 @@ import { TrainingProgram, TrainingProgramStatus } from '../../../models/training
       }
       .save-btn {
         height: 40px;
-      }
-      .status-chip {
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-      .status-chip.active {
-        background: #dcfce7;
-        color: #166534;
-      }
-      .status-chip.inactive {
-        background: #fee2e2;
-        color: #991b1b;
       }
     `,
   ],

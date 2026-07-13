@@ -28,7 +28,7 @@ import { CustomValidators } from '../../../shared/validators/custom-validators';
                   <mat-label>Email Address</mat-label>
                   <input matInput type="email" formControlName="email" placeholder="john@example.com">
                   <mat-error *ngIf="registerForm.get('email')?.hasError('required')">Email is required</mat-error>
-                  <mat-error *ngIf="registerForm.get('email')?.hasError('email')">Please enter a valid email</mat-error>
+                  <mat-error *ngIf="registerForm.get('email')?.hasError('email')">Please enter a valid email address.</mat-error>
                 </mat-form-field>
               </div>
 

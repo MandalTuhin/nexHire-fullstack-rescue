@@ -25,7 +25,7 @@
 
   &.drag-over {
     border-color: var(--color-primary);
-    background-color: #eef2ff;
+    background-color: var(--brand-100);
     border-style: solid;
 
     .upload-icon {

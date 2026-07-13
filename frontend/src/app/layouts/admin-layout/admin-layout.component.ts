@@ -378,12 +378,7 @@ export class AdminLayoutComponent implements OnInit {
       route: '/admin/blocks',
       permission: 'MANAGE_PERMISSIONS',
     },
-    {
-      label: 'Asset Management',
-      icon: 'computer',
-      route: '/admin/assets',
-      permission: 'VIEW_ASSETS',
-    },
+    // Asset Management nav entry temporarily removed (module disabled — see issue #40).
     {
       label: 'Activity Logs',
       icon: 'history',

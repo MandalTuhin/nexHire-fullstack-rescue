@@ -93,7 +93,7 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
         font-size: 13px;
       }
       .profile-alert a {
-        color: #4338ca;
+        color: var(--brand-700);
         font-weight: 600;
         cursor: pointer;
         text-decoration: underline;
@@ -117,7 +117,7 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
         width: 44px;
         height: 44px;
         border-radius: 10px;
-        background: #eef2ff;
+        background: var(--brand-100);
         color: var(--brand-500);
         display: flex;
         align-items: center;

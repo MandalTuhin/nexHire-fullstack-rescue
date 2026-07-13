@@ -30,8 +30,8 @@ import { Component } from '@angular/core';
           </div>
           <div class="step-card">
             <div class="step-num">2</div>
-            <h3>Assessments & BGV</h3>
-            <p>Undergo standard coding assessments and secure background verification checks.</p>
+            <h3>Assessments & Background Checks</h3>
+            <p>Undergo standard coding assessments and secure background checks.</p>
           </div>
           <div class="step-card">
             <div class="step-num">3</div>

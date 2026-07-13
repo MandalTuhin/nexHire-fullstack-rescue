@@ -1,5 +1,5 @@
 <div class="bgv-mgmt">
-  <app-page-header title="Background Verification" subtitle="Review BGC cases, documents and bulk results"></app-page-header>
+  <app-page-header title="Background Checks" subtitle="Review background check cases, documents and bulk results"></app-page-header>
 
   <div class="layout" [class.split]="selectedCase">
     <div class="list-column">
@@ -27,7 +27,7 @@
 
       <mat-card class="table-card">
         <mat-card-content>
-          <app-empty-state *ngIf="!loading && cases.length === 0" icon="verified" title="No background checks" subtitle="Offer acceptance auto-initiates BGC."></app-empty-state>
+          <app-empty-state *ngIf="!loading && cases.length === 0" icon="verified" title="No background checks" subtitle="Offer acceptance auto-initiates a background check."></app-empty-state>
           <app-loader *ngIf="loading"></app-loader>
 
           <div class="table-container" *ngIf="!loading && cases.length > 0">
@@ -89,7 +89,7 @@
       <!-- Bulk Excel upload -->
       <mat-card class="excel-card">
         <mat-card-header>
-          <mat-card-title>Bulk BGC Result Upload (Excel)</mat-card-title>
+          <mat-card-title>Bulk Background Check Result Upload (Excel)</mat-card-title>
           <mat-card-subtitle>Upload the vendor's result file — CLEARED cases auto-create Employee + SelectedUser records</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
@@ -114,7 +114,7 @@
               <span>Total Rows: <strong>{{ preview.totalRows }}</strong></span>
               <span class="success-text">Valid: <strong>{{ preview.successRows }}</strong></span>
               <span class="error-text">Errors: <strong>{{ preview.failedRows }}</strong></span>
-              <span class="status-chip">{{ preview.status }}</span>
+              <app-status-badge [status]="preview.status"></app-status-badge>
             </div>
             <div class="errors-table" *ngIf="preview.errors.length > 0">
               <table>
@@ -147,7 +147,7 @@
                   <td>{{ h.totalRows }}</td>
                   <td>{{ h.successRows }}</td>
                   <td>{{ h.failedRows }}</td>
-                  <td>{{ h.status }}</td>
+                  <td><app-status-badge [status]="h.status"></app-status-badge></td>
                 </tr>
               </tbody>
             </table>

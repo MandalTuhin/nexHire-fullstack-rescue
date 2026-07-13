@@ -34,7 +34,6 @@ import { AssessmentsManagementComponent } from './modules/assessments/assessment
 import { OfferLettersManagementComponent } from './modules/offer-letters/offer-letters.component';
 import { BgvManagementComponent } from './modules/bgv/bgv.component';
 import { JoiningBatchesComponent } from './modules/joining-batches/joining-batches.component';
-import { AssetsManagementComponent } from './modules/assets/assets.component';
 import { ProjectsComponent } from './modules/projects/projects.component';
 import { BudgetOverviewComponent } from './modules/budget-overview/budget-overview.component';
 
@@ -181,12 +180,9 @@ const routes: Routes = [
         canActivate: [PermissionGuard],
         data: { permissions: ['VIEW_ACTIVITY_LOGS'] },
       },
-      {
-        path: 'assets',
-        component: AssetsManagementComponent,
-        canActivate: [PermissionGuard],
-        data: { permissions: ['VIEW_ASSETS'] },
-      },
+      // Asset Management temporarily disabled (out of current scope) — route intentionally
+      // unregistered so /admin/assets is unreachable. Component/service/model kept intact
+      // under modules/assets for a quick re-enable later (see GitHub issue #40).
       {
         path: 'projects',
         component: ProjectsComponent,

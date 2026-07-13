@@ -84,7 +84,7 @@ import { CityAdmin } from '../../../../models/city-admin.model';
                 </ng-container>
                 <ng-container matColumnDef="status">
                   <th mat-header-cell *matHeaderCellDef>Status</th>
-                  <td mat-cell *matCellDef="let block">{{ block.status }}</td>
+                  <td mat-cell *matCellDef="let block"><app-status-badge [status]="block.status"></app-status-badge></td>
                 </ng-container>
                 <ng-container matColumnDef="actions">
                   <th mat-header-cell *matHeaderCellDef align="end">Actions</th>

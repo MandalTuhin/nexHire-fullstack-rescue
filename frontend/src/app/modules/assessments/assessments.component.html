@@ -45,7 +45,7 @@
           <span>Total Rows: <strong>{{ preview.totalRows }}</strong></span>
           <span class="success-text">Valid: <strong>{{ preview.successRows }}</strong></span>
           <span class="error-text">Errors: <strong>{{ preview.failedRows }}</strong></span>
-          <span class="status-chip">{{ preview.status }}</span>
+          <app-status-badge [status]="preview.status"></app-status-badge>
         </div>
 
         <div class="errors-table" *ngIf="preview.errors.length > 0">
@@ -95,7 +95,7 @@
               <td>{{ h.totalRows }}</td>
               <td>{{ h.successRows }}</td>
               <td>{{ h.failedRows }}</td>
-              <td>{{ h.status }}</td>
+              <td><app-status-badge [status]="h.status"></app-status-badge></td>
             </tr>
           </tbody>
         </table>

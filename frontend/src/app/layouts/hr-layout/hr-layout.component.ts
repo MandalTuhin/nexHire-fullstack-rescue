@@ -421,7 +421,7 @@ export class HrLayoutComponent implements OnInit {
       permission: 'VIEW_OFFERS',
     },
     {
-      label: 'Background Verif.',
+      label: 'Background Checks',
       icon: 'verified_user',
       route: '/hr/bgv',
       permission: 'VIEW_BGV',

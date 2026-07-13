@@ -20,10 +20,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class BgvService {
+
+    /** Mirrors the frontend's candidate-background-check.component.ts requiredDocTypes list —
+     *  a submission must cover all of these before it can be locked for HR review. */
+    private static final Set<String> REQUIRED_DOCUMENT_TYPES = Set.of(
+            "GOVT_ID", "ADDRESS_PROOF", "EDUCATION_CERTIFICATE", "PREVIOUS_EMPLOYMENT_PROOF", "PHOTO");
 
     private final BackgroundVerificationRepository bgvRepository;
     private final JobApplicationRepository applicationRepository;
@@ -187,9 +193,9 @@ public class BgvService {
     @Transactional
     public BgcDocumentResponse uploadDocument(Long applicationId, String documentType, MultipartFile file, Long uploaderUserId) {
         BackgroundVerification bgv = findCase(applicationId);
-        if (bgv.getStatus() != BgvStatus.DOCUMENTS_PENDING && bgv.getStatus() != BgvStatus.DOCUMENTS_SUBMITTED) {
+        if (bgv.getStatus() != BgvStatus.DOCUMENTS_PENDING) {
             throw new InvalidStateTransitionException(
-                    "This BGC case is not currently accepting documents (status: " + bgv.getStatus() + ")");
+                    "Background check documents have already been submitted and cannot be modified.");
         }
 
         Long fileId = fileStorageService.store(file, FileCategory.BGC_DOCUMENT, uploaderUserId);
@@ -199,15 +205,40 @@ public class BgvService {
                 .documentType(documentType)
                 .build());
 
-        if (bgv.getStatus() == BgvStatus.DOCUMENTS_PENDING) {
-            applyStatus(bgv, BgvStatus.DOCUMENTS_SUBMITTED, null, uploaderUserId);
-            bgvRepository.save(bgv);
-        }
-
         auditLogService.log(uploaderUserId, "BGC_DOCUMENT_UPLOADED", "APPLICATION", applicationId,
                 "Uploaded BGC document: " + documentType);
 
         return toDocResponse(doc);
+    }
+
+    /** Candidate-initiated lock: once all required document types have at least one upload, the
+     *  candidate explicitly submits the set, moving the case out of the editable DOCUMENTS_PENDING
+     *  state so uploadDocument() starts rejecting further changes. */
+    @Transactional
+    public BgvResponse submitDocuments(Long applicationId, Long userId) {
+        BackgroundVerification bgv = findCase(applicationId);
+        if (!bgv.getApplication().getUser().getId().equals(userId)) {
+            throw new InvalidStateTransitionException("You can only submit documents for your own application");
+        }
+        if (bgv.getStatus() != BgvStatus.DOCUMENTS_PENDING) {
+            throw new InvalidStateTransitionException(
+                    "Background check documents have already been submitted and cannot be modified.");
+        }
+
+        Set<String> uploadedTypes = documentRepository.findByBgcCaseIdOrderByUploadedAtDesc(bgv.getId()).stream()
+                .map(BgcDocument::getDocumentType)
+                .collect(java.util.stream.Collectors.toSet());
+        if (!uploadedTypes.containsAll(REQUIRED_DOCUMENT_TYPES)) {
+            throw new BusinessRuleException("Please upload all required documents before submitting.");
+        }
+
+        applyStatus(bgv, BgvStatus.DOCUMENTS_SUBMITTED, null, userId);
+        bgvRepository.save(bgv);
+
+        auditLogService.log(userId, "BGC_DOCUMENTS_SUBMITTED", "APPLICATION", applicationId,
+                "Candidate submitted all BGC documents for review");
+
+        return toResponse(bgv);
     }
 
     @Transactional(readOnly = true)

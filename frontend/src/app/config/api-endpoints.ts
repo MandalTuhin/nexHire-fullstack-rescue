@@ -147,6 +147,8 @@ export const API_ENDPOINTS = {
       `${BASE}/api/bgv/${applicationId}/documents`,
     MY_DOCUMENTS: (applicationId: number) =>
       `${BASE}/api/bgv/${applicationId}/documents/my`,
+    SUBMIT_DOCUMENTS: (applicationId: number) =>
+      `${BASE}/api/bgv/${applicationId}/documents/submit`,
     CASE_DOCUMENTS: (bgcCaseId: number) => `${BASE}/api/bgv/${bgcCaseId}/documents`,
     REVIEW_DOCUMENT: (documentId: number) =>
       `${BASE}/api/bgv/documents/${documentId}/review`,

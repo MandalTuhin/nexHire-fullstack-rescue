@@ -141,17 +141,17 @@ import { ToastService } from '../../shared/services/toast.service';
 
                 <ng-container matColumnDef="client">
                   <th mat-header-cell *matHeaderCellDef>Client</th>
-                  <td mat-cell *matCellDef="let project">{{ project.client || 'N/A' }}</td>
+                  <td mat-cell *matCellDef="let project">{{ project.client || '—' }}</td>
                 </ng-container>
 
                 <ng-container matColumnDef="technology">
                   <th mat-header-cell *matHeaderCellDef>Technology</th>
-                  <td mat-cell *matCellDef="let project">{{ project.technology || 'N/A' }}</td>
+                  <td mat-cell *matCellDef="let project">{{ project.technology || '—' }}</td>
                 </ng-container>
 
                 <ng-container matColumnDef="location">
                   <th mat-header-cell *matHeaderCellDef>Location</th>
-                  <td mat-cell *matCellDef="let project">{{ project.locationName || 'N/A' }}</td>
+                  <td mat-cell *matCellDef="let project">{{ project.locationName || '—' }}</td>
                 </ng-container>
 
                 <ng-container matColumnDef="vacancies">
@@ -164,14 +164,7 @@ import { ToastService } from '../../shared/services/toast.service';
                 <ng-container matColumnDef="status">
                   <th mat-header-cell *matHeaderCellDef>Status</th>
                   <td mat-cell *matCellDef="let project">
-                    <span
-                      class="status-chip"
-                      [class.active]="project.status === 'ACTIVE'"
-                      [class.filled]="project.status === 'FILLED'"
-                      [class.inactive]="project.status === 'INACTIVE'"
-                    >
-                      {{ project.status }}
-                    </span>
+                    <app-status-badge [status]="project.status"></app-status-badge>
                   </td>
                 </ng-container>
 
@@ -257,24 +250,6 @@ import { ToastService } from '../../shared/services/toast.service';
       }
       .save-btn {
         height: 40px;
-      }
-      .status-chip {
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-      .status-chip.active {
-        background: #dcfce7;
-        color: #166534;
-      }
-      .status-chip.filled {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .status-chip.inactive {
-        background: #fee2e2;
-        color: #991b1b;
       }
     `,
   ],

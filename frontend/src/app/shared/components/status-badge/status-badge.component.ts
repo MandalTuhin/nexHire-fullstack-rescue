@@ -140,6 +140,7 @@ export class StatusBadgeComponent {
     // BGV / BGC (BgvStatus)
     PENDING: { class: 'badge-warning', label: 'Pending' },
     NOT_INITIATED: { class: 'badge-secondary', label: 'Not Initiated' },
+    NOT_GENERATED: { class: 'badge-secondary', label: 'Not Generated' },
     INITIATED: { class: 'badge-info', label: 'Initiated' },
     DOCUMENTS_PENDING: { class: 'badge-warning', label: 'Documents Pending' },
     DOCUMENTS_SUBMITTED: { class: 'badge-purple', label: 'Documents Submitted' },
@@ -154,6 +155,9 @@ export class StatusBadgeComponent {
     TRAINING_ASSIGNED: { class: 'badge-info', label: 'Training Assigned' },
     COMPLETED: { class: 'badge-success', label: 'Completed' },
     DROPPED: { class: 'badge-danger', label: 'Dropped' },
+    // Bulk upload (UploadStatus)
+    PROCESSING: { class: 'badge-warning', label: 'Processing' },
+    COMPLETED_WITH_ERRORS: { class: 'badge-orange', label: 'Completed With Errors' },
     // Selected
     SELECTED: { class: 'badge-teal', label: 'Selected' },
     TRAINING_PENDING: { class: 'badge-warning', label: 'Training Pending' },

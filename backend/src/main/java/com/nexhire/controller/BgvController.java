@@ -97,6 +97,15 @@ public class BgvController {
         return ResponseEntity.ok(bgvService.getMyDocuments(userId, applicationId));
     }
 
+    /** Candidate: explicit "Submit BGV Documents" action — locks the document set for HR review. */
+    @PutMapping("/{applicationId}/documents/submit")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<BgvResponse> submitDocuments(
+            @PathVariable Long applicationId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgvService.submitDocuments(applicationId, userId));
+    }
+
     @GetMapping("/{bgcCaseId}/documents")
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<BgcDocumentResponse>> getDocuments(@PathVariable Long bgcCaseId) {

@@ -95,6 +95,13 @@ export class BackgroundVerificationService extends BaseService {
     return this.http.get<BgcDocument[]>(API_ENDPOINTS.BGV.MY_DOCUMENTS(applicationId));
   }
 
+  /** Candidate: explicit "Submit BGV Documents" action — locks the set for HR review. */
+  submitDocuments(applicationId: number): Observable<BackgroundVerification> {
+    return this.http
+      .put<BackendBgv>(API_ENDPOINTS.BGV.SUBMIT_DOCUMENTS(applicationId), {})
+      .pipe(map((b) => this.toModel(b)));
+  }
+
   getCaseDocuments(bgcCaseId: number): Observable<BgcDocument[]> {
     return this.http.get<BgcDocument[]>(API_ENDPOINTS.BGV.CASE_DOCUMENTS(bgcCaseId));
   }

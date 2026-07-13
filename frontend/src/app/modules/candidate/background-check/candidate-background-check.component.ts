@@ -16,7 +16,7 @@ interface RequiredDocType {
   template: `
     <div class="bgc-page">
       <app-page-header
-        title="Background Verification"
+        title="Background Check"
         subtitle="Upload the requested documents so we can complete your background check"
       ></app-page-header>
 
@@ -84,7 +84,7 @@ interface RequiredDocType {
           </mat-card-content>
         </mat-card>
 
-        <mat-card class="upload-card" *ngIf="bgv.status === 'DOCUMENTS_PENDING' || bgv.status === 'DOCUMENTS_SUBMITTED'">
+        <mat-card class="upload-card" *ngIf="bgv.status === 'DOCUMENTS_PENDING'">
           <mat-card-header>
             <mat-card-title>Upload a Document</mat-card-title>
           </mat-card-header>
@@ -108,8 +108,32 @@ interface RequiredDocType {
               <mat-icon>{{ uploading ? 'hourglass_top' : 'upload' }}</mat-icon>
               {{ uploading ? 'Uploading…' : 'Upload Document' }}
             </button>
+
+            <div class="submit-row">
+              <button
+                mat-raised-button
+                color="accent"
+                class="submit-btn"
+                [disabled]="!allRequiredUploaded() || submitting"
+                (click)="submitDocuments()"
+              >
+                <mat-icon>{{ submitting ? 'hourglass_top' : 'lock' }}</mat-icon>
+                {{ submitting ? 'Submitting…' : 'Submit Background Check Documents' }}
+              </button>
+              <span class="submit-hint" *ngIf="!allRequiredUploaded()">
+                Upload all {{ requiredDocTypes.length }} required documents to enable submission.
+              </span>
+              <span class="submit-hint" *ngIf="allRequiredUploaded()">
+                Once submitted, documents can no longer be edited or replaced.
+              </span>
+            </div>
           </mat-card-content>
         </mat-card>
+
+        <div class="locked-banner" *ngIf="bgv.status !== 'DOCUMENTS_PENDING'">
+          <mat-icon>lock</mat-icon>
+          <span>Background check documents have already been submitted and cannot be modified.</span>
+        </div>
 
         <mat-card class="docs-card">
           <mat-card-header>
@@ -331,13 +355,13 @@ interface RequiredDocType {
       }
       .dropzone:hover {
         border-color: var(--brand-400);
-        background: #eef2ff;
+        background: var(--brand-100);
       }
       .dropzone.has-file {
         border-style: solid;
         border-color: var(--brand-400);
-        background: #eef2ff;
-        color: #4338ca;
+        background: var(--brand-100);
+        color: var(--brand-700);
       }
       .dropzone-hint {
         font-size: 11px;
@@ -348,6 +372,38 @@ interface RequiredDocType {
         display: flex;
         align-items: center;
         gap: 6px;
+      }
+      .submit-row {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 8px;
+        padding-top: 16px;
+        border-top: 1px solid #f1f5f9;
+      }
+      .submit-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .submit-hint {
+        font-size: 12px;
+        color: #64748b;
+      }
+      .locked-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .locked-banner mat-icon {
+        color: #94a3b8;
       }
 
       /* Documents list */
@@ -414,6 +470,7 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   documentType = 'GOVT_ID';
   selectedFile: File | null = null;
   uploading = false;
+  submitting = false;
 
   readonly requiredDocTypes: RequiredDocType[] = [
     { type: 'GOVT_ID', label: 'Government ID', icon: 'badge' },
@@ -502,6 +559,25 @@ export class CandidateBackgroundCheckComponent implements OnInit {
    *  shown on the checklist row with whichever the backend returns last in the list). */
   documentFor(type: string): BgcDocument | undefined {
     return this.documents.find((d) => d.documentType === type);
+  }
+
+  allRequiredUploaded(): boolean {
+    return this.requiredDocTypes.every((req) => !!this.documentFor(req.type));
+  }
+
+  submitDocuments(): void {
+    if (!this.applicationId || !this.allRequiredUploaded() || this.submitting) return;
+    this.submitting = true;
+    this.bgvService.submitDocuments(this.applicationId).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.toastService.success('Documents submitted for review. They are now locked and can no longer be edited.');
+        this.loadCase();
+      },
+      error: () => {
+        this.submitting = false;
+      },
+    });
   }
 
   docTypeLabel(type: string): string {

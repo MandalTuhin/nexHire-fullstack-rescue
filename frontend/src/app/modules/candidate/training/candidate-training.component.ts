@@ -24,8 +24,8 @@ import {
         <mat-card-header>
           <mat-icon mat-card-avatar class="t-icon">school</mat-icon>
           <mat-card-title>{{ record.jobTitle }}</mat-card-title>
-          <mat-card-subtitle
-            >Status: {{ record.applicationStatus }}</mat-card-subtitle
+          <mat-card-subtitle class="status-subtitle"
+            >Status: <app-status-badge [status]="record.applicationStatus"></app-status-badge></mat-card-subtitle
           >
         </mat-card-header>
         <mat-card-content>
@@ -68,6 +68,11 @@ import {
         box-shadow: var(--shadow-card) !important;
         padding: 16px;
         max-width: 600px;
+      }
+      .status-subtitle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
       .t-icon {
         color: var(--brand-500);

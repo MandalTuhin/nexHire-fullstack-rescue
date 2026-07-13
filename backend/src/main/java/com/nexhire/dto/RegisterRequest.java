@@ -19,7 +19,7 @@ public class RegisterRequest {
     private String name;
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Email must be a valid email address")
+    @Email(message = "Please enter a valid email address.")
     private String email;
 
     /** Mirrors the frontend's enterprise password policy (see CustomValidators.passwordComplexity)

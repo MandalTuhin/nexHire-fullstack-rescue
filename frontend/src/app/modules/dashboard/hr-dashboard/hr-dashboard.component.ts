@@ -33,7 +33,7 @@ interface AttentionRow {
     <div class="dashboard-overview">
       <app-page-header
         title="HR Dashboard"
-        subtitle="Real-time recruitment, BGC, joining and training pipeline metrics"
+        subtitle="Real-time recruitment, background check, joining and training pipeline metrics"
       ></app-page-header>
 
       <!-- Attention queue: merges Pending Actions + Budget Alerts into one prioritized list.
@@ -563,7 +563,7 @@ export class HrDashboardComponent implements OnInit {
       const candidates: AttentionRow[] = [
         { label: 'Candidates eligible for assessment', count: p.candidatesEligibleForAssessment, icon: 'fact_check', route: '/hr/applications' },
         { label: 'Offers generated, pending send', count: p.offersPendingSend, icon: 'mail', route: '/hr/offers' },
-        { label: 'Candidates pending BGC documents', count: p.candidatesPendingBgcDocuments, icon: 'description', route: '/hr/bgv' },
+        { label: 'Candidates pending background check documents', count: p.candidatesPendingBgcDocuments, icon: 'description', route: '/hr/bgv' },
         { label: 'Candidates eligible for joining batch', count: p.candidatesEligibleForBatch, icon: 'groups', route: '/hr/joining-batches' },
         { label: 'Training batches requiring result upload', count: p.trainingBatchesRequiringResultUpload, icon: 'upload_file', route: '/hr/joining-batches' },
         { label: 'LAP candidates requiring review', count: p.lapCandidatesRequiringReview, icon: 'support', route: '/hr/joining-batches' },

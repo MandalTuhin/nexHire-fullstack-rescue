@@ -13,7 +13,7 @@
       *ngIf="!loading && batches.length === 0"
       icon="groups"
       title="No joining batches yet"
-      subtitle="Create a batch once candidates have cleared BGC and been selected."
+      subtitle="Create a batch once candidates have cleared their background check and been selected."
     ></app-empty-state>
 
     <mat-card class="table-card" *ngIf="!loading && batches.length > 0">
@@ -171,7 +171,7 @@
             </p>
 
             <app-loader *ngIf="loadingEligible"></app-loader>
-            <app-empty-state *ngIf="!loadingEligible && eligible.length === 0" icon="people_outline" title="No eligible candidates" subtitle="Candidates must have BGC cleared and be unassigned to a batch."></app-empty-state>
+            <app-empty-state *ngIf="!loadingEligible && eligible.length === 0" icon="people_outline" title="No eligible candidates" subtitle="Candidates must have their background check cleared and be unassigned to a batch."></app-empty-state>
 
             <div class="selection-summary" *ngIf="!loadingEligible && eligible.length > 0" [class.over]="overCapacity">
               {{ selected.size }} / {{ sizeForm.value.batchSize }} selected
@@ -289,7 +289,7 @@
               <ng-container matColumnDef="letterStatus">
                 <th mat-header-cell *matHeaderCellDef>Letter</th>
                 <td mat-cell *matCellDef="let m">
-                  {{ m.joiningLetterStatus }}
+                  <app-status-badge [status]="m.joiningLetterStatus"></app-status-badge>
                   <span class="deadline-hint" *ngIf="m.responseDeadline && m.applicationStatus === 'JOINING_LETTER_SENT'">
                     (respond by {{ m.responseDeadline | date: 'mediumDate' }})
                   </span>
@@ -518,7 +518,7 @@
               <span>Total Rows: <strong>{{ excelPreview.totalRows }}</strong></span>
               <span class="success-text">Valid: <strong>{{ excelPreview.successRows }}</strong></span>
               <span class="error-text">Errors: <strong>{{ excelPreview.failedRows }}</strong></span>
-              <span class="status-chip">{{ excelPreview.status }}</span>
+              <app-status-badge [status]="excelPreview.status"></app-status-badge>
             </div>
             <div class="errors-table" *ngIf="excelPreview.errors.length > 0">
               <table>
@@ -551,7 +551,7 @@
                   <td>{{ h.totalRows }}</td>
                   <td>{{ h.successRows }}</td>
                   <td>{{ h.failedRows }}</td>
-                  <td>{{ h.status }}</td>
+                  <td><app-status-badge [status]="h.status"></app-status-badge></td>
                 </tr>
               </tbody>
             </table>

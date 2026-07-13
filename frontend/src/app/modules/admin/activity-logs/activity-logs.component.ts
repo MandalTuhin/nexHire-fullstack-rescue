@@ -74,8 +74,8 @@ interface ActivityLog {
         width: 100%;
       }
       .chip {
-        background: #eef2ff;
-        color: #4338ca;
+        background: var(--brand-100);
+        color: var(--brand-700);
         padding: 3px 10px;
         border-radius: 12px;
         font-size: 11px;
