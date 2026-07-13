@@ -70,7 +70,7 @@ import {
         max-width: 600px;
       }
       .t-icon {
-        color: #4f46e5;
+        color: var(--brand-500);
       }
       .progress-block {
         margin: 16px 0;

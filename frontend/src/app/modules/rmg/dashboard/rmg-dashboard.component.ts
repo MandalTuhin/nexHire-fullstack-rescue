@@ -99,7 +99,7 @@ import { RmgDashboardStats } from '../../../models/admin.model';
         background: #f59e0b;
       }
       .stat-icon.active {
-        background: #4f46e5;
+        background: var(--brand-500);
       }
       .stat-icon.vacancy {
         background: #16a34a;

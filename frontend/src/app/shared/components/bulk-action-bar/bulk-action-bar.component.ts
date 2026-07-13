@@ -41,7 +41,7 @@ export interface BulkAction {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: linear-gradient(135deg, #3f51b5, #5c6bc0);
+      background: linear-gradient(135deg, var(--brand-600), var(--brand-400));
       color: white;
       padding: 10px 20px;
       border-radius: 8px;

@@ -26,26 +26,28 @@ import { Component, Input } from '@angular/core';
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 24px;
+      margin-bottom: var(--space-5);
       flex-wrap: wrap;
-      gap: 12px;
+      gap: var(--space-3);
     }
     .page-title {
-      font-size: 22px;
+      font-family: var(--font-display);
+      font-size: var(--font-size-h1);
       font-weight: 700;
-      color: #1e293b;
+      color: var(--color-text);
       margin: 0 0 4px;
       line-height: 1.2;
+      letter-spacing: -0.01em;
     }
     .page-subtitle {
-      font-size: 14px;
-      color: #64748b;
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
       margin: 0;
     }
     .page-header-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
   `],

@@ -206,7 +206,7 @@ import { JoiningLetter } from '../../../models/joining-letter.model';
       font-size: 14px;
     }
     .welcome-card {
-      background: linear-gradient(135deg, #3f51b5, #5c6bc0) !important;
+      background: linear-gradient(135deg, var(--brand-600), var(--brand-400)) !important;
       color: white !important;
       border-radius: var(--radius-card) !important;
       overflow: hidden;

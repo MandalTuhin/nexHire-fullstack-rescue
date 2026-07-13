@@ -192,7 +192,7 @@ import { CustomValidators } from '../../../shared/validators/custom-validators';
       color: #64748b;
     }
     .register-actions a {
-      color: #3f51b5;
+      color: var(--brand-600);
       font-weight: 600;
       text-decoration: none;
     }

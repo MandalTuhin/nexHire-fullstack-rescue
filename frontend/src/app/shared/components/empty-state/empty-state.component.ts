@@ -23,24 +23,25 @@ import { Component, Input } from '@angular/core';
       justify-content: center;
       padding: 60px 20px;
       text-align: center;
-      color: #64748b;
+      color: var(--color-text-muted);
     }
     .empty-icon {
       font-size: 64px;
       width: 64px;
       height: 64px;
-      color: #cbd5e1;
+      color: var(--paper-200);
       margin-bottom: 16px;
     }
     .empty-title {
+      font-family: var(--font-display);
       font-size: 18px;
       font-weight: 600;
-      color: #374151;
+      color: var(--color-text);
       margin: 0 0 8px;
     }
     .empty-subtitle {
       font-size: 14px;
-      color: #94a3b8;
+      color: var(--color-text-faint);
       margin: 0 0 24px;
       max-width: 320px;
     }

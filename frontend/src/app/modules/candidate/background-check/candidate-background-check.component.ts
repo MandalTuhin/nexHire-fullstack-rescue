@@ -330,12 +330,12 @@ interface RequiredDocType {
         transition: all 0.2s;
       }
       .dropzone:hover {
-        border-color: #818cf8;
+        border-color: var(--brand-400);
         background: #eef2ff;
       }
       .dropzone.has-file {
         border-style: solid;
-        border-color: #818cf8;
+        border-color: var(--brand-400);
         background: #eef2ff;
         color: #4338ca;
       }

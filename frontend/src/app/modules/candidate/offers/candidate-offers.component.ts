@@ -68,7 +68,7 @@ import { OfferLetter } from '../../../models/offer-letter.model';
         padding: 16px;
       }
       .offer-icon {
-        color: #3f51b5;
+        color: var(--brand-600);
         font-size: 40px;
         width: 40px;
         height: 40px;

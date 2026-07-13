@@ -1,0 +1,99 @@
+// ─── NexHire Angular Material theme ────────────────────────────────────────
+// Replaces the stock `indigo-pink` prebuilt theme. Hand-authored M2-style
+// palette maps (Material's theming API still expects a 50-900 + A100-A700
+// shade map even in v19) built around the brand's single signature blue —
+// see src/styles/_tokens.scss for the source hex values and the rationale.
+// Primary and accent are deliberately the SAME palette at two different
+// shades (500 vs 700) rather than two different hues — a second "accent"
+// color competing with the brand blue is exactly what made an earlier pass
+// of this palette read as confused.
+@use '@angular/material' as mat;
+
+$nexhire-brand-palette: (
+  50: #eaf1fe,
+  100: #d6e4fd,
+  200: #afc9fb,
+  300: #89aef9,
+  400: #5c8df0,
+  500: #2f63e8,
+  600: #234abe,
+  700: #1b3894,
+  800: #142a6d,
+  900: #0d1c49,
+  A100: #a9c4ff,
+  A200: #6f9aff,
+  A400: #3f74ff,
+  A700: #2f63e8,
+  contrast: (
+    50: #0d1c49,
+    100: #0d1c49,
+    200: #0d1c49,
+    300: #0d1c49,
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+    A100: #0d1c49,
+    A200: #0d1c49,
+    A400: #ffffff,
+    A700: #ffffff,
+  ),
+);
+
+$nexhire-brick-palette: (
+  50: #fbe9e6,
+  100: #fbe1dc,
+  200: #f0b5ab,
+  300: #e3897a,
+  400: #cc6151,
+  500: #b23a2e,
+  600: #9c3227,
+  700: #832920,
+  800: #6a2119,
+  900: #521912,
+  A100: #ffada0,
+  A200: #ff7a63,
+  A400: #ff4726,
+  A700: #b23a2e,
+  contrast: (
+    50: #2c0e08,
+    100: #2c0e08,
+    200: #2c0e08,
+    300: #ffffff,
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+    A100: #2c0e08,
+    A200: #2c0e08,
+    A400: #ffffff,
+    A700: #ffffff,
+  ),
+);
+
+@include mat.core();
+
+// Material 19 ships the M3 API as the default `mat.*` namespace; the M2 API
+// (still the only practical way to hand-author an exact custom hex palette
+// with full shade coverage) is exposed under the `m2-` prefix.
+$nexhire-primary: mat.m2-define-palette($nexhire-brand-palette, 500);
+$nexhire-accent: mat.m2-define-palette($nexhire-brand-palette, 700, 400, 900);
+$nexhire-warn: mat.m2-define-palette($nexhire-brick-palette);
+
+$nexhire-theme: mat.m2-define-light-theme((
+  color: (
+    primary: $nexhire-primary,
+    accent: $nexhire-accent,
+    warn: $nexhire-warn,
+  ),
+  typography: mat.m2-define-typography-config(
+    $font-family: '"Inter", "Helvetica Neue", sans-serif',
+  ),
+  density: 0,
+));
+
+@include mat.all-component-themes($nexhire-theme);

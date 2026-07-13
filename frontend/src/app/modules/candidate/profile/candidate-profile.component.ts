@@ -78,7 +78,7 @@ import { ToastService } from '../../../shared/services/toast.service';
         width: 64px;
         height: 64px;
         border-radius: 50%;
-        background: #4f46e5;
+        background: var(--brand-500);
         color: white;
         display: flex;
         align-items: center;

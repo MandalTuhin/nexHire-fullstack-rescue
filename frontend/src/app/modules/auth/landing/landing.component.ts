@@ -92,8 +92,8 @@ import { Component } from '@angular/core';
       border-radius: 8px;
     }
     .hero-btn.secondary {
-      border-color: #3f51b5;
-      color: #3f51b5;
+      border-color: var(--brand-600);
+      color: var(--brand-600);
     }
     .hero-image-placeholder {
       flex: 1;
@@ -109,7 +109,7 @@ import { Component } from '@angular/core';
       font-size: 120px;
       width: 120px;
       height: 120px;
-      color: #4f46e5;
+      color: var(--brand-500);
     }
     .flow-section {
       background-color: white;
@@ -146,7 +146,7 @@ import { Component } from '@angular/core';
       height: 36px;
       border-radius: 50%;
       background-color: #e0e7ff;
-      color: #3f51b5;
+      color: var(--brand-600);
       font-weight: 700;
       display: flex;
       align-items: center;

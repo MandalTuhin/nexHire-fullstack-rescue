@@ -1,0 +1,104 @@
+// ─── NexHire design tokens ──────────────────────────────────────────────────
+// The brand: an internal ops console for running large-scale hiring drives —
+// candidates move through a pipeline (applied → assessed → offered → verified
+// → joined → trained → deployed), and HR/RMG/Admin live in this dashboard all
+// day. The palette is deliberately single-hue: deep ink-navy chrome
+// (sidebars, headers), warm paper content background (not clinical gray),
+// white cards for data, and ONE signature brand blue used everywhere
+// something is interactive or "on brand" — buttons, active nav, links, chart
+// accents. Amber/green/red exist ONLY as semantic status colors (warning/
+// success/danger) and never double as a second brand color — two co-equal
+// dominant hues competing for attention is exactly what made an earlier pass
+// of this palette read as "confused."
+
+:root {
+  // ─── Spacing scale ─────────────────────────────────────────────────────
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  // ─── Surface ────────────────────────────────────────────────────────────
+  --radius-card: 14px;
+  --radius-control: 9px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(20, 14, 5, 0.04), 0 8px 24px rgba(20, 14, 5, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(20, 14, 5, 0.05), 0 12px 32px rgba(20, 14, 5, 0.08);
+  --shadow-popover: 0 12px 40px rgba(10, 15, 28, 0.16);
+
+  // ─── Ink (dark chrome: sidebars, headers-on-dark) ─────────────────────────
+  --ink-950: #0a0f1c;
+  --ink-900: #121a2b;
+  --ink-800: #1a2333;
+  --ink-700: #263047;
+  --ink-600: #3d4a61;
+  --ink-border: #2a3345;
+  --ink-text-muted: #8891a3;
+  --ink-text-faint: #626c81;
+
+  // On-dark accent variants (readable against ink-950 — the plain semantic
+  // colors above are tuned for white surfaces and are too dark on ink chrome).
+  --brand-on-dark: #7ea6f5;
+  --brand-on-dark-bg: rgba(47, 99, 232, 0.18);
+  --danger-on-dark: #f0a89c;
+  --danger-on-dark-bg: rgba(217, 91, 74, 0.16);
+
+  // ─── Paper (page background + neutral text scale) ─────────────────────────
+  --paper-0: #ffffff;
+  --paper-50: #faf8f4;
+  --paper-100: #f2efe8;
+  --paper-200: #e7e3d8;
+
+  --color-text: #1c1a17;
+  --color-text-secondary: #4a453d;
+  --color-text-muted: #756e62;
+  --color-text-faint: #a39a8c;
+  --color-border: #e6e1d6;
+  --color-border-light: #f0ece2;
+  --color-surface: var(--paper-0);
+  --color-surface-muted: var(--paper-50);
+  --color-page-bg: var(--paper-50);
+
+  // ─── Signature accent — brand blue (the ONLY brand hue) ────────────────
+  --brand-50: #eaf1fe;
+  --brand-100: #d6e4fd;
+  --brand-200: #afc9fb;
+  --brand-300: #89aef9;
+  --brand-400: #5c8df0;
+  --brand-500: #2f63e8;
+  --brand-600: #234abe;
+  --brand-700: #1b3894;
+
+  // ─── Semantic (status only — never used as a brand accent) ─────────────
+  --amber-100: #fce8d2;
+  --amber-500: #d97706;
+  --amber-600: #b45f05;
+
+  --color-primary: var(--brand-500);
+  --color-primary-hover: var(--brand-600);
+  --color-info: var(--brand-600);
+  --color-info-bg: var(--brand-100);
+  --color-success: #157f4a;
+  --color-success-bg: #dcf5e7;
+  --color-warning: var(--amber-600);
+  --color-warning-bg: var(--amber-100);
+  --color-danger: #b23a2e;
+  --color-danger-bg: #fbe1dc;
+
+  // ─── Typography ─────────────────────────────────────────────────────────
+  // Space Grotesk: display/data face, used deliberately — page titles, KPI
+  // figures, the sidebar wordmark. Inter: the everyday UI/body workhorse.
+  --font-display: "Space Grotesk", "Inter", "Helvetica Neue", sans-serif;
+  --font-body: "Inter", "Helvetica Neue", sans-serif;
+
+  --font-size-h1: 24px;
+  --font-size-h2: 18px;
+  --font-size-h3: 16px;
+  --font-size-body: 14px;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+  --font-size-label: 11px;
+}

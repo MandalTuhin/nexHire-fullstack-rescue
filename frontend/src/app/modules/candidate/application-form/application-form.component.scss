@@ -34,7 +34,7 @@
       display: flex; align-items: center; justify-content: center;
       margin-bottom: 24px;
     }
-    .brand-logo mat-icon { font-size: 28px; width: 28px; height: 28px; color: #818cf8; }
+    .brand-logo mat-icon { font-size: 28px; width: 28px; height: 28px; color: var(--brand-400); }
 
     .job-context-content h1 {
       font-size: 32px; font-weight: 800; line-height: 1.2;
@@ -56,7 +56,7 @@
       margin-bottom: 32px;
     }
     .about-role h3, .skills-section h3 {
-      font-size: 16px; font-weight: 700; color: #818cf8;
+      font-size: 16px; font-weight: 700; color: var(--brand-400);
       text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px 0;
     }
     .about-role p {
@@ -151,7 +151,7 @@
     /* Submit */
     .form-actions { margin-top: 40px; display: flex; justify-content: flex-end; }
     .submit-btn {
-      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
+      background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-700) 100%) !important;
       color: white !important;
       border-radius: 24px !important;
       padding: 0 40px !important;

@@ -13,7 +13,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
       <div class="admin-grid" *ngIf="stats">
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon purple"><mat-icon>manage_accounts</mat-icon></div>
+            <div class="card-icon"><mat-icon>manage_accounts</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.activeUsers }}</span>
               <span class="card-lbl">Active Users</span>
@@ -22,7 +22,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
         </mat-card>
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon teal"><mat-icon>location_city</mat-icon></div>
+            <div class="card-icon"><mat-icon>location_city</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.cities }}</span>
               <span class="card-lbl">Cities</span>
@@ -31,7 +31,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
         </mat-card>
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon orange"><mat-icon>domain</mat-icon></div>
+            <div class="card-icon"><mat-icon>domain</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.blocks }}</span>
               <span class="card-lbl">Blocks</span>
@@ -40,7 +40,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
         </mat-card>
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon indigo"><mat-icon>account_balance</mat-icon></div>
+            <div class="card-icon"><mat-icon>account_balance</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.budgetUtilizationPercent }}%</span>
               <span class="card-lbl">Budget Utilization</span>
@@ -49,7 +49,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
         </mat-card>
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon blue"><mat-icon>business_center</mat-icon></div>
+            <div class="card-icon"><mat-icon>business_center</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.activeProjects }}</span>
               <span class="card-lbl">Active Projects</span>
@@ -58,7 +58,7 @@ import { AdminDashboardStats } from '../../../models/admin.model';
         </mat-card>
         <mat-card class="admin-card">
           <mat-card-content>
-            <div class="card-icon green"><mat-icon>school</mat-icon></div>
+            <div class="card-icon"><mat-icon>school</mat-icon></div>
             <div class="card-body">
               <span class="card-num">{{ stats.runningBatches }}</span>
               <span class="card-lbl">Running Batches</span>
@@ -98,18 +98,13 @@ import { AdminDashboardStats } from '../../../models/admin.model';
     mat-card-content { display: flex; align-items: center; gap: 16px; padding: 16px !important; }
     .card-icon {
       width: 48px; height: 48px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; color: white;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--brand-100); color: var(--brand-600);
     }
     .card-icon mat-icon { font-size: 24px; }
-    .purple { background: #7c3aed; }
-    .indigo { background: #4f46e5; }
-    .teal { background: #0d9488; }
-    .orange { background: #ea580c; }
-    .blue { background: #2563eb; }
-    .green { background: #16a34a; }
     .card-body { display: flex; flex-direction: column; }
-    .card-num { font-size: 26px; font-weight: 700; color: #1e293b; }
-    .card-lbl { font-size: 13px; color: #64748b; font-weight: 500; }
+    .card-num { font-size: 26px; font-weight: 700; color: var(--color-text); }
+    .card-lbl { font-size: 13px; color: var(--color-text-muted); font-weight: 500; }
     .quick-links-card { border-radius: var(--radius-card) !important; box-shadow: var(--shadow-card) !important; }
     .quick-links { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 12px; }
     .quick-links a { display: flex; align-items: center; gap: 8px; }

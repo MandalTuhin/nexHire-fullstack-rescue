@@ -219,7 +219,7 @@ import { BulkAction } from '../../shared/components/bulk-action-bar/bulk-action-
       .team {
         font-size: 12px;
         font-weight: 600;
-        color: #4f46e5;
+        color: var(--brand-500);
       }
     `,
   ],

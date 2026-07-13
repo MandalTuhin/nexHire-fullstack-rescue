@@ -12,15 +12,16 @@ interface MetricTile {
 interface MetricSection {
   title: string;
   icon: string;
-  accent: string;
+  accent: 'brand' | 'success';
   tiles: MetricTile[];
 }
 
-interface PendingActionRow {
+interface AttentionRow {
   label: string;
   count: number;
   icon: string;
   route: string;
+  isBudget?: boolean;
 }
 
 /** HR Dashboard — every card is a live count computed by DashboardService (see context.md's
@@ -35,128 +36,101 @@ interface PendingActionRow {
         subtitle="Real-time recruitment, BGC, joining and training pipeline metrics"
       ></app-page-header>
 
-      <!-- Pending Actions -->
-      <mat-card class="pending-card" *ngIf="pending">
-        <mat-card-header>
-          <mat-card-title>Pending Actions</mat-card-title>
-          <mat-card-subtitle>Queues that need HR attention right now</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="pending-grid">
-            <div
-              class="pending-row"
-              *ngFor="let action of pendingRows"
-              [class.zero]="action.count === 0"
-              [routerLink]="action.route"
-            >
-              <mat-icon>{{ action.icon }}</mat-icon>
-              <span class="pending-label">{{ action.label }}</span>
-              <span class="pending-count">{{ action.count }}</span>
-            </div>
+      <!-- Attention queue: merges Pending Actions + Budget Alerts into one prioritized list.
+           Zero-count queues are noise, not signal — they're omitted entirely. -->
+      <mat-card class="attention-card app-card" *ngIf="stats">
+        <div class="attention-head">
+          <div>
+            <h2 class="section-title">Needs your attention</h2>
+            <p class="section-sub">Queues and alerts that require action right now</p>
           </div>
-        </mat-card-content>
+          <span class="attention-total" *ngIf="attentionRows.length > 0">{{ attentionRows.length }} open</span>
+        </div>
+
+        <div class="attention-grid" *ngIf="attentionRows.length > 0">
+          <a
+            class="attention-row"
+            [class.is-budget]="row.isBudget"
+            *ngFor="let row of attentionRows"
+            [routerLink]="row.route"
+          >
+            <span class="attention-icon">
+              <mat-icon>{{ row.icon }}</mat-icon>
+            </span>
+            <span class="attention-label">{{ row.label }}</span>
+            <span class="attention-count num">{{ row.isBudget ? ('₹' + (row.count | number)) : row.count }}</span>
+            <mat-icon class="attention-arrow">arrow_forward</mat-icon>
+          </a>
+        </div>
+
+        <div class="attention-empty" *ngIf="attentionRows.length === 0">
+          <mat-icon>task_alt</mat-icon>
+          <span>All caught up — no queues need attention right now.</span>
+        </div>
       </mat-card>
 
-      <!-- Budget Alerts (P-Claude.md HR dashboard card) -->
-      <mat-card class="pending-card" *ngIf="budgetAlerts.length > 0">
-        <mat-card-header>
-          <mat-card-title>Budget Alerts</mat-card-title>
-          <mat-card-subtitle>Cities running low on available training budget</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="pending-grid">
-            <div class="pending-row" *ngFor="let city of budgetAlerts" routerLink="/hr/budget">
-              <mat-icon>warning</mat-icon>
-              <span class="pending-label">{{ city.name }}</span>
-              <span class="pending-count">₹{{ city.availableBudget | number }}</span>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- Metric sections -->
+      <!-- Pipeline metric sections -->
       <div class="sections-grid" *ngIf="stats">
-        <mat-card class="section-card" *ngFor="let section of sections">
-          <mat-card-header>
-            <div class="section-icon" [ngClass]="section.accent">
+        <mat-card class="section-card app-card" *ngFor="let section of sections" [ngClass]="'accent-' + section.accent">
+          <div class="section-card-head">
+            <span class="section-icon">
               <mat-icon>{{ section.icon }}</mat-icon>
+            </span>
+            <h3 class="section-card-title">{{ section.title }}</h3>
+          </div>
+          <div class="tile-grid">
+            <div class="tile" *ngFor="let tile of section.tiles">
+              <span class="tile-value num">{{ tile.value | number }}</span>
+              <span class="tile-label">{{ tile.label }}</span>
             </div>
-            <mat-card-title>{{ section.title }}</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div class="tile-grid">
-              <div class="tile" *ngFor="let tile of section.tiles">
-                <span class="tile-value">{{ tile.value }}</span>
-                <span class="tile-label">{{ tile.label }}</span>
-              </div>
-            </div>
-          </mat-card-content>
+          </div>
         </mat-card>
       </div>
 
       <!-- Charts Section -->
       <div class="charts-container" *ngIf="stats">
-        <mat-card class="chart-card">
-          <mat-card-header>
-            <mat-card-title>Application Funnel</mat-card-title>
-          </mat-card-header>
-          <mat-card-content class="chart-content">
-            <div class="custom-funnel">
-              <div class="funnel-stage stage-applied">
-                <span class="stage-name">Applied</span>
-                <span class="stage-val">{{ stats.totalApplications }}</span>
-              </div>
-              <div
-                class="funnel-stage stage-shortlisted"
-                [style.width.%]="widthPct(stats.assessmentPassedCount)"
-              >
-                <span class="stage-name">Passed Assessment</span>
-                <span class="stage-val">{{ stats.assessmentPassedCount }}</span>
-              </div>
-              <div
-                class="funnel-stage stage-offered"
-                [style.width.%]="widthPct(stats.offerLettersSent)"
-              >
-                <span class="stage-name">Offered</span>
-                <span class="stage-val">{{ stats.offerLettersSent }}</span>
-              </div>
-              <div
-                class="funnel-stage stage-accepted"
-                [style.width.%]="widthPct(stats.releasedCandidates)"
-              >
-                <span class="stage-name">Released</span>
-                <span class="stage-val">{{ stats.releasedCandidates }}</span>
-              </div>
+        <mat-card class="chart-card app-card">
+          <h3 class="chart-title">Application Funnel</h3>
+          <div class="custom-funnel">
+            <div class="funnel-stage stage-1">
+              <span class="stage-name">Applied</span>
+              <span class="stage-val num">{{ stats.totalApplications | number }}</span>
             </div>
-          </mat-card-content>
+            <div class="funnel-stage stage-2" [style.width.%]="widthPct(stats.assessmentPassedCount)">
+              <span class="stage-name">Passed Assessment</span>
+              <span class="stage-val num">{{ stats.assessmentPassedCount | number }}</span>
+            </div>
+            <div class="funnel-stage stage-3" [style.width.%]="widthPct(stats.offerLettersSent)">
+              <span class="stage-name">Offered</span>
+              <span class="stage-val num">{{ stats.offerLettersSent | number }}</span>
+            </div>
+            <div class="funnel-stage stage-4" [style.width.%]="widthPct(stats.releasedCandidates)">
+              <span class="stage-name">Released</span>
+              <span class="stage-val num">{{ stats.releasedCandidates | number }}</span>
+            </div>
+          </div>
         </mat-card>
 
-        <mat-card class="chart-card">
-          <mat-card-header>
-            <mat-card-title>Training Capacity</mat-card-title>
-          </mat-card-header>
-          <mat-card-content class="vacancy-overview">
-            <div class="vacancy-circle">
-              <span class="circle-num">{{ stats.totalVacancyAvailable || 0 }}</span>
-              <span class="circle-lbl">Open Training Seats</span>
+        <mat-card class="chart-card app-card">
+          <h3 class="chart-title">Training Capacity</h3>
+          <div class="vacancy-overview">
+            <div class="vacancy-ring" [style.--pct.%]="occupancyPct()">
+              <div class="vacancy-ring-inner">
+                <span class="circle-num num">{{ stats.totalVacancyAvailable || 0 }}</span>
+                <span class="circle-lbl">Open Seats</span>
+              </div>
             </div>
             <div class="vacancy-meta">
               <div class="meta-item">
-                <span class="dot green-dot"></span>
-                <span
-                  >Occupied seats:
-                  <strong>{{ stats.totalVacancyUsed || 0 }}</strong></span
-                >
+                <span class="dot dot-occupied"></span>
+                <span>Occupied seats: <strong class="num">{{ stats.totalVacancyUsed || 0 }}</strong></span>
               </div>
               <div class="meta-item">
-                <span class="dot blue-dot"></span>
-                <span
-                  >Available budget:
-                  <strong>₹{{ stats.totalBudgetAvailable || 0 | number }}</strong></span
-                >
+                <span class="dot dot-budget"></span>
+                <span>Available budget: <strong class="num">₹{{ stats.totalBudgetAvailable || 0 | number }}</strong></span>
               </div>
             </div>
-          </mat-card-content>
+          </div>
         </mat-card>
       </div>
     </div>
@@ -169,118 +143,182 @@ interface PendingActionRow {
         gap: var(--space-5);
       }
 
-      .pending-card {
-        border-radius: var(--radius-card) !important;
-        box-shadow: var(--shadow-card) !important;
+      /* ─── Attention queue ─────────────────────────────────────────────── */
+      .attention-card {
+        padding: var(--space-5);
       }
-      .pending-grid {
+      .attention-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+      }
+      .section-title {
+        margin: 0 0 2px;
+        font-size: var(--font-size-h2);
+        font-weight: 700;
+        color: var(--color-text);
+      }
+      .section-sub {
+        margin: 0;
+        font-size: var(--font-size-small);
+        color: var(--color-text-muted);
+      }
+      .attention-total {
+        flex-shrink: 0;
+        padding: 4px 12px;
+        border-radius: var(--radius-pill);
+        background: var(--brand-100);
+        color: var(--brand-700);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .attention-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: var(--space-3);
       }
-      .pending-row {
+      .attention-row {
         display: flex;
         align-items: center;
         gap: var(--space-3);
         padding: var(--space-3) 14px;
         border-radius: var(--radius-control);
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        cursor: pointer;
-        transition: background 0.15s;
+        background: var(--color-surface-muted);
+        border: 1px solid var(--color-border-light);
+        text-decoration: none;
+        transition: border-color 0.15s, background 0.15s, transform 0.1s;
       }
-      .pending-row:hover {
-        background: #ffedd5;
+      .attention-row:hover {
+        background: var(--brand-50);
+        border-color: var(--brand-200);
+        transform: translateY(-1px);
       }
-      .pending-row.zero {
-        background: #f8fafc;
-        border-color: #e2e8f0;
-      }
-      .pending-row mat-icon {
-        color: #ea580c;
-        flex-shrink: 0;
-      }
-      .pending-row.zero mat-icon {
-        color: #94a3b8;
-      }
-      .pending-label {
-        flex: 1;
-        font-size: 13px;
-        color: #475569;
-        font-weight: 500;
-      }
-      .pending-count {
-        font-size: 16px;
-        font-weight: 700;
-        color: #9a3412;
-      }
-      .pending-row.zero .pending-count {
-        color: #64748b;
-      }
-
-      .sections-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: var(--space-4);
-      }
-      .section-card {
-        border-radius: var(--radius-card) !important;
-        box-shadow: var(--shadow-card) !important;
-      }
-      .section-card mat-card-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-      }
-      .section-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-control);
+      .attention-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
+        background: var(--brand-100);
+        color: var(--brand-600);
+        flex-shrink: 0;
       }
-      .blue {
-        background-color: #3b82f6;
+      .attention-row.is-budget .attention-icon {
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
       }
-      .green {
-        background-color: #22c55e;
+      .attention-icon mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
       }
-      .purple {
-        background-color: #a855f7;
+      .attention-label {
+        flex: 1;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        font-weight: 500;
+        line-height: 1.3;
       }
-      .orange {
-        background-color: #f97316;
+      .attention-count {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--color-text);
       }
-      .indigo {
-        background-color: #6366f1;
+      .attention-arrow {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--color-text-faint);
+        opacity: 0;
+        transition: opacity 0.15s, transform 0.15s;
+        transform: translateX(-4px);
       }
-      .teal {
-        background-color: #14b8a6;
+      .attention-row:hover .attention-arrow {
+        opacity: 1;
+        transform: translateX(0);
       }
+      .attention-empty {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-4);
+        border-radius: var(--radius-control);
+        background: var(--color-success-bg);
+        color: var(--color-success);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      /* ─── Pipeline metric sections ────────────────────────────────────── */
+      .sections-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--space-4);
+      }
+      .section-card {
+        padding: var(--space-4) var(--space-4) var(--space-5);
+        border-top: 3px solid var(--color-border);
+      }
+      .section-card.accent-brand { border-top-color: var(--brand-500); }
+      .section-card.accent-success { border-top-color: var(--color-success); }
+
+      .section-card-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+      }
+      .section-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+      }
+      .accent-brand .section-icon { background: var(--brand-100); color: var(--brand-600); }
+      .accent-success .section-icon { background: var(--color-success-bg); color: var(--color-success); }
+      .section-icon mat-icon {
+        font-size: 19px;
+        width: 19px;
+        height: 19px;
+      }
+      .section-card-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--color-text);
+      }
+
       .tile-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-        gap: var(--space-3);
-        margin-top: var(--space-2);
+        grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+        gap: var(--space-4) var(--space-3);
       }
       .tile {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 3px;
       }
       .tile-value {
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 700;
-        color: #1e293b;
+        color: var(--color-text);
+        line-height: 1;
       }
       .tile-label {
         font-size: 11px;
-        color: #64748b;
+        color: var(--color-text-muted);
         font-weight: 500;
       }
 
+      /* ─── Charts ───────────────────────────────────────────────────────── */
       .charts-container {
         display: grid;
         grid-template-columns: 2fr 1fr;
@@ -290,63 +328,64 @@ interface PendingActionRow {
         .charts-container {
           grid-template-columns: 1fr;
         }
-        .sections-grid {
-          grid-template-columns: 1fr;
-        }
       }
       .chart-card {
-        border-radius: var(--radius-card) !important;
-        box-shadow: var(--shadow-card) !important;
-        padding: 16px;
+        padding: var(--space-5);
       }
-      .chart-content {
-        padding: 24px 0 0 0 !important;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+      .chart-title {
+        margin: 0 0 var(--space-4);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--color-text);
       }
       .custom-funnel {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--space-2);
         width: 100%;
+        max-width: 100%;
+        overflow: hidden;
       }
       .funnel-stage {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
+        padding: 13px 16px;
         color: white;
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: 8px;
+        font-size: 13px;
         font-weight: 600;
-        min-width: 120px;
+        min-width: 130px;
+        max-width: 100%;
+        transition: width 0.4s ease;
       }
-      .stage-applied {
-        background-color: #3b82f6;
-        width: 100%;
-      }
-      .stage-shortlisted {
-        background-color: #6366f1;
-      }
-      .stage-offered {
-        background-color: #8b5cf6;
-      }
-      .stage-accepted {
-        background-color: #10b981;
-      }
+      .stage-1 { background: var(--ink-900); width: 100%; }
+      .stage-2 { background: var(--brand-700); }
+      .stage-3 { background: var(--brand-600); }
+      .stage-4 { background: var(--brand-500); }
+
       .vacancy-overview {
-        padding: 24px 0 0 0 !important;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        gap: var(--space-5);
       }
-      .vacancy-circle {
-        width: 130px;
-        height: 130px;
+      .vacancy-ring {
+        --pct: 0%;
+        width: 140px;
+        height: 140px;
         border-radius: 50%;
-        border: 8px solid #e2e8f0;
+        background: conic-gradient(var(--brand-500) var(--pct), var(--color-border-light) 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+      }
+      .vacancy-ring-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: var(--color-surface);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -354,40 +393,39 @@ interface PendingActionRow {
         text-align: center;
       }
       .circle-num {
-        font-size: 28px;
+        font-size: 26px;
         font-weight: 700;
-        color: #1e293b;
+        color: var(--color-text);
       }
       .circle-lbl {
-        font-size: 9px;
-        color: #64748b;
+        font-size: 10px;
+        color: var(--color-text-muted);
         font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: 2px;
       }
       .vacancy-meta {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--space-2);
         width: 100%;
       }
       .meta-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
         font-size: 13px;
-        color: #475569;
+        color: var(--color-text-secondary);
       }
       .dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
+        flex-shrink: 0;
       }
-      .green-dot {
-        background-color: #10b981;
-      }
-      .blue-dot {
-        background-color: #3b82f6;
-      }
+      .dot-occupied { background: var(--brand-600); }
+      .dot-budget { background: var(--brand-300); }
     `,
   ],
   standalone: false,
@@ -396,7 +434,7 @@ export class HrDashboardComponent implements OnInit {
   stats: DashboardStats | null = null;
   pending: PendingActions | null = null;
   sections: MetricSection[] = [];
-  pendingRows: PendingActionRow[] = [];
+  attentionRows: AttentionRow[] = [];
   budgetAlerts: CityAdmin[] = [];
 
   constructor(
@@ -411,13 +449,14 @@ export class HrDashboardComponent implements OnInit {
     });
     this.dashboardService.getPendingActions().subscribe((p) => {
       this.pending = p;
-      this.pendingRows = this.buildPendingRows(p);
+      this.rebuildAttentionRows();
     });
     this.cityAdminService.getAll().subscribe((cities) => {
       // Flag a city once its available budget drops to 10% or less of its total allocation.
       this.budgetAlerts = cities.filter(
         (c) => c.totalBudget > 0 && c.availableBudget <= c.totalBudget * 0.1,
       );
+      this.rebuildAttentionRows();
     });
   }
 
@@ -426,12 +465,19 @@ export class HrDashboardComponent implements OnInit {
     return Math.min(100, (value / this.stats.totalApplications) * 100);
   }
 
+  occupancyPct(): number {
+    if (!this.stats) return 0;
+    const total = (this.stats.totalVacancyAvailable || 0) + (this.stats.totalVacancyUsed || 0);
+    if (!total) return 0;
+    return Math.min(100, ((this.stats.totalVacancyUsed || 0) / total) * 100);
+  }
+
   private buildSections(s: DashboardStats): MetricSection[] {
     return [
       {
         title: 'Applications & Profile',
         icon: 'assignment',
-        accent: 'blue',
+        accent: 'brand',
         tiles: [
           { label: 'Total Applications', value: s.totalApplications },
           { label: 'Profile Completed', value: s.profileCompletedCandidates },
@@ -440,7 +486,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Assessment',
         icon: 'fact_check',
-        accent: 'purple',
+        accent: 'brand',
         tiles: [
           { label: 'Assigned', value: s.assessmentAssignedCount },
           { label: 'Score Uploaded', value: s.assessmentScoreUploadedCount },
@@ -451,7 +497,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Offer Letters',
         icon: 'mail',
-        accent: 'indigo',
+        accent: 'brand',
         tiles: [
           { label: 'Generated', value: s.offerLettersGenerated },
           { label: 'Sent', value: s.offerLettersSent },
@@ -462,7 +508,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Background Verification',
         icon: 'verified_user',
-        accent: 'teal',
+        accent: 'brand',
         tiles: [
           { label: 'Initiated', value: s.bgcInitiatedCount },
           { label: 'Docs Submitted', value: s.bgcDocumentsSubmittedCount },
@@ -473,7 +519,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Selection',
         icon: 'badge',
-        accent: 'green',
+        accent: 'success',
         tiles: [
           { label: 'Employees Created', value: s.employeesCreated },
           { label: 'Selected Users', value: s.selectedUsersCreated },
@@ -482,7 +528,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Joining',
         icon: 'groups',
-        accent: 'blue',
+        accent: 'brand',
         tiles: [
           { label: 'Batches Created', value: s.joiningBatchesCreated },
           { label: 'Letters Sent', value: s.joiningLettersSent },
@@ -492,7 +538,7 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Training',
         icon: 'school',
-        accent: 'orange',
+        accent: 'brand',
         tiles: [
           { label: 'Batches Assigned', value: s.trainingBatchesAssigned },
           { label: 'LAP', value: s.lapCandidates },
@@ -504,50 +550,35 @@ export class HrDashboardComponent implements OnInit {
       {
         title: 'Project Allocation',
         icon: 'work',
-        accent: 'purple',
+        accent: 'success',
         tiles: [{ label: 'Allocated', value: s.projectAllocatedCandidates }],
       },
     ];
   }
 
-  private buildPendingRows(p: PendingActions): PendingActionRow[] {
-    return [
-      {
-        label: 'Candidates eligible for assessment',
-        count: p.candidatesEligibleForAssessment,
-        icon: 'fact_check',
-        route: '/hr/applications',
-      },
-      {
-        label: 'Offers generated, pending send',
-        count: p.offersPendingSend,
-        icon: 'mail',
-        route: '/hr/offers',
-      },
-      {
-        label: 'Candidates pending BGC documents',
-        count: p.candidatesPendingBgcDocuments,
-        icon: 'description',
-        route: '/hr/bgv',
-      },
-      {
-        label: 'Candidates eligible for joining batch',
-        count: p.candidatesEligibleForBatch,
-        icon: 'groups',
-        route: '/hr/joining-batches',
-      },
-      {
-        label: 'Training batches requiring result upload',
-        count: p.trainingBatchesRequiringResultUpload,
-        icon: 'upload_file',
-        route: '/hr/joining-batches',
-      },
-      {
-        label: 'LAP candidates requiring review',
-        count: p.lapCandidatesRequiringReview,
-        icon: 'support',
-        route: '/hr/joining-batches',
-      },
-    ];
+  private rebuildAttentionRows(): void {
+    const p = this.pending;
+    const rows: AttentionRow[] = [];
+    if (p) {
+      const candidates: AttentionRow[] = [
+        { label: 'Candidates eligible for assessment', count: p.candidatesEligibleForAssessment, icon: 'fact_check', route: '/hr/applications' },
+        { label: 'Offers generated, pending send', count: p.offersPendingSend, icon: 'mail', route: '/hr/offers' },
+        { label: 'Candidates pending BGC documents', count: p.candidatesPendingBgcDocuments, icon: 'description', route: '/hr/bgv' },
+        { label: 'Candidates eligible for joining batch', count: p.candidatesEligibleForBatch, icon: 'groups', route: '/hr/joining-batches' },
+        { label: 'Training batches requiring result upload', count: p.trainingBatchesRequiringResultUpload, icon: 'upload_file', route: '/hr/joining-batches' },
+        { label: 'LAP candidates requiring review', count: p.lapCandidatesRequiringReview, icon: 'support', route: '/hr/joining-batches' },
+      ];
+      rows.push(...candidates.filter((r) => r.count > 0));
+    }
+    rows.push(
+      ...this.budgetAlerts.map((city) => ({
+        label: `${city.name} is running low on training budget`,
+        count: city.availableBudget,
+        icon: 'account_balance_wallet',
+        route: '/hr/budget',
+        isBudget: true,
+      })),
+    );
+    this.attentionRows = rows;
   }
 }

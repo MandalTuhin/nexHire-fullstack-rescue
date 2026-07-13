@@ -42,11 +42,11 @@ export interface ConfirmationDialogData {
       padding: 20px 24px 0;
     }
     .confirm-icon { font-size: 28px; width: 28px; height: 28px; }
-    .header-danger { color: #dc2626; }
-    .header-warning { color: #d97706; }
-    .header-info { color: #1d4ed8; }
-    h2 { margin: 0; font-size: 18px; }
-    .confirm-content p { color: #374151; line-height: 1.6; margin: 0; padding-top: 8px;}
+    .header-danger { color: var(--color-danger); }
+    .header-warning { color: var(--brand-600); }
+    .header-info { color: var(--brand-600); }
+    h2 { margin: 0; font-size: 18px; font-family: var(--font-display); }
+    .confirm-content p { color: var(--color-text-secondary); line-height: 1.6; margin: 0; padding-top: 8px;}
     mat-dialog-actions { padding: 16px 24px !important; gap: 8px; }
   `],
     standalone: false

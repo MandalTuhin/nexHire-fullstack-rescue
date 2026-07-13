@@ -130,12 +130,12 @@ interface MenuItem {
         height: 100vh;
         width: 100vw;
         overflow: hidden;
-        background-color: #f1f5f9;
+        background-color: var(--color-page-bg);
       }
       .sidebar {
         width: 260px;
-        background-color: #1e293b;
-        color: #94a3b8;
+        background-color: var(--ink-950);
+        color: var(--ink-text-muted);
         display: flex;
         flex-direction: column;
         transition: width 0.25s ease;
@@ -151,10 +151,10 @@ interface MenuItem {
         align-items: center;
         padding: 0 18px;
         gap: 10px;
-        border-bottom: 1px solid #334155;
+        border-bottom: 1px solid var(--ink-border);
       }
       .brand-icon {
-        color: #818cf8;
+        color: var(--brand-on-dark);
         font-size: 24px;
         width: 24px;
         height: 24px;
@@ -169,11 +169,11 @@ interface MenuItem {
         align-items: center;
         gap: 6px;
         padding: 6px 18px;
-        background: rgba(99, 102, 241, 0.15);
-        border-bottom: 1px solid #334155;
+        background: var(--brand-on-dark-bg);
+        border-bottom: 1px solid var(--ink-border);
         font-size: 11px;
         font-weight: 600;
-        color: #818cf8;
+        color: var(--brand-on-dark);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
@@ -187,7 +187,7 @@ interface MenuItem {
         display: flex;
         align-items: center;
         gap: 10px;
-        border-bottom: 1px solid #334155;
+        border-bottom: 1px solid var(--ink-border);
       }
       .collapsed .user-profile-summary {
         justify-content: center;
@@ -196,7 +196,7 @@ interface MenuItem {
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background: #4f46e5;
+        background: var(--brand-500);
         color: white;
         display: flex;
         align-items: center;
@@ -209,7 +209,7 @@ interface MenuItem {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: #4f46e5;
+        background: var(--brand-500);
         color: white;
         display: flex;
         align-items: center;
@@ -233,7 +233,7 @@ interface MenuItem {
       }
       .user-role {
         font-size: 11px;
-        color: #818cf8;
+        color: var(--brand-on-dark);
       }
       .sidebar-nav {
         flex: 1;
@@ -249,7 +249,7 @@ interface MenuItem {
         align-items: center;
         padding: 10px 12px;
         border-radius: 8px;
-        color: #94a3b8;
+        color: var(--ink-text-muted);
         text-decoration: none;
         gap: 12px;
         transition: all 0.15s ease;
@@ -263,13 +263,14 @@ interface MenuItem {
         white-space: nowrap;
       }
       .nav-item:hover {
-        background: #334155;
+        background: var(--ink-800);
         color: white;
       }
       .active-menu {
-        background: #3f51b5 !important;
+        background: var(--ink-800) !important;
         color: white !important;
         font-weight: 600;
+        box-shadow: inset 3px 0 0 var(--brand-500);
       }
       .nav-icon {
         font-size: 20px;
@@ -283,16 +284,16 @@ interface MenuItem {
       }
       .sidebar-footer {
         padding: 8px;
-        border-top: 1px solid #334155;
+        border-top: 1px solid var(--ink-border);
         display: flex;
         flex-direction: column;
         gap: 3px;
       }
       .logout-btn {
-        color: #fca5a5 !important;
+        color: var(--danger-on-dark) !important;
       }
       .logout-btn:hover {
-        background: rgba(239, 68, 68, 0.15) !important;
+        background: var(--danger-on-dark-bg) !important;
       }
       .main-panel {
         flex: 1;
@@ -303,8 +304,8 @@ interface MenuItem {
       }
       .topbar {
         height: 64px;
-        background: white;
-        border-bottom: 1px solid #e2e8f0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -321,7 +322,7 @@ interface MenuItem {
       .portal-title {
         font-size: 18px;
         font-weight: 600;
-        color: #1e293b;
+        color: var(--color-text);
       }
       .topbar-right {
         display: flex;
@@ -329,7 +330,13 @@ interface MenuItem {
         gap: 10px;
       }
       .profile-dropdown {
-        color: #475569;
+        color: var(--color-text-secondary);
+      }
+      /* mat-button projects its content into an internal .mdc-button__label
+         span that is NOT a flex container by default — setting display:flex
+         on the button host alone doesn't reach it, which is why the avatar
+         and name were stacking instead of sitting side by side. */
+      ::ng-deep .profile-dropdown .mdc-button__label {
         display: flex;
         align-items: center;
         gap: 6px;

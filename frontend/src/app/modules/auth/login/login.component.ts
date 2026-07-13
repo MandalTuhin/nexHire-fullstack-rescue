@@ -129,8 +129,8 @@ import { ToastService } from '../../../shared/services/toast.service';
         width: 100%;
         max-width: 450px;
         padding: 24px;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-card-hover) !important;
       }
       .login-header {
         margin-bottom: 24px;
@@ -139,14 +139,15 @@ import { ToastService } from '../../../shared/services/toast.service';
         padding: 0 !important;
       }
       mat-card-title {
+        font-family: var(--font-display);
         font-size: 24px !important;
         font-weight: 700 !important;
-        color: #1e293b;
+        color: var(--color-text);
         margin-bottom: 8px !important;
       }
       mat-card-subtitle {
         font-size: 14px !important;
-        color: #64748b;
+        color: var(--color-text-muted);
       }
       .login-form {
         display: flex;
@@ -164,16 +165,16 @@ import { ToastService } from '../../../shared/services/toast.service';
         font-size: 16px;
       }
       .demo-accounts {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
+        background-color: var(--color-surface-muted);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-control);
         padding: 12px;
         margin-top: 8px;
       }
       .demo-title {
         font-size: 12px;
         font-weight: 600;
-        color: #64748b;
+        color: var(--color-text-muted);
         display: block;
         margin-bottom: 8px;
       }
@@ -196,10 +197,10 @@ import { ToastService } from '../../../shared/services/toast.service';
       .login-actions p {
         margin: 0;
         font-size: 14px;
-        color: #64748b;
+        color: var(--color-text-muted);
       }
       .login-actions a {
-        color: #3f51b5;
+        color: var(--brand-600);
         font-weight: 600;
         text-decoration: none;
       }

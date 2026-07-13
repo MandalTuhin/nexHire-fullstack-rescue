@@ -83,7 +83,7 @@ import { JoiningLetter } from '../../../models/joining-letter.model';
         padding: 16px;
       }
       .letter-icon {
-        color: #4f46e5;
+        color: var(--brand-500);
       }
       .details-grid {
         display: grid;

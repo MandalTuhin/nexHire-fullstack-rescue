@@ -11,6 +11,12 @@
       <mat-card-subtitle>HR-set cutoff decides pass/fail when the Result column is left blank</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
+      <mat-form-field appearance="outline" class="cutoff-field">
+        <mat-label>Cutoff Score (optional)</mat-label>
+        <input matInput type="number" [(ngModel)]="cutoff" placeholder="e.g. 60" />
+        <mat-hint>Used only when a row's Result column is blank</mat-hint>
+      </mat-form-field>
+
       <div class="excel-actions-row">
         <button mat-stroked-button color="primary" (click)="downloadTemplate()">
           <mat-icon>download</mat-icon> Download Template
@@ -20,12 +26,6 @@
           <mat-icon>upload_file</mat-icon> {{ excelFile ? excelFile.name : 'Choose File' }}
         </button>
         <input type="file" hidden #fileInput accept=".xlsx,.xls" (change)="onFileSelected($event)" />
-
-        <mat-form-field appearance="outline" class="cutoff-field">
-          <mat-label>Cutoff Score (optional)</mat-label>
-          <input matInput type="number" [(ngModel)]="cutoff" placeholder="e.g. 60" />
-          <mat-hint>Used only when a row's Result column is blank</mat-hint>
-        </mat-form-field>
 
         <button mat-raised-button color="primary" [disabled]="!excelFile || validating" (click)="validateFile()">
           {{ validating ? 'Validating…' : 'Validate' }}

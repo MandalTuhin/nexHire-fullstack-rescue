@@ -35,7 +35,7 @@ import { LoaderService } from '../../services/loader.service';
     }
     .loader-text {
       font-size: 14px;
-      color: #3f51b5;
+      color: var(--brand-600);
       font-weight: 500;
       margin: 0;
     }

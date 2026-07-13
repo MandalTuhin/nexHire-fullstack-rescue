@@ -30,12 +30,12 @@ import { Component } from '@angular/core';
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      background-color: #f8fafc;
+      background-color: var(--color-page-bg);
     }
     .public-header {
-      background-color: white;
-      border-bottom: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      background-color: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: 0 1px 3px rgba(20, 14, 5, 0.04);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -52,13 +52,14 @@ import { Component } from '@angular/core';
       display: flex;
       align-items: center;
       gap: 8px;
+      font-family: var(--font-display);
       font-size: 20px;
       font-weight: 700;
-      color: #3f51b5;
+      color: var(--color-text);
       cursor: pointer;
     }
     .logo-icon {
-      color: #3f51b5;
+      color: var(--brand-500);
     }
     .public-nav {
       display: flex;
@@ -67,20 +68,20 @@ import { Component } from '@angular/core';
     }
     .public-nav a {
       text-decoration: none;
-      color: #64748b;
+      color: var(--color-text-muted);
       font-weight: 500;
       font-size: 14px;
       transition: color 0.2s;
     }
     .public-nav a:hover, .active-link {
-      color: #3f51b5 !important;
+      color: var(--brand-600) !important;
     }
     .public-main {
       flex: 1;
     }
     .public-footer {
-      background-color: #0f172a;
-      color: #94a3b8;
+      background-color: var(--ink-950);
+      color: var(--ink-text-muted);
       text-align: center;
       padding: 24px;
       font-size: 14px;

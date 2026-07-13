@@ -1,7 +1,7 @@
 .data-table-container {
   position: relative;
   width: 100%;
-  background: white;
+  background: var(--color-surface);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
@@ -32,30 +32,32 @@
 
 .data-table {
   width: 100%;
-  
+
   th {
-    background-color: #f8fafc;
+    background-color: var(--color-surface-muted);
     font-weight: 600;
-    color: #475569;
-    font-size: 13px;
-    padding: 16px;
-    border-bottom: 2px solid #e2e8f0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
   }
 
   td {
-    padding: 16px;
-    color: #334155;
+    padding: 14px 16px;
+    color: var(--color-text);
     font-size: 14px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--color-border-light);
   }
 
   tr {
     &:hover {
-      background-color: #f8fafc;
+      background-color: var(--color-surface-muted);
     }
 
     &.selected {
-      background-color: #eff6ff;
+      background-color: var(--brand-50);
     }
   }
 }
@@ -111,13 +113,13 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: #94a3b8;
+    color: var(--color-text-faint);
   }
 }
 
 mat-paginator {
-  border-top: 1px solid #e2e8f0;
-  background-color: #f8fafc;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface-muted);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
 
   ::ng-deep {
@@ -129,7 +131,7 @@ mat-paginator {
     .mat-mdc-paginator-page-size-label,
     .mat-mdc-paginator-range-label {
       font-size: 13px;
-      color: #64748b;
+      color: var(--color-text-muted);
     }
   }
 }
@@ -157,10 +159,10 @@ mat-paginator {
 // Sort indicator styling
 ::ng-deep {
   .mat-sort-header-arrow {
-    color: #3b82f6;
+    color: var(--brand-500);
   }
 
   .mat-sort-header-sorted {
-    color: #1e40af;
+    color: var(--brand-600);
   }
 }

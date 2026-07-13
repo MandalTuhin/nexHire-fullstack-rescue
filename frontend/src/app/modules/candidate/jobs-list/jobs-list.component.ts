@@ -118,7 +118,7 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
         height: 44px;
         border-radius: 10px;
         background: #eef2ff;
-        color: #4f46e5;
+        color: var(--brand-500);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -133,7 +133,7 @@ import { isEligibleToApply, eligibilityReason } from '../../../shared/utils/elig
         align-items: center;
         gap: 4px;
         font-size: 12px;
-        color: #4f46e5;
+        color: var(--brand-500);
         font-weight: 600;
         margin-top: 2px;
       }
