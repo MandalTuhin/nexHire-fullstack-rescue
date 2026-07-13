@@ -105,7 +105,7 @@ export class StatusBadgeComponent {
     JOINING_REJECTED: { class: 'badge-danger', label: 'Joining Rejected' },
     JOINING_EXPIRED: { class: 'badge-danger', label: 'Joining Expired' },
     // JoiningBatchStatus (COMPLETED/CLOSED shared with generic keys below)
-    CREATED: { class: 'badge-secondary', label: 'Created' },
+    CREATED: { class: 'badge-secondary', label: 'Draft' },
     JOINING_ACCEPTANCE_IN_PROGRESS: { class: 'badge-warning', label: 'Acceptance In Progress' },
     READY_FOR_TRAINING: { class: 'badge-success', label: 'Ready For Training' },
     ASSIGNED_TO_TRAINING: { class: 'badge-teal', label: 'Assigned To Training' },
@@ -119,6 +119,9 @@ export class StatusBadgeComponent {
     TRAINING_COMPLETED: { class: 'badge-success', label: 'Training Completed' },
     LAP: { class: 'badge-orange', label: 'LAP' },
     TRAINING_FAILED: { class: 'badge-danger', label: 'Flagged — Unsuccessful' },
+    RELEASE_PENDING_LAP: { class: 'badge-orange', label: 'Release Pending (LAP)' },
+    // Legacy ApplicationStatus enum value, unreachable in the current pipeline — kept only so an
+    // old/stale record wouldn't render a raw unmapped key if one is ever encountered.
     COMPLETED_WITH_EXCEPTIONS: { class: 'badge-orange', label: 'Completed (Exceptions)' },
     RELEASED: { class: 'badge-secondary', label: 'Released' },
     PROJECT_ASSIGNED: { class: 'badge-teal', label: 'Project Assigned' },

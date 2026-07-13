@@ -4,16 +4,12 @@ import { DashboardStats, PendingActions } from '../../../models/admin.model';
 import { CityAdminService } from '../../../services/city-admin.service';
 import { CityAdmin } from '../../../models/city-admin.model';
 
-interface MetricTile {
-  label: string;
-  value: number;
-}
-
-interface MetricSection {
+interface KpiCard {
   title: string;
   icon: string;
-  accent: 'brand' | 'success';
-  tiles: MetricTile[];
+  value: number;
+  subtitle: string;
+  route?: string;
 }
 
 interface AttentionRow {
@@ -69,22 +65,26 @@ interface AttentionRow {
         </div>
       </mat-card>
 
-      <!-- Pipeline metric sections -->
-      <div class="sections-grid" *ngIf="stats">
-        <mat-card class="section-card app-card" *ngFor="let section of sections" [ngClass]="'accent-' + section.accent">
-          <div class="section-card-head">
-            <span class="section-icon">
-              <mat-icon>{{ section.icon }}</mat-icon>
-            </span>
-            <h3 class="section-card-title">{{ section.title }}</h3>
+      <!-- KPI cards — one metric per card for fast scanning (issue #43). -->
+      <div class="kpi-cards-grid" *ngIf="stats">
+        <a
+          class="kpi-card app-card"
+          *ngFor="let card of kpiCards"
+          [routerLink]="card.route"
+          [class.no-link]="!card.route"
+        >
+          <span class="kpi-card-icon">
+            <mat-icon>{{ card.icon }}</mat-icon>
+          </span>
+          <div class="kpi-card-body">
+            <span class="kpi-card-value num">{{ card.value | number }}</span>
+            <span class="kpi-card-title">{{ card.title }}</span>
+            <span class="kpi-card-subtitle">{{ card.subtitle }}</span>
           </div>
-          <div class="tile-grid">
-            <div class="tile" *ngFor="let tile of section.tiles">
-              <span class="tile-value num">{{ tile.value | number }}</span>
-              <span class="tile-label">{{ tile.label }}</span>
-            </div>
-          </div>
-        </mat-card>
+          <span class="kpi-card-link" *ngIf="card.route">
+            View Details <mat-icon>arrow_forward</mat-icon>
+          </span>
+        </a>
       </div>
 
       <!-- Charts Section -->
@@ -252,70 +252,87 @@ interface AttentionRow {
         font-weight: 600;
       }
 
-      /* ─── Pipeline metric sections ────────────────────────────────────── */
-      .sections-grid {
+      /* ─── KPI cards — one metric per card ─────────────────────────────── */
+      .kpi-cards-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        grid-template-columns: repeat(6, 1fr);
         gap: var(--space-4);
       }
-      .section-card {
-        padding: var(--space-4) var(--space-4) var(--space-5);
-        border-top: 3px solid var(--color-border);
+      /* Desktop: 6 cards in the first row, 2 in the second (8 cards total). */
+      @media (max-width: 1200px) {
+        .kpi-cards-grid { grid-template-columns: repeat(4, 1fr); }
       }
-      .section-card.accent-brand { border-top-color: var(--brand-500); }
-      .section-card.accent-success { border-top-color: var(--color-success); }
-
-      .section-card-head {
+      @media (max-width: 720px) {
+        .kpi-cards-grid { grid-template-columns: 1fr; }
+      }
+      .kpi-card {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: var(--space-3);
-        margin-bottom: var(--space-4);
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-card);
+        background: var(--color-surface);
+        text-decoration: none;
+        transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
       }
-      .section-icon {
-        width: 36px;
-        height: 36px;
+      .kpi-card:not(.no-link):hover {
+        border-color: var(--brand-200);
+        box-shadow: var(--shadow-card);
+        transform: translateY(-1px);
+      }
+      .kpi-card.no-link {
+        cursor: default;
+      }
+      .kpi-card-icon {
+        width: 38px;
+        height: 38px;
         border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
+        background: var(--brand-100);
+        color: var(--brand-600);
       }
-      .accent-brand .section-icon { background: var(--brand-100); color: var(--brand-600); }
-      .accent-success .section-icon { background: var(--color-success-bg); color: var(--color-success); }
-      .section-icon mat-icon {
-        font-size: 19px;
-        width: 19px;
-        height: 19px;
+      .kpi-card-icon mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
       }
-      .section-card-title {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--color-text);
-      }
-
-      .tile-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-        gap: var(--space-4) var(--space-3);
-      }
-      .tile {
+      .kpi-card-body {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 2px;
       }
-      .tile-value {
-        font-size: 24px;
+      .kpi-card-value {
+        font-size: 28px;
         font-weight: 700;
         color: var(--color-text);
-        line-height: 1;
+        line-height: 1.1;
       }
-      .tile-label {
-        font-size: 11px;
+      .kpi-card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+      }
+      .kpi-card-subtitle {
+        font-size: 12px;
         color: var(--color-text-muted);
-        font-weight: 500;
+      }
+      .kpi-card-link {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--brand-600);
+      }
+      .kpi-card-link mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
       }
 
       /* ─── Charts ───────────────────────────────────────────────────────── */
@@ -433,7 +450,7 @@ interface AttentionRow {
 export class HrDashboardComponent implements OnInit {
   stats: DashboardStats | null = null;
   pending: PendingActions | null = null;
-  sections: MetricSection[] = [];
+  kpiCards: KpiCard[] = [];
   attentionRows: AttentionRow[] = [];
   budgetAlerts: CityAdmin[] = [];
 
@@ -445,7 +462,7 @@ export class HrDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.dashboardService.getStats().subscribe((s) => {
       this.stats = s;
-      this.sections = this.buildSections(s);
+      this.kpiCards = this.buildKpiCards(s);
     });
     this.dashboardService.getPendingActions().subscribe((p) => {
       this.pending = p;
@@ -472,87 +489,18 @@ export class HrDashboardComponent implements OnInit {
     return Math.min(100, ((this.stats.totalVacancyUsed || 0) / total) * 100);
   }
 
-  private buildSections(s: DashboardStats): MetricSection[] {
+  /** One KPI per card (issue #43) — reuses the same DashboardStats the old grouped-card
+   *  layout read from; no new backend endpoint or field. */
+  private buildKpiCards(s: DashboardStats): KpiCard[] {
     return [
-      {
-        title: 'Applications & Profile',
-        icon: 'assignment',
-        accent: 'brand',
-        tiles: [
-          { label: 'Total Applications', value: s.totalApplications },
-          { label: 'Profile Completed', value: s.profileCompletedCandidates },
-        ],
-      },
-      {
-        title: 'Assessment',
-        icon: 'fact_check',
-        accent: 'brand',
-        tiles: [
-          { label: 'Assigned', value: s.assessmentAssignedCount },
-          { label: 'Score Uploaded', value: s.assessmentScoreUploadedCount },
-          { label: 'Passed', value: s.assessmentPassedCount },
-          { label: 'Failed', value: s.assessmentFailedCount },
-        ],
-      },
-      {
-        title: 'Offer Letters',
-        icon: 'mail',
-        accent: 'brand',
-        tiles: [
-          { label: 'Generated', value: s.offerLettersGenerated },
-          { label: 'Sent', value: s.offerLettersSent },
-          { label: 'Accepted', value: s.offerAcceptedCount },
-          { label: 'Rejected', value: s.offerRejectedCount },
-        ],
-      },
-      {
-        title: 'Background Verification',
-        icon: 'verified_user',
-        accent: 'brand',
-        tiles: [
-          { label: 'Initiated', value: s.bgcInitiatedCount },
-          { label: 'Docs Submitted', value: s.bgcDocumentsSubmittedCount },
-          { label: 'Cleared', value: s.bgcClearedCount },
-          { label: 'Failed', value: s.bgcFailedCount },
-        ],
-      },
-      {
-        title: 'Selection',
-        icon: 'badge',
-        accent: 'success',
-        tiles: [
-          { label: 'Employees Created', value: s.employeesCreated },
-          { label: 'Selected Users', value: s.selectedUsersCreated },
-        ],
-      },
-      {
-        title: 'Joining',
-        icon: 'groups',
-        accent: 'brand',
-        tiles: [
-          { label: 'Batches Created', value: s.joiningBatchesCreated },
-          { label: 'Letters Sent', value: s.joiningLettersSent },
-          { label: 'Accepted', value: s.joiningAcceptedCount },
-        ],
-      },
-      {
-        title: 'Training',
-        icon: 'school',
-        accent: 'brand',
-        tiles: [
-          { label: 'Batches Assigned', value: s.trainingBatchesAssigned },
-          { label: 'LAP', value: s.lapCandidates },
-          { label: 'Passed', value: s.passedTrainees },
-          { label: 'Failed', value: s.failedTrainees },
-          { label: 'Released', value: s.releasedCandidates },
-        ],
-      },
-      {
-        title: 'Project Allocation',
-        icon: 'work',
-        accent: 'success',
-        tiles: [{ label: 'Allocated', value: s.projectAllocatedCandidates }],
-      },
+      { title: 'Total Applications', icon: 'assignment', value: s.totalApplications, subtitle: 'Applications received', route: '/hr/applications' },
+      { title: 'Assessment Assigned', icon: 'fact_check', value: s.assessmentAssignedCount, subtitle: 'Candidates assigned', route: '/hr/applications' },
+      { title: 'Offers Sent', icon: 'mail', value: s.offerLettersSent, subtitle: 'Offer letters sent', route: '/hr/offers' },
+      { title: 'Documents Submitted', icon: 'verified_user', value: s.bgcDocumentsSubmittedCount, subtitle: 'BGC documents submitted', route: '/hr/bgv' },
+      { title: 'Candidates Joined', icon: 'groups', value: s.joiningAcceptedCount, subtitle: 'Successfully joined', route: '/hr/joining-batches' },
+      { title: 'Active Training Batches', icon: 'school', value: s.trainingBatchesAssigned, subtitle: 'Currently running', route: '/hr/joining-batches' },
+      { title: 'Released Candidates', icon: 'flag', value: s.releasedCandidates, subtitle: 'Training completed', route: '/hr/joining-batches' },
+      { title: 'Allocated Candidates', icon: 'work', value: s.projectAllocatedCandidates, subtitle: 'Assigned to projects' },
     ];
   }
 

@@ -20,26 +20,38 @@
       <mat-card-content>
         <div class="table-container">
           <table mat-table [dataSource]="batches">
-            <ng-container matColumnDef="code">
-              <th mat-header-cell *matHeaderCellDef>Batch</th>
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Batch Name</th>
               <td mat-cell *matCellDef="let b">
                 <div class="batch-info">
-                  <span class="code">{{ b.batchCode }}</span>
                   <span class="name">{{ b.batchName }}</span>
+                  <span class="code">{{ b.batchCode }}</span>
                 </div>
               </td>
             </ng-container>
-            <ng-container matColumnDef="joining">
-              <th mat-header-cell *matHeaderCellDef>Joining</th>
-              <td mat-cell *matCellDef="let b">{{ b.joiningDate | date }} · {{ b.joiningLocationName }}</td>
+            <ng-container matColumnDef="joiningLocation">
+              <th mat-header-cell *matHeaderCellDef>Joining Location</th>
+              <td mat-cell *matCellDef="let b">{{ b.joiningLocationName }}<span class="muted-sub">{{ b.joiningDate | date }}</span></td>
             </ng-container>
-            <ng-container matColumnDef="training">
-              <th mat-header-cell *matHeaderCellDef>Training</th>
-              <td mat-cell *matCellDef="let b">{{ b.trainingLocationName }} · {{ b.trainingProgram || '—' }}</td>
+            <ng-container matColumnDef="trainingBlock">
+              <th mat-header-cell *matHeaderCellDef>Training Block</th>
+              <td mat-cell *matCellDef="let b">{{ b.trainingBlockName || b.block || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="trainingProgram">
+              <th mat-header-cell *matHeaderCellDef>Training Program</th>
+              <td mat-cell *matCellDef="let b">{{ b.trainingProgram || '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="headcount">
               <th mat-header-cell *matHeaderCellDef>Headcount</th>
               <td mat-cell *matCellDef="let b">{{ b.currentHeadcount }} / {{ b.batchSize }}</td>
+            </ng-container>
+            <ng-container matColumnDef="released">
+              <th mat-header-cell *matHeaderCellDef>Released</th>
+              <td mat-cell *matCellDef="let b">{{ b.releasedCount }}</td>
+            </ng-container>
+            <ng-container matColumnDef="lap">
+              <th mat-header-cell *matHeaderCellDef>LAP</th>
+              <td mat-cell *matCellDef="let b">{{ b.lapCount }}</td>
             </ng-container>
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -51,8 +63,8 @@
                 <button mat-stroked-button (click)="openDetail(b.id)">View</button>
               </td>
             </ng-container>
-            <tr mat-header-row *matHeaderRowDef="['code','joining','training','headcount','status','actions']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['code','joining','training','headcount','status','actions']" class="clickable-row" (click)="openDetail(row.id)"></tr>
+            <tr mat-header-row *matHeaderRowDef="['name','joiningLocation','trainingBlock','trainingProgram','headcount','released','lap','status','actions']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['name','joiningLocation','trainingBlock','trainingProgram','headcount','released','lap','status','actions']" class="clickable-row" (click)="openDetail(row.id)"></tr>
           </table>
         </div>
       </mat-card-content>
@@ -234,6 +246,7 @@
     <app-loader *ngIf="loadingDetail"></app-loader>
 
     <ng-container *ngIf="!loadingDetail && selectedBatch">
+      <!-- Batch Summary -->
       <mat-card class="summary-card">
         <mat-card-content class="summary-grid">
           <div class="summary-item"><span class="label">Status</span><app-status-badge [status]="selectedBatch.status"></app-status-badge></div>
@@ -246,11 +259,33 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- Only shown while there's still someone to send a letter to — actions already
-           completed (generate/send) aren't re-shown once done. -->
-      <div class="detail-actions" *ngIf="hasPendingLetters">
-        <button mat-raised-button color="accent" [disabled]="sending" (click)="sendLetters()">
+      <!-- Batch KPI cards — only meaningful once training has started (Trainee rows exist) -->
+      <div class="kpi-grid" *ngIf="trainees.length > 0">
+        <div class="kpi-card">
+          <mat-icon class="kpi-icon">groups</mat-icon>
+          <div class="kpi-body"><span class="kpi-value">{{ kpiTotalTrainees }}</span><span class="kpi-label">Total Trainees</span></div>
+        </div>
+        <div class="kpi-card accent-success">
+          <mat-icon class="kpi-icon">check_circle</mat-icon>
+          <div class="kpi-body"><span class="kpi-value">{{ kpiReleasedCount }}</span><span class="kpi-label">Released</span></div>
+        </div>
+        <div class="kpi-card accent-warning">
+          <mat-icon class="kpi-icon">support</mat-icon>
+          <div class="kpi-body"><span class="kpi-value">{{ kpiLapCount }}</span><span class="kpi-label">LAP</span></div>
+        </div>
+        <div class="kpi-card accent-danger">
+          <mat-icon class="kpi-icon">flag</mat-icon>
+          <div class="kpi-body"><span class="kpi-value">{{ kpiFlaggedCount }}</span><span class="kpi-label">Flagged</span></div>
+        </div>
+      </div>
+
+      <!-- Dynamic actions — only what's valid for the current status is ever shown. -->
+      <div class="detail-actions">
+        <button mat-raised-button color="accent" *ngIf="hasPendingLetters" [disabled]="sending" (click)="sendLetters()">
           <mat-icon>send</mat-icon> {{ sending ? 'Sending…' : 'Send Joining Letter' }}
+        </button>
+        <button mat-raised-button color="primary" *ngIf="selectedBatch.status === 'COMPLETED'" [disabled]="closing" (click)="closeBatch()">
+          <mat-icon>archive</mat-icon> {{ closing ? 'Closing…' : 'Close Batch' }}
         </button>
       </div>
 
@@ -490,8 +525,10 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- Trainee Result Excel Upload -->
-      <mat-card class="excel-card" *ngIf="trainees.length > 0">
+      <!-- Trainee Result Excel Upload — hidden once training itself is over (COMPLETED/
+           RELEASE_PENDING_LAP/CLOSED); LAP resolution afterwards uses Release/Flag, not more
+           result uploads. -->
+      <mat-card class="excel-card" *ngIf="trainees.length > 0 && assessmentUploadAvailable">
         <mat-card-header>
           <mat-card-title>Trainee Result Upload (Excel)</mat-card-title>
           <mat-card-subtitle>Bulk-upload score, attendance and final result for this batch — export the trainee list above first if you need Trainee IDs</mat-card-subtitle>

@@ -30,3 +30,7 @@ app:
   jwt:
     secret: nexhire-secret-key-change-in-production-minimum-256-bits-long-key
     expiration-ms: 86400000
+  joining-letter:
+    # Demo environment: candidates must accept/reject a joining letter within this window before
+    # it auto-expires (GitHub issue #35). Raise this for a realistic non-demo deployment.
+    response-window-minutes: 5

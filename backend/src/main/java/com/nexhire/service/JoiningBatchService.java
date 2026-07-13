@@ -32,9 +32,13 @@ public class JoiningBatchService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMMM yyyy");
 
-    /** How long a candidate has to accept/reject a joining letter before it auto-expires —
-     *  see JoiningLetterExpiryService. */
-    private static final int RESPONSE_WINDOW_DAYS = 7;
+    /** How long a candidate has to accept/reject a joining letter before it auto-expires — see
+     *  JoiningLetterService.expireOverdueJoiningLetters. Demo environment default is 5 minutes
+     *  (context.md-adjacent GitHub issue requirement) rather than a realistic multi-day window,
+     *  so the expiry flow is actually observable in a demo without waiting days; override via
+     *  app.joining-letter.response-window-minutes for a longer window if needed. */
+    @org.springframework.beans.factory.annotation.Value("${app.joining-letter.response-window-minutes:5}")
+    private long responseWindowMinutes;
 
     private final JoiningBatchRepository joiningBatchRepository;
     private final JoiningBatchMemberRepository joiningBatchMemberRepository;
@@ -313,7 +317,7 @@ public class JoiningBatchService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime deadline = now.plusDays(RESPONSE_WINDOW_DAYS);
+        LocalDateTime deadline = now.plusMinutes(responseWindowMinutes);
         for (JoiningBatchMember member : pending) {
             JobApplication app = member.getApplication();
             Employee employee = employeeRepository.findByApplicationId(app.getId()).orElse(null);
@@ -338,7 +342,7 @@ public class JoiningBatchService {
 
             notificationService.notify(app.getUser().getId(), "JOINING_LETTER", "Joining Letter Issued",
                     "Your joining letter for " + app.getJob().getTitle() + " has been issued. Please review and respond within "
-                            + RESPONSE_WINDOW_DAYS + " days.");
+                            + responseWindowLabel() + ".");
         }
 
         recomputeBatchStatus(batch);
@@ -486,7 +490,7 @@ public class JoiningBatchService {
         JoiningLetter letter = joiningLetterRepository.findByApplicationId(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("No joining letter found for application " + applicationId));
 
-        letter.setResponseDeadline(LocalDateTime.now().plusDays(RESPONSE_WINDOW_DAYS));
+        letter.setResponseDeadline(LocalDateTime.now().plusMinutes(responseWindowMinutes));
         joiningLetterRepository.save(letter);
 
         app.setStatus(ApplicationStatus.JOINING_LETTER_SENT);
@@ -494,7 +498,7 @@ public class JoiningBatchService {
 
         notificationService.notify(app.getUser().getId(), "JOINING_LETTER", "Joining Letter Reissued",
                 "Your joining letter for " + app.getJob().getTitle() + " has been reissued. Please review and respond within "
-                        + RESPONSE_WINDOW_DAYS + " days.");
+                        + responseWindowLabel() + ".");
 
         recomputeBatchStatus(batch);
 
@@ -506,6 +510,21 @@ public class JoiningBatchService {
 
     private String generateBatchCode(Long id, LocalDate joiningDate) {
         return "JB-" + joiningDate.getYear() + "-" + String.format("%05d", id);
+    }
+
+    /** Human-readable form of responseWindowMinutes for candidate-facing notification text —
+     *  reads naturally whether the deployment uses the demo's 5-minute window or a realistic
+     *  multi-day one. */
+    private String responseWindowLabel() {
+        if (responseWindowMinutes < 60) {
+            return responseWindowMinutes + " minute" + (responseWindowMinutes == 1 ? "" : "s");
+        }
+        if (responseWindowMinutes % 1440 == 0) {
+            long days = responseWindowMinutes / 1440;
+            return days + " day" + (days == 1 ? "" : "s");
+        }
+        long hours = responseWindowMinutes / 60;
+        return hours + " hour" + (hours == 1 ? "" : "s");
     }
 
     /** HR should never hand-type a batch name (inconsistent, occasionally duplicate) — derive

@@ -83,7 +83,8 @@ public class TrainingBatchController {
         return ResponseEntity.ok(trainingBatchService.completeBatch(id, userId));
     }
 
-    /** Archives a finished batch (COMPLETED/COMPLETED_WITH_EXCEPTIONS -> CLOSED). */
+    /** Archives a finished batch (COMPLETED -> CLOSED only — RELEASE_PENDING_LAP can't be closed
+     *  until every LAP trainee reaches a final outcome). */
     @PostMapping("/{id}/close")
     public ResponseEntity<TrainingBatchDetailResponse> closeBatch(@PathVariable Long id, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();

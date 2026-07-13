@@ -19,14 +19,20 @@ table {
   display: flex;
   flex-direction: column;
 }
-.batch-info .code {
+.batch-info .name {
   font-weight: 700;
   color: #1e293b;
   font-size: 13px;
 }
-.batch-info .name {
+.batch-info .code {
   font-size: 12px;
   color: #64748b;
+}
+
+.muted-sub {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .candidate-info {
@@ -151,6 +157,49 @@ table {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+/* Batch KPI cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border-left: 4px solid #94a3b8;
+}
+.kpi-card.accent-success { border-left-color: #16a34a; }
+.kpi-card.accent-warning { border-left-color: #eab308; }
+.kpi-card.accent-danger { border-left-color: #dc2626; }
+.kpi-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+.kpi-card.accent-success .kpi-icon { color: #16a34a; }
+.kpi-card.accent-warning .kpi-icon { color: #a16207; }
+.kpi-card.accent-danger .kpi-icon { color: #dc2626; }
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+}
+.kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.kpi-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
 /* Phase 6: Training assignment / trainees / excel */

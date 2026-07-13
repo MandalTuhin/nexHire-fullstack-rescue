@@ -49,6 +49,12 @@ export class TrainingBatchService extends BaseService {
     return this.http.post<TrainingBatchDetail>(API_ENDPOINTS.TRAINING_BATCHES.COMPLETE(id), {});
   }
 
+  /** Archives a fully-resolved (COMPLETED) batch — purely a terminal marker, no further
+   *  state changes possible afterwards. */
+  closeBatch(id: number): Observable<TrainingBatchDetail> {
+    return this.http.post<TrainingBatchDetail>(API_ENDPOINTS.TRAINING_BATCHES.CLOSE(id), {});
+  }
+
   moveToLap(traineeId: number, remarks?: string): Observable<TraineeDetail> {
     return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.MOVE_TO_LAP(traineeId), { remarks });
   }

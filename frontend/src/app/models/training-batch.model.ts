@@ -71,6 +71,8 @@ export interface TrainingBatchDashboard {
   trainingLocationName: string;
   trainingProgram?: string;
   block?: string;
+  trainingBlockName?: string;
+  batchSize?: number;
   trainingStartDate?: string;
   trainingEndDate?: string;
   status: string;

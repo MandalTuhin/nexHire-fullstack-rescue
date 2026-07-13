@@ -115,6 +115,7 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number) => `${BASE}/api/training-batches/${id}`,
     ASSIGN_TRAINING: (id: number) => `${BASE}/api/training-batches/${id}/assign-training`,
     COMPLETE: (id: number) => `${BASE}/api/training-batches/${id}/complete`,
+    CLOSE: (id: number) => `${BASE}/api/training-batches/${id}/close`,
     MOVE_TO_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/lap`,
     REMOVE_FROM_LAP: (traineeId: number) => `${BASE}/api/training-batches/trainees/${traineeId}/remove-lap`,
     BULK_LAP: `${BASE}/api/training-batches/trainees/bulk-lap`,

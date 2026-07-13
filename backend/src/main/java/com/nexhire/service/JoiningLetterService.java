@@ -134,12 +134,15 @@ public class JoiningLetterService {
         budgetService.releasePartialReservation(batch.getTrainingLocation(), batch, perCandidateCost, actingUserId);
     }
 
-    /** Runs hourly: any joining letter still awaiting a response past its deadline is expired —
-     *  the candidate is excluded from the training lifecycle the same way a rejection is (see
-     *  JoiningBatchService.recomputeBatchStatus — only JOINING_LETTER_SENT counts as "pending"),
-     *  their share of the batch's reserved budget is released, and HR can resend a fresh letter
-     *  or remove/replace them (JoiningBatchService.resendLetter / removeMember). */
-    @Scheduled(cron = "0 0 * * * *")
+    /** Runs every 30 seconds: any joining letter still awaiting a response past its deadline is
+     *  expired — the candidate is excluded from the training lifecycle the same way a rejection
+     *  is (see JoiningBatchService.recomputeBatchStatus — only JOINING_LETTER_SENT counts as
+     *  "pending"), their share of the batch's reserved budget is released, and HR can resend a
+     *  fresh letter or remove/replace them (JoiningBatchService.resendLetter / removeMember).
+     *  A 30s poll (rather than the old hourly cron) is what makes the demo's 5-minute response
+     *  window (see JoiningBatchService.responseWindowMinutes) actually observable — an hourly
+     *  check would leave an expired 5-minute letter sitting stale for up to 59 minutes. */
+    @Scheduled(fixedRate = 30000)
     @Transactional
     public void expireOverdueJoiningLetters() {
         List<JoiningLetter> overdue = joiningLetterRepository.findByApplication_StatusAndResponseDeadlineBefore(

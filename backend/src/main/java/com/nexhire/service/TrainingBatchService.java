@@ -242,7 +242,9 @@ public class TrainingBatchService {
                 .build();
     }
 
-    private void doMoveToLap(Trainee trainee, String remarks, Long actingUserId) {
+    /** Package-visible (not private) so TraineeExcelService can move a trainee to LAP the
+     *  instant HR uploads a FAILED result, instead of waiting for completeBatch(). */
+    void doMoveToLap(Trainee trainee, String remarks, Long actingUserId) {
         trainee.setLapEnabled(true);
         trainee.setFinalResult(TraineeFinalResult.LAP);
         trainee.setReleased(false);
@@ -354,6 +356,8 @@ public class TrainingBatchService {
 
         auditLogService.log(releasedBy.getId(), "TRAINEE_RELEASED", "APPLICATION", application.getId(),
                 "Trainee " + trainee.getUser().getEmail() + " released");
+
+        checkBatchFullyResolved(trainee.getBatch());
     }
 
     /** HR: "Flag Candidate" — a trainee who failed even after a LAP attempt is permanently
@@ -412,16 +416,43 @@ public class TrainingBatchService {
                 "Trainee " + trainee.getUser().getEmail() + " flagged as unsuccessful"
                         + (reason != null && !reason.isBlank() ? " (" + reason + ")" : ""));
         logLapHistory(trainee, "FLAGGED", reason, actingUserId);
+
+        checkBatchFullyResolved(trainee.getBatch());
+    }
+
+    /** Once a batch is RELEASE_PENDING_LAP (training done, Block already released, but at least
+     *  one trainee unresolved), each individual release/flag can be the one that finally clears
+     *  the last straggler — check after every such action and auto-complete the batch the moment
+     *  none remain, rather than requiring a separate HR "recheck" action. */
+    private void checkBatchFullyResolved(JoiningBatch batch) {
+        if (batch == null || batch.getStatus() != JoiningBatchStatus.RELEASE_PENDING_LAP) return;
+
+        List<Trainee> trainees = traineeRepository.findAll().stream()
+                .filter(t -> t.getBatch() != null && t.getBatch().getId().equals(batch.getId()))
+                .toList();
+        boolean allResolved = trainees.stream().allMatch(this::isResolved);
+        if (!allResolved) return;
+
+        batch.setStatus(JoiningBatchStatus.COMPLETED);
+        joiningBatchRepository.save(batch);
+
+        auditLogService.log(null, "JOINING_BATCH_COMPLETED", "JOINING_BATCH", batch.getId(),
+                "Batch " + batch.getBatchCode() + " fully resolved — every trainee reached a final outcome");
+    }
+
+    private boolean isResolved(Trainee trainee) {
+        return trainee.getReleased() || (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank());
     }
 
     // ─── Completion / Release ───────────────────────────────────────────────────
 
-    /** HR: "Complete Batch & Release" — releases every trainee who met the cutoff/attendance
-     *  bar, and auto-moves anyone who was explicitly marked FAILED (via the result upload) into
-     *  LAP instead of leaving them stranded with no next step. Trainees still PENDING (no result
-     *  uploaded at all) are left untouched — auto-LAP-ing someone with no uploaded result would
-     *  be presumptuous. Once a trainee clears LAP later, HR releases or permanently flags them
-     *  via the dedicated releaseTrainee()/flagTrainee() actions below, not by re-running this. */
+    /** HR: "Complete Batch" — releases every "Yet To Release" trainee (a PASSED/COMPLETED result
+     *  HR already validated at upload time — see TraineeExcelService.commit, which now moves a
+     *  FAILED result straight to LAP instead of waiting for this step), frees the training Block
+     *  immediately regardless of LAP, and marks the batch COMPLETED if every trainee is resolved
+     *  or RELEASE_PENDING_LAP if any (LAP, or still without an uploaded result) aren't yet —
+     *  that status then auto-clears to COMPLETED as each straggler is resolved later (see
+     *  checkBatchFullyResolved), without HR needing to re-run this action. */
     @Transactional
     public TrainingBatchDetailResponse completeBatch(Long batchId, Long actingUserId) {
         JoiningBatch batch = joiningBatchRepository.findById(batchId)
@@ -439,46 +470,57 @@ public class TrainingBatchService {
                 .toList();
 
         int releasedCount = 0;
+        int flaggedCount = 0;
         int lapCount = 0;
         for (Trainee trainee : trainees) {
             if (trainee.getReleased()) {
                 releasedCount++;
                 continue;
             }
-            if (isReleaseEligible(trainee, batch.getAssignedTraining())) {
+            if (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank()) {
+                flaggedCount++;
+                continue;
+            }
+            if (isReleaseEligible(trainee)) {
                 doRelease(trainee, actingUser);
                 releasedCount++;
             } else if (trainee.getFinalResult() == TraineeFinalResult.FAILED && !Boolean.TRUE.equals(trainee.getLapEnabled())) {
+                // Safety net — normally already moved to LAP at upload time (TraineeExcelService).
                 doMoveToLap(trainee, "Auto-moved to LAP after batch completion (uploaded result: FAILED)", actingUserId);
                 lapCount++;
             }
         }
 
-        batch.setStatus(releasedCount == trainees.size() && !trainees.isEmpty()
-                ? JoiningBatchStatus.COMPLETED : JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS);
+        int resolvedCount = releasedCount + flaggedCount;
+        batch.setStatus(resolvedCount == trainees.size() && !trainees.isEmpty()
+                ? JoiningBatchStatus.COMPLETED : JoiningBatchStatus.RELEASE_PENDING_LAP);
         joiningBatchRepository.save(batch);
 
-        // The room is free again once this batch's training is done — see BlockService.
+        // The room is free again the moment training itself is done — LAP resolution never
+        // occupies it, per P-Claude.md's "physical training room should already be available
+        // for reuse" while the batch itself can still be RELEASE_PENDING_LAP.
         if (batch.getTrainingBlock() != null) {
             blockService.releaseBlock(batch.getTrainingBlock().getId());
         }
 
         auditLogService.log(actingUserId, "BATCH_COMPLETED", "JOINING_BATCH", batchId,
                 "Batch " + batch.getBatchCode() + " completed: " + releasedCount + "/" + trainees.size()
-                        + " released, " + lapCount + " auto-moved to LAP");
+                        + " released, " + flaggedCount + " already flagged, " + lapCount + " auto-moved to LAP");
 
         return getDetail(batchId);
     }
 
-    /** HR: archives a finished batch. Purely a terminal marker — no further state changes. */
+    /** HR: archives a finished batch. Purely a terminal marker — no further state changes.
+     *  Deliberately COMPLETED-only: a batch with unresolved LAP trainees (RELEASE_PENDING_LAP)
+     *  can't be archived until checkBatchFullyResolved clears it to COMPLETED. */
     @Transactional
     public TrainingBatchDetailResponse closeBatch(Long batchId, Long actingUserId) {
         JoiningBatch batch = joiningBatchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
 
-        if (batch.getStatus() != JoiningBatchStatus.COMPLETED && batch.getStatus() != JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS) {
+        if (batch.getStatus() != JoiningBatchStatus.COMPLETED) {
             throw new BusinessRuleException(
-                    "Cannot close: batch status must be COMPLETED or COMPLETED_WITH_EXCEPTIONS (current is " + batch.getStatus() + ")");
+                    "Cannot close: batch status must be COMPLETED (current is " + batch.getStatus() + ")");
         }
 
         batch.setStatus(JoiningBatchStatus.CLOSED);
@@ -490,14 +532,14 @@ public class TrainingBatchService {
         return getDetail(batchId);
     }
 
-    private boolean isReleaseEligible(Trainee trainee, TrainingProgram program) {
+    /** HR already validated PASSED/COMPLETED vs FAILED when uploading the result Excel (see
+     *  TraineeExcelService.commit, which immediately moves a FAILED row to LAP) — completeBatch
+     *  trusts that decision directly rather than re-deriving it from a cutoff/attendance check,
+     *  so a HR-marked-PASSED trainee is never silently stuck unreleased. */
+    private boolean isReleaseEligible(Trainee trainee) {
         if (trainee.getReleased()) return false;
         if (Boolean.TRUE.equals(trainee.getLapEnabled())) return false;
-        if (trainee.getFinalResult() == TraineeFinalResult.FAILED || trainee.getFinalResult() == TraineeFinalResult.LAP) return false;
-        if (trainee.getFinalResult() != TraineeFinalResult.PASSED && trainee.getFinalResult() != TraineeFinalResult.COMPLETED) return false;
-        if (trainee.getScore() == null || program == null || trainee.getScore() < program.getCutoffScore()) return false;
-        if (trainee.getAttendancePercentage() == null || trainee.getAttendancePercentage() < program.getMinimumAttendancePercentage()) return false;
-        return true;
+        return trainee.getFinalResult() == TraineeFinalResult.PASSED || trainee.getFinalResult() == TraineeFinalResult.COMPLETED;
     }
 
     private void logLapHistory(Trainee trainee, String action, String remarks, Long actingUserId) {
@@ -588,6 +630,8 @@ public class TrainingBatchService {
                 .trainingLocationName(batch.getTrainingLocation().getName())
                 .trainingProgram(batch.getTrainingProgram())
                 .block(batch.getBlock())
+                .trainingBlockName(batch.getTrainingBlock() != null ? batch.getTrainingBlock().getName() : null)
+                .batchSize(batch.getBatchSize())
                 .trainingStartDate(batch.getTrainingStartDate())
                 .trainingEndDate(batch.getTrainingEndDate())
                 .status(batch.getStatus().name())

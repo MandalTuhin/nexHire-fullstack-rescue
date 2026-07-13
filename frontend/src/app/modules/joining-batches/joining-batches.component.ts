@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { forkJoin } from 'rxjs';
 import { JoiningBatchService, ActivityLogEntry } from '../../services/joining-batch.service';
 import { TrainingBatchService } from '../../services/training-batch.service';
 import { CityAdminService } from '../../services/city-admin.service';
@@ -14,6 +15,17 @@ import { TraineeDetail, TrainingBatchDetail, TrainingProgram } from '../../model
 import { UploadSummary } from '../../models/bulk-upload.model';
 
 type ViewMode = 'list' | 'wizard' | 'detail';
+
+/** Batch-list row: JoiningBatch (accurate membership/headcount across the whole lifecycle) with
+ *  Released/LAP counts merged in from the Training Batch Dashboard endpoint (only meaningful
+ *  once training has started — legitimately 0 before then, not a display bug). */
+interface BatchListRow extends JoiningBatch {
+  releasedCount: number;
+  lapCount: number;
+}
+
+/** Batch statuses where the batch is fully done and read-only — no further HR action applies. */
+const TERMINAL_BATCH_STATUSES = new Set(['COMPLETED', 'CLOSED', 'CANCELLED']);
 
 /** Statuses eligible for HR to remove-and-replace before training starts. */
 const REPLACEABLE_STATUSES = new Set(['JOINING_REJECTED', 'JOINING_EXPIRED']);
@@ -32,7 +44,7 @@ const MODIFIABLE_BATCH_STATUSES = new Set(['CREATED', 'JOINING_LETTER_SENT', 'JO
 export class JoiningBatchesComponent implements OnInit {
   view: ViewMode = 'list';
 
-  batches: JoiningBatch[] = [];
+  batches: BatchListRow[] = [];
   loading = false;
 
   locations: CityAdmin[] = [];
@@ -71,6 +83,7 @@ export class JoiningBatchesComponent implements OnInit {
   trainees: TraineeDetail[] = [];
   assignedTrainingName: string | null = null;
   completing = false;
+  closing = false;
 
   // Trainee search + bulk selection
   traineeSearch = '';
@@ -205,9 +218,19 @@ export class JoiningBatchesComponent implements OnInit {
 
   loadBatches(): void {
     this.loading = true;
-    this.batchService.getAll().subscribe({
-      next: (list) => {
-        this.batches = list.sort((a, b) => b.id - a.id);
+    forkJoin({
+      list: this.batchService.getAll(),
+      dashboard: this.trainingBatchService.getDashboard(),
+    }).subscribe({
+      next: ({ list, dashboard }) => {
+        const statsById = new Map(dashboard.map((d) => [d.id, d]));
+        this.batches = list
+          .map((b) => ({
+            ...b,
+            releasedCount: statsById.get(b.id)?.releasedCount ?? 0,
+            lapCount: statsById.get(b.id)?.lapCount ?? 0,
+          }))
+          .sort((a, b) => b.id - a.id);
         this.loading = false;
       },
       error: () => {
@@ -373,6 +396,35 @@ export class JoiningBatchesComponent implements OnInit {
     this.view = 'list';
     this.selectedBatch = null;
     this.trainees = [];
+  }
+
+  // ─── Batch Summary KPIs (detail page) ────────────────────────────────────────
+
+  get kpiTotalTrainees(): number {
+    return this.trainees.length;
+  }
+
+  get kpiReleasedCount(): number {
+    return this.trainees.filter((t) => t.released).length;
+  }
+
+  get kpiLapCount(): number {
+    return this.trainees.filter((t) => !t.released && t.lapEnabled).length;
+  }
+
+  get kpiFlaggedCount(): number {
+    return this.trainees.filter((t) => !t.released && !!t.flagReason).length;
+  }
+
+  /** Batch is fully done — read-only, no further HR action applies. */
+  get isTerminal(): boolean {
+    return !!this.selectedBatch && TERMINAL_BATCH_STATUSES.has(this.selectedBatch.status);
+  }
+
+  /** Once Complete Batch has run (COMPLETED/RELEASE_PENDING_LAP/CLOSED), uploading more results
+   *  against this batch no longer makes sense — training itself is over. */
+  get assessmentUploadAvailable(): boolean {
+    return !!this.selectedBatch && this.selectedBatch.status === 'TRAINING_IN_PROGRESS';
   }
 
   // ─── Joining Letters (unified generate + send) ───────────────────────────────
@@ -745,9 +797,9 @@ export class JoiningBatchesComponent implements OnInit {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
         title: 'Complete Batch',
-        message: 'This releases every eligible trainee (score/attendance meeting the program cutoff, not on LAP) for project allocation, and auto-moves anyone marked FAILED into LAP so they aren’t left stranded. Continue?',
+        message: 'This releases every "Yet To Release" trainee (Passed result) for project allocation and frees up the training block immediately. If any trainee is still on LAP or missing a result, the batch moves to "Release Pending (LAP)" until each of them is released or flagged. Continue?',
         type: 'warning',
-        confirmText: 'Complete & Release',
+        confirmText: 'Complete Batch',
       },
     });
     dialogRef.afterClosed().subscribe((confirm) => {
@@ -760,11 +812,40 @@ export class JoiningBatchesComponent implements OnInit {
           this.trainees = d.trainees;
           const releasedCount = d.trainees.filter((t) => t.released).length;
           const lapCount = d.trainees.filter((t) => !t.released && t.lapEnabled).length;
-          this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} released, ${lapCount} moved to LAP.`);
+          this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} released, ${lapCount} still on LAP.`);
           this.loadBatches();
         },
         error: () => {
           this.completing = false;
+        },
+      });
+    });
+  }
+
+  /** Archives a fully-resolved (COMPLETED) batch. Only offered once every trainee has a final
+   *  outcome — a batch still RELEASE_PENDING_LAP can't be closed (see backend closeBatch guard). */
+  closeBatch(): void {
+    if (!this.selectedBatch) return;
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Close Batch',
+        message: `Archive batch ${this.selectedBatch.batchCode}? This is a terminal action — the batch will no longer appear as active.`,
+        type: 'info',
+        confirmText: 'Close Batch',
+      },
+    });
+    dialogRef.afterClosed().subscribe((confirm) => {
+      if (!confirm || !this.selectedBatch) return;
+      this.closing = true;
+      this.trainingBatchService.closeBatch(this.selectedBatch.id).subscribe({
+        next: (d) => {
+          this.closing = false;
+          this.selectedBatch = d.batch;
+          this.toastService.success(`Batch ${d.batch.batchCode} closed.`);
+          this.loadBatches();
+        },
+        error: () => {
+          this.closing = false;
         },
       });
     });
@@ -808,7 +889,7 @@ export class JoiningBatchesComponent implements OnInit {
         this.excelPreview = summary;
         this.excelFile = null;
         this.toastService.success(
-          `Upload complete: ${summary.successRows} succeeded, ${summary.failedRows} failed. Use "Complete Batch & Release" below to release passers.`,
+          `Upload complete: ${summary.successRows} succeeded, ${summary.failedRows} failed. Passed trainees are Yet To Release; failed trainees moved to LAP. Use "Complete Batch" below to release everyone Yet To Release.`,
         );
         this.refreshDetail();
         this.loadExcelHistory();

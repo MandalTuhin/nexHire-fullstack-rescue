@@ -8,7 +8,7 @@ export type JoiningBatchStatus =
   | 'ASSIGNED_TO_TRAINING'
   | 'TRAINING_IN_PROGRESS'
   | 'COMPLETED'
-  | 'COMPLETED_WITH_EXCEPTIONS'
+  | 'RELEASE_PENDING_LAP'
   | 'CLOSED'
   | 'CANCELLED';
 

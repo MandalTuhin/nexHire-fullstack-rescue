@@ -28,9 +28,11 @@ import java.util.Set;
 
 /**
  * Two-phase Excel bulk workflow for trainee results, scoped to a single batch — context.md
- * "TRAINEE RESULT EXCEL UPLOAD". Uploading a score does NOT auto-move a trainee to LAP even
- * if it's below cutoff — "HR should see Move to LAP button" is a distinct, deliberate HR
- * action (see TrainingBatchService.moveToLap), not something Excel upload triggers on its own.
+ * "TRAINEE RESULT EXCEL UPLOAD". A committed FAILED result moves the trainee straight to LAP
+ * (business requirement: "Failed trainees should move to LAP" the moment HR uploads/validates
+ * results, not deferred to Complete Batch) — see commit() below, which delegates to
+ * TrainingBatchService.doMoveToLap. A committed PASSED/COMPLETED result needs no extra action:
+ * it's already the resting "Yet To Release" state Complete Batch releases in bulk.
  */
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,7 @@ public class TraineeExcelService {
     private final BulkUploadErrorRowRepository errorRowRepository;
     private final AuditLogService auditLogService;
     private final JoiningBatchRepository joiningBatchRepository;
+    private final TrainingBatchService trainingBatchService;
 
     public byte[] template() {
         return ExcelUtil.writeTemplate("Trainee Results", HEADERS, new String[][]{
@@ -94,6 +97,11 @@ public class TraineeExcelService {
             application.setStatus(ApplicationStatus.TRAINING_RESULT_UPLOADED);
             applicationRepository.save(application);
             successCount++;
+
+            if (row.finalResult == TraineeFinalResult.FAILED) {
+                trainingBatchService.doMoveToLap(row.trainee,
+                        "Auto-moved to LAP after assessment result upload (FAILED)", actingUserId);
+            }
         }
 
         UploadStatus status = result.totalRows == 0 ? UploadStatus.FAILED
