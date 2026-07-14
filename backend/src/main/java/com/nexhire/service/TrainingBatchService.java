@@ -614,7 +614,7 @@ public class TrainingBatchService {
 
         int passed = 0, failed = 0, lap = 0, released = 0, pending = 0;
         for (Trainee t : trainees) {
-            if (t.getReleased()) released++;
+            if (Boolean.TRUE.equals(t.getReleased())) released++;
             else if (Boolean.TRUE.equals(t.getLapEnabled())) lap++;
             else if (t.getFinalResult() == TraineeFinalResult.FAILED) failed++;
             else if (t.getFinalResult() == TraineeFinalResult.PASSED || t.getFinalResult() == TraineeFinalResult.COMPLETED) passed++;
@@ -626,8 +626,8 @@ public class TrainingBatchService {
                 .batchCode(batch.getBatchCode())
                 .batchName(batch.getBatchName())
                 .joiningDate(batch.getJoiningDate())
-                .joiningLocationName(batch.getJoiningLocation().getName())
-                .trainingLocationName(batch.getTrainingLocation().getName())
+                .joiningLocationName(batch.getJoiningLocation() != null ? batch.getJoiningLocation().getName() : null)
+                .trainingLocationName(batch.getTrainingLocation() != null ? batch.getTrainingLocation().getName() : null)
                 .trainingProgram(batch.getTrainingProgram())
                 .block(batch.getBlock())
                 .trainingBlockName(batch.getTrainingBlock() != null ? batch.getTrainingBlock().getName() : null)
