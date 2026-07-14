@@ -65,6 +65,10 @@ interface RequiredDocType {
             <mat-card-subtitle>Required documents must be uploaded before you can submit; optional documents may be left empty</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
+            <!-- One shared hidden file input for every row — each row's upload button sets
+                 pendingUploadType then triggers this, so a row-scoped upload doesn't need a
+                 separate <input> (and separate ViewChild wiring) per document type. -->
+            <input type="file" hidden #rowFileInput accept=".pdf,application/pdf" (change)="onRowFileSelected($event)" />
             <div class="checklist">
               <div class="checklist-row" *ngFor="let req of allDocTypes; trackBy: trackByType; let last = last">
                 <div class="checklist-marker">
@@ -83,6 +87,17 @@ interface RequiredDocType {
                       [status]="doc.status"
                     ></app-status-badge>
                     <span class="checklist-pending" *ngIf="!documentFor(req.type)">Not uploaded yet</span>
+                    <button
+                      *ngIf="canUploadType(req.type)"
+                      mat-icon-button
+                      class="row-upload-btn"
+                      type="button"
+                      [attr.aria-label]="documentFor(req.type) ? 'Replace ' + req.label : 'Upload ' + req.label"
+                      [disabled]="uploadingType === req.type"
+                      (click)="pendingUploadType = req.type; rowFileInput.click()"
+                    >
+                      <mat-icon>{{ uploadingType === req.type ? 'hourglass_top' : (documentFor(req.type) ? 'cached' : 'upload') }}</mat-icon>
+                    </button>
                   </div>
                   <div class="checklist-sub" *ngIf="documentFor(req.type) as doc">
                     <span class="checklist-filename">{{ doc.fileName }}</span>
@@ -97,33 +112,8 @@ interface RequiredDocType {
           </mat-card-content>
         </mat-card>
 
-        <mat-card class="upload-card" *ngIf="bgv.status === 'DOCUMENTS_PENDING'">
-          <mat-card-header>
-            <mat-card-title>Upload a Document</mat-card-title>
-          </mat-card-header>
-          <mat-card-content class="upload-form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Document Type</mat-label>
-              <mat-select [(ngModel)]="documentType">
-                <mat-option *ngFor="let req of uploadableTypes; trackBy: trackByType" [value]="req.type">
-                  {{ req.label }}<span *ngIf="!req.required"> (Optional)</span>
-                </mat-option>
-              </mat-select>
-              <mat-hint>Approved documents aren't shown here — ask HR to reopen your submission if one needs changing</mat-hint>
-            </mat-form-field>
-
-            <div class="dropzone" [class.has-file]="selectedFile" (click)="fileInput.click()">
-              <input type="file" hidden #fileInput accept=".pdf,application/pdf" (change)="onFileSelected($event)" />
-              <mat-icon>{{ selectedFile ? 'insert_drive_file' : 'cloud_upload' }}</mat-icon>
-              <span>{{ selectedFile ? selectedFile.name : 'Click to choose a file' }}</span>
-              <span class="dropzone-hint" *ngIf="!selectedFile">PDF only — up to 10MB</span>
-            </div>
-
-            <button mat-raised-button color="primary" class="upload-btn" [disabled]="!selectedFile || uploading" (click)="upload()">
-              <mat-icon>{{ uploading ? 'hourglass_top' : 'upload' }}</mat-icon>
-              {{ uploading ? 'Uploading…' : 'Upload Document' }}
-            </button>
-
+        <mat-card class="submit-card" *ngIf="bgv.status === 'DOCUMENTS_PENDING'">
+          <mat-card-content>
             <div class="submit-row">
               <button
                 mat-raised-button
@@ -136,7 +126,7 @@ interface RequiredDocType {
                 {{ submitting ? 'Submitting…' : 'Submit Background Check Documents' }}
               </button>
               <span class="submit-hint" *ngIf="!allRequiredUploaded()">
-                Upload all {{ requiredDocTypes.length }} required documents to enable submission.
+                Upload all {{ requiredDocTypes.length }} required documents (use the upload icon on each row above) to enable submission.
               </span>
               <span class="submit-hint" *ngIf="allRequiredUploaded()">
                 Once submitted, documents can no longer be edited or replaced unless HR reopens your submission.
@@ -181,7 +171,7 @@ interface RequiredDocType {
       }
       .hero-card,
       .checklist-card,
-      .upload-card,
+      .submit-card,
       .docs-card {
         border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow-card) !important;
@@ -312,6 +302,16 @@ interface RequiredDocType {
         gap: 8px;
         flex-wrap: wrap;
       }
+      .row-upload-btn {
+        margin-left: auto;
+        color: var(--brand-600);
+        flex-shrink: 0;
+      }
+      .row-upload-btn mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
       .checklist-type-icon {
         color: #64748b;
         font-size: 18px;
@@ -360,56 +360,12 @@ interface RequiredDocType {
         padding: 6px 10px;
       }
 
-      /* Upload */
-      .upload-form {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .full-width {
-        width: 100%;
-      }
-      .dropzone {
-        border: 2px dashed #cbd5e1;
-        border-radius: 10px;
-        padding: 28px;
-        text-align: center;
-        cursor: pointer;
-        color: #64748b;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.2s;
-      }
-      .dropzone:hover {
-        border-color: var(--brand-400);
-        background: var(--brand-100);
-      }
-      .dropzone.has-file {
-        border-style: solid;
-        border-color: var(--brand-400);
-        background: var(--brand-100);
-        color: var(--brand-700);
-      }
-      .dropzone-hint {
-        font-size: 11px;
-        color: #94a3b8;
-      }
-      .upload-btn {
-        align-self: flex-start;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
+      /* Submit */
       .submit-row {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
-        margin-top: 8px;
-        padding-top: 16px;
-        border-top: 1px solid #f1f5f9;
       }
       .submit-btn {
         display: flex;
@@ -497,9 +453,11 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   documents: BgcDocument[] = [];
   applicationId: number | null = null;
 
-  documentType = 'GOVT_ID';
-  selectedFile: File | null = null;
-  uploading = false;
+  /** Set right before opening the shared row file input (see template) so onRowFileSelected
+   *  knows which document type the resulting file belongs to. */
+  pendingUploadType: string | null = null;
+  /** Type currently mid-upload, if any — drives the spinner/disabled state on that row's button. */
+  uploadingType: string | null = null;
   submitting = false;
 
   readonly requiredDocTypes: RequiredDocType[] = [
@@ -533,11 +491,6 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   trackByDocId(_index: number, doc: BgcDocument): number {
     return doc.id;
   }
-
-  /** Cached result of uploadableDocTypes(), recomputed only when `documents` changes — see the
-   *  comment on allDocTypes above; the <mat-select>'s *ngFor binds to this field instead of
-   *  calling a method directly, so it doesn't rebuild the CDK-backed option list every cycle. */
-  uploadableTypes: (RequiredDocType & { required: boolean })[] = this.allDocTypes;
 
   constructor(
     private appService: ApplicationService,
@@ -596,50 +549,48 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   private loadDocuments(): void {
     if (!this.applicationId) return;
     this.bgvService.getMyDocuments(this.applicationId).subscribe({
-      next: (docs) => {
-        this.documents = docs;
-        this.uploadableTypes = this.computeUploadableDocTypes();
-      },
+      next: (docs) => (this.documents = docs),
       error: () => {
         this.loadError = true;
       },
     });
   }
 
-  onFileSelected(event: Event): void {
+  /** Whether a given document type's row should show an upload/replace button — the case must
+   *  still be editable (DOCUMENTS_PENDING) and, for a type that already has an upload, its latest
+   *  status must not be ACCEPTED (an approved required document stays locked even while the case
+   *  is reopened for a different document's correction — issue #44). */
+  canUploadType(type: string): boolean {
+    return this.bgv?.status === 'DOCUMENTS_PENDING' && this.documentFor(type)?.status !== 'ACCEPTED';
+  }
+
+  /** Fired by the single shared row file input (see template) — pendingUploadType records which
+   *  row's button triggered it. */
+  onRowFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
-    if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    input.value = ''; // reset so choosing the same file again still fires change next time
+    const type = this.pendingUploadType;
+    this.pendingUploadType = null;
+    if (!file || !type) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       this.toastService.error('Only PDF files are accepted. Please choose a PDF document.');
-      input.value = '';
-      this.selectedFile = null;
       return;
     }
-    this.selectedFile = file;
+    this.uploadRowFile(type, file);
   }
 
-  /** Document types still available to (re-)upload — an approved (ACCEPTED) document is not
-   *  offered again, so an already-approved required document stays locked even while the case
-   *  as a whole is reopened for a different document's correction (issue #44). Computed once
-   *  per documents-list change (see loadDocuments) and cached in uploadableTypes rather than
-   *  called from the template, which would otherwise re-run — and rebuild the <mat-select>'s
-   *  CDK-backed option list — on every single change-detection cycle. */
-  private computeUploadableDocTypes(): (RequiredDocType & { required: boolean })[] {
-    return this.allDocTypes.filter((d) => this.documentFor(d.type)?.status !== 'ACCEPTED');
-  }
-
-  upload(): void {
-    if (!this.applicationId || !this.selectedFile) return;
-    this.uploading = true;
-    this.bgvService.uploadDocument(this.applicationId, this.documentType, this.selectedFile).subscribe({
+  private uploadRowFile(type: string, file: File): void {
+    if (!this.applicationId) return;
+    this.uploadingType = type;
+    this.bgvService.uploadDocument(this.applicationId, type, file).subscribe({
       next: () => {
-        this.uploading = false;
-        this.selectedFile = null;
+        this.uploadingType = null;
         this.toastService.success('Document uploaded successfully.');
         this.loadCase();
       },
       error: () => {
-        this.uploading = false;
+        this.uploadingType = null;
       },
     });
   }
