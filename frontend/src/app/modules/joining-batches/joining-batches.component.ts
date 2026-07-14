@@ -46,6 +46,7 @@ export class JoiningBatchesComponent implements OnInit {
 
   batches: BatchListRow[] = [];
   loading = false;
+  loadError = false;
 
   locations: CityAdmin[] = [];
   wizardBlocks: BlockAdmin[] = [];
@@ -65,6 +66,8 @@ export class JoiningBatchesComponent implements OnInit {
   // Detail view state
   selectedBatch: JoiningBatch | null = null;
   loadingDetail = false;
+  detailLoadError = false;
+  detailBatchId: number | null = null;
   sending = false;
 
   // Remove & Replace
@@ -218,6 +221,7 @@ export class JoiningBatchesComponent implements OnInit {
 
   loadBatches(): void {
     this.loading = true;
+    this.loadError = false;
     forkJoin({
       list: this.batchService.getAll(),
       dashboard: this.trainingBatchService.getDashboard(),
@@ -235,6 +239,7 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
       },
     });
   }
@@ -365,7 +370,9 @@ export class JoiningBatchesComponent implements OnInit {
 
   openDetail(id: number): void {
     this.view = 'detail';
+    this.detailBatchId = id;
     this.loadingDetail = true;
+    this.detailLoadError = false;
     this.selectedTrainingProgramId = null;
     this.excelPreview = null;
     this.excelFile = null;
@@ -384,6 +391,10 @@ export class JoiningBatchesComponent implements OnInit {
       },
       error: () => {
         this.loadingDetail = false;
+        // Keep any previously-loaded batch visible on a refresh failure (the global error
+        // toast already reported it); only show the dedicated error state when there's nothing
+        // to fall back on, so a failed load never renders as a silent blank page.
+        if (!this.selectedBatch) this.detailLoadError = true;
       },
     });
   }

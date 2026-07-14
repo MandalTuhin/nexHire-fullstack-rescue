@@ -25,7 +25,16 @@ interface RequiredDocType {
       <app-loader *ngIf="loading"></app-loader>
 
       <app-empty-state
-        *ngIf="!loading && !bgv"
+        *ngIf="!loading && loadError"
+        icon="error_outline"
+        title="Couldn't load your background check"
+        subtitle="Something went wrong while loading this page. Please try again."
+      >
+        <button mat-stroked-button color="primary" (click)="ngOnInit()">Retry</button>
+      </app-empty-state>
+
+      <app-empty-state
+        *ngIf="!loading && !loadError && !bgv"
         icon="verified_user"
         title="No background check in progress"
         subtitle="This section becomes active once you accept an offer."
@@ -483,6 +492,7 @@ interface RequiredDocType {
 })
 export class CandidateBackgroundCheckComponent implements OnInit {
   loading = true;
+  loadError = false;
   bgv: BackgroundVerification | null = null;
   documents: BgcDocument[] = [];
   applicationId: number | null = null;
@@ -522,6 +532,8 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loading = true;
+    this.loadError = false;
     const user = this.currentUserService.getUser();
     if (!user?.userId) {
       this.loading = false;
@@ -545,6 +557,7 @@ export class CandidateBackgroundCheckComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
       },
     });
   }
@@ -559,13 +572,19 @@ export class CandidateBackgroundCheckComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
       },
     });
   }
 
   private loadDocuments(): void {
     if (!this.applicationId) return;
-    this.bgvService.getMyDocuments(this.applicationId).subscribe((docs) => (this.documents = docs));
+    this.bgvService.getMyDocuments(this.applicationId).subscribe({
+      next: (docs) => (this.documents = docs),
+      error: () => {
+        this.loadError = true;
+      },
+    });
   }
 
   onFileSelected(event: Event): void {

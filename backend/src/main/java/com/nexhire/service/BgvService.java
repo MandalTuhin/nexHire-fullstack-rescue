@@ -250,6 +250,19 @@ public class BgvService {
             throw new InvalidStateTransitionException(
                     "Background check documents have already been submitted and cannot be modified.");
         }
+        // Defense-in-depth: the frontend already hides an ACCEPTED type from the upload picker
+        // once a case is reopened for a *different* document's correction, but that must also be
+        // enforced server-side so a direct API call can't silently downgrade an approved document
+        // back to pending review (Part 1: "Approved documents remain locked").
+        boolean alreadyApproved = documentRepository.findByBgcCaseIdOrderByUploadedAtDesc(bgv.getId()).stream()
+                .filter(d -> d.getDocumentType().equals(documentType))
+                .findFirst()
+                .map(d -> d.getStatus() == BgcDocumentStatus.ACCEPTED)
+                .orElse(false);
+        if (alreadyApproved) {
+            throw new InvalidStateTransitionException(
+                    "This document has already been approved and cannot be replaced.");
+        }
         requirePdf(file);
 
         Long fileId = fileStorageService.store(file, FileCategory.BGC_DOCUMENT, uploaderUserId);
