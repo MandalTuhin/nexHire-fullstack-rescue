@@ -14,6 +14,15 @@ package com.nexhire.enums;
  * a batch with unresolved LAP trainees can't be archived). CANCELLED is reachable from any
  * pre-training state via JoiningBatchService.cancelBatch, which also releases any booked
  * Block/budget reservation.
+ *
+ * CAUTION when renaming or removing a value here: Hibernate auto-generates a Postgres CHECK
+ * constraint on joining_batches.status matching whatever this enum looked like the first time
+ * the table was created, and ddl-auto=update does NOT retroactively alter that constraint on a
+ * later rename. Any existing row still holding the old string breaks with
+ * "No enum constant ..." on every read (see GitHub issue #46 — this exact bug happened when
+ * COMPLETED_WITH_EXCEPTIONS was renamed to RELEASE_PENDING_LAP). A rename must be paired with a
+ * manual data migration (UPDATE ... SET status = 'NEW_NAME' WHERE status = 'OLD_NAME') and a
+ * matching ALTER TABLE ... DROP/ADD CONSTRAINT on any environment with existing data.
  */
 public enum JoiningBatchStatus {
     CREATED,
