@@ -75,6 +75,15 @@ public class BgvController {
         return ResponseEntity.ok(bgvService.updateStatus(id, request, hrId));
     }
 
+    /** HR: reopens a locked (submitted/under-review) case so the candidate can upload missing
+     *  or corrected documents again. */
+    @PutMapping("/{id}/reopen")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<BgvResponse> reopen(@PathVariable Long id, Authentication authentication) {
+        Long hrId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(bgvService.reopenSubmission(id, hrId));
+    }
+
     // ─── Documents ──────────────────────────────────────────────────────────────
 
     @PostMapping(value = "/{applicationId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

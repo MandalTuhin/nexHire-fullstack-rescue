@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ApplicationService } from '../../../services/application.service';
 import { BackgroundVerificationService } from '../../../services/background-verification.service';
 import { CurrentUserService } from '../../../core/auth/current-user.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { ConfirmationDialogComponent } from '../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 import { BackgroundVerification, BgcDocument, BgvStatus } from '../../../models/background-verification.model';
 
 interface RequiredDocType {
@@ -46,15 +48,16 @@ interface RequiredDocType {
           </mat-card-content>
         </mat-card>
 
-        <!-- Required documents checklist, NextStep-style vertical timeline -->
+        <!-- Document checklist, NextStep-style vertical timeline. Required documents must all
+             be uploaded before submission; optional ones may stay empty. -->
         <mat-card class="checklist-card">
           <mat-card-header>
             <mat-card-title>Document Checklist</mat-card-title>
-            <mat-card-subtitle>Track the status of every document we need from you</mat-card-subtitle>
+            <mat-card-subtitle>Required documents must be uploaded before you can submit; optional documents may be left empty</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div class="checklist">
-              <div class="checklist-row" *ngFor="let req of requiredDocTypes; let last = last">
+              <div class="checklist-row" *ngFor="let req of allDocTypes; let last = last">
                 <div class="checklist-marker">
                   <div class="checklist-dot" [ngClass]="checklistDotClass(req.type)">
                     <mat-icon>{{ checklistIcon(req.type) }}</mat-icon>
@@ -65,6 +68,7 @@ interface RequiredDocType {
                   <div class="checklist-heading">
                     <mat-icon class="checklist-type-icon">{{ req.icon }}</mat-icon>
                     <span class="checklist-label">{{ req.label }}</span>
+                    <span class="requirement-pill" [class.optional]="!req.required">{{ req.required ? 'Required' : 'Optional' }}</span>
                     <app-status-badge
                       *ngIf="documentFor(req.type) as doc"
                       [status]="doc.status"
@@ -92,16 +96,18 @@ interface RequiredDocType {
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Document Type</mat-label>
               <mat-select [(ngModel)]="documentType">
-                <mat-option *ngFor="let req of requiredDocTypes" [value]="req.type">{{ req.label }}</mat-option>
-                <mat-option value="OTHER">Other</mat-option>
+                <mat-option *ngFor="let req of uploadableDocTypes()" [value]="req.type">
+                  {{ req.label }}<span *ngIf="!req.required"> (Optional)</span>
+                </mat-option>
               </mat-select>
+              <mat-hint>Approved documents aren't shown here — ask HR to reopen your submission if one needs changing</mat-hint>
             </mat-form-field>
 
             <div class="dropzone" [class.has-file]="selectedFile" (click)="fileInput.click()">
-              <input type="file" hidden #fileInput (change)="onFileSelected($event)" />
+              <input type="file" hidden #fileInput accept=".pdf,application/pdf" (change)="onFileSelected($event)" />
               <mat-icon>{{ selectedFile ? 'insert_drive_file' : 'cloud_upload' }}</mat-icon>
               <span>{{ selectedFile ? selectedFile.name : 'Click to choose a file' }}</span>
-              <span class="dropzone-hint" *ngIf="!selectedFile">PDF, JPG or PNG — up to 10MB</span>
+              <span class="dropzone-hint" *ngIf="!selectedFile">PDF only — up to 10MB</span>
             </div>
 
             <button mat-raised-button color="primary" class="upload-btn" [disabled]="!selectedFile || uploading" (click)="upload()">
@@ -115,7 +121,7 @@ interface RequiredDocType {
                 color="accent"
                 class="submit-btn"
                 [disabled]="!allRequiredUploaded() || submitting"
-                (click)="submitDocuments()"
+                (click)="confirmSubmit()"
               >
                 <mat-icon>{{ submitting ? 'hourglass_top' : 'lock' }}</mat-icon>
                 {{ submitting ? 'Submitting…' : 'Submit Background Check Documents' }}
@@ -124,7 +130,7 @@ interface RequiredDocType {
                 Upload all {{ requiredDocTypes.length }} required documents to enable submission.
               </span>
               <span class="submit-hint" *ngIf="allRequiredUploaded()">
-                Once submitted, documents can no longer be edited or replaced.
+                Once submitted, documents can no longer be edited or replaced unless HR reopens your submission.
               </span>
             </div>
           </mat-card-content>
@@ -132,7 +138,7 @@ interface RequiredDocType {
 
         <div class="locked-banner" *ngIf="bgv.status !== 'DOCUMENTS_PENDING'">
           <mat-icon>lock</mat-icon>
-          <span>Background check documents have already been submitted and cannot be modified.</span>
+          <span>Your background verification documents have been submitted successfully and are currently under review. Document uploads are now locked. Please contact HR if any corrections are required.</span>
         </div>
 
         <mat-card class="docs-card">
@@ -309,6 +315,20 @@ interface RequiredDocType {
         font-size: 14px;
         margin-right: auto;
       }
+      .requirement-pill {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: var(--brand-100);
+        color: var(--brand-700);
+      }
+      .requirement-pill.optional {
+        background: #f1f5f9;
+        color: #64748b;
+      }
       .checklist-pending {
         font-size: 12px;
         color: #94a3b8;
@@ -476,15 +496,29 @@ export class CandidateBackgroundCheckComponent implements OnInit {
     { type: 'GOVT_ID', label: 'Government ID', icon: 'badge' },
     { type: 'ADDRESS_PROOF', label: 'Address Proof', icon: 'home' },
     { type: 'EDUCATION_CERTIFICATE', label: 'Education Certificate', icon: 'school' },
-    { type: 'PREVIOUS_EMPLOYMENT_PROOF', label: 'Previous Employment Proof', icon: 'work' },
     { type: 'PHOTO', label: 'Photograph', icon: 'account_circle' },
   ];
+
+  readonly optionalDocTypes: RequiredDocType[] = [
+    { type: 'PREVIOUS_EMPLOYMENT_PROOF', label: 'Previous Employment Proof', icon: 'work' },
+    { type: 'EXPERIENCE_LETTER', label: 'Experience Letter', icon: 'description' },
+    { type: 'SALARY_SLIPS', label: 'Salary Slips', icon: 'receipt_long' },
+    { type: 'OTHER', label: 'Other Supporting Documents', icon: 'attach_file' },
+  ];
+
+  get allDocTypes(): (RequiredDocType & { required: boolean })[] {
+    return [
+      ...this.requiredDocTypes.map((d) => ({ ...d, required: true })),
+      ...this.optionalDocTypes.map((d) => ({ ...d, required: false })),
+    ];
+  }
 
   constructor(
     private appService: ApplicationService,
     private bgvService: BackgroundVerificationService,
     private currentUserService: CurrentUserService,
     private toastService: ToastService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -536,7 +570,21 @@ export class CandidateBackgroundCheckComponent implements OnInit {
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.selectedFile = input.files?.[0] ?? null;
+    const file = input.files?.[0] ?? null;
+    if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      this.toastService.error('Only PDF files are accepted. Please choose a PDF document.');
+      input.value = '';
+      this.selectedFile = null;
+      return;
+    }
+    this.selectedFile = file;
+  }
+
+  /** Document types still available to (re-)upload — an approved (ACCEPTED) document is not
+   *  offered again, so an already-approved required document stays locked even while the case
+   *  as a whole is reopened for a different document's correction (issue #44). */
+  uploadableDocTypes(): (RequiredDocType & { required: boolean })[] {
+    return this.allDocTypes.filter((d) => this.documentFor(d.type)?.status !== 'ACCEPTED');
   }
 
   upload(): void {
@@ -555,8 +603,8 @@ export class CandidateBackgroundCheckComponent implements OnInit {
     });
   }
 
-  /** Latest uploaded document of a given required type, if any (a re-upload replaces the one
-   *  shown on the checklist row with whichever the backend returns last in the list). */
+  /** Latest uploaded document of a given type, if any (a re-upload replaces the one shown on
+   *  the checklist row with whichever the backend returns last in the list). */
   documentFor(type: string): BgcDocument | undefined {
     return this.documents.find((d) => d.documentType === type);
   }
@@ -565,8 +613,24 @@ export class CandidateBackgroundCheckComponent implements OnInit {
     return this.requiredDocTypes.every((req) => !!this.documentFor(req.type));
   }
 
-  submitDocuments(): void {
+  confirmSubmit(): void {
     if (!this.applicationId || !this.allRequiredUploaded() || this.submitting) return;
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Submit Background Verification Documents?',
+        message:
+          'After submission, your documents will be locked and cannot be modified unless your HR representative reopens the document upload process. Please verify that all required documents have been uploaded before continuing.',
+        type: 'warning',
+        confirmText: 'Submit',
+      },
+    });
+    dialogRef.afterClosed().subscribe((confirm) => {
+      if (confirm) this.submitDocuments();
+    });
+  }
+
+  private submitDocuments(): void {
+    if (!this.applicationId) return;
     this.submitting = true;
     this.bgvService.submitDocuments(this.applicationId).subscribe({
       next: () => {
@@ -581,11 +645,11 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   }
 
   docTypeLabel(type: string): string {
-    return this.requiredDocTypes.find((r) => r.type === type)?.label ?? 'Other Document';
+    return this.allDocTypes.find((r) => r.type === type)?.label ?? 'Other Document';
   }
 
   docTypeIcon(type: string): string {
-    return this.requiredDocTypes.find((r) => r.type === type)?.icon ?? 'insert_drive_file';
+    return this.allDocTypes.find((r) => r.type === type)?.icon ?? 'insert_drive_file';
   }
 
   checklistIcon(type: string): string {

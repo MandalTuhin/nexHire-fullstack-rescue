@@ -78,6 +78,13 @@ export class BackgroundVerificationService extends BaseService {
       .pipe(map((b) => this.toModel(b)));
   }
 
+  /** HR: reopens a locked (submitted/under-review) case so the candidate can upload missing or
+   *  corrected documents again. */
+  reopenSubmission(id: number): Observable<BackgroundVerification> {
+    return this.http.put<BackendBgv>(API_ENDPOINTS.BGV.REOPEN(id), {})
+      .pipe(map((b) => this.toModel(b)));
+  }
+
   getDetail(id: number): Observable<BgcCaseDetail> {
     return this.http.get<BgcCaseDetail>(API_ENDPOINTS.BGV.DETAIL(id));
   }

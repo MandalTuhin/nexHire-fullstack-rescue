@@ -223,6 +223,16 @@ table {
   align-items: center;
   gap: 6px;
 }
+.clear-blocked-hint {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 500;
+}
 
 .audit-row {
   display: grid;

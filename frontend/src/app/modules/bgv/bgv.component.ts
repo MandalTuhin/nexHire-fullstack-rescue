@@ -13,6 +13,22 @@ import {
 } from '../../models/background-verification.model';
 import { UploadSummary } from '../../models/bulk-upload.model';
 
+/** Mirrors backend BgvService.REQUIRED_DOCUMENT_TYPES — every one of these must be ACCEPTED
+ *  before a case can be cleared (issue #45); the backend is the real enforcement point, this
+ *  is only used to proactively disable the action and explain why in the UI. */
+const REQUIRED_DOCUMENT_TYPES = ['GOVT_ID', 'ADDRESS_PROOF', 'EDUCATION_CERTIFICATE', 'PHOTO'];
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  GOVT_ID: 'Government ID',
+  ADDRESS_PROOF: 'Address Proof',
+  EDUCATION_CERTIFICATE: 'Education Certificate',
+  PHOTO: 'Photograph',
+  PREVIOUS_EMPLOYMENT_PROOF: 'Previous Employment Proof',
+  EXPERIENCE_LETTER: 'Experience Letter',
+  SALARY_SLIPS: 'Salary Slips',
+  OTHER: 'Other Supporting Document',
+};
+
 @Component({
   selector: 'app-bgv-mgmt',
   templateUrl: './bgv.component.html',
@@ -103,6 +119,45 @@ export class BgvManagementComponent implements OnInit {
   closeDetail(): void {
     this.selectedCase = null;
     this.detail = null;
+  }
+
+  docTypeLabel(type: string): string {
+    return DOC_TYPE_LABELS[type] ?? type;
+  }
+
+  /** Issue #45: the "Mark Cleared" action is disabled until every required document type has
+   *  its latest upload ACCEPTED. Backend enforces this too (unbypassable via direct API calls);
+   *  this is only the proactive UI-side check. */
+  canClearBgc(detail: BgcCaseDetail | null): boolean {
+    if (!detail) return false;
+    return REQUIRED_DOCUMENT_TYPES.every((type) => {
+      const latest = detail.documents.find((d) => d.documentType === type);
+      return latest?.status === 'ACCEPTED';
+    });
+  }
+
+  /** HR: reopens a locked submission so the candidate can upload missing or corrected
+   *  documents and resubmit (issue #44). */
+  reopenSubmission(c: BackgroundVerification): void {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Reopen Submission',
+        message: `Reopen ${c.candidateName}'s background verification submission? They'll be able to upload missing or corrected documents and will need to submit again once done.`,
+        type: 'info',
+        confirmText: 'Reopen',
+      },
+    });
+    dialogRef.afterClosed().subscribe((confirm) => {
+      if (!confirm) return;
+      this.bgvService.reopenSubmission(c.bgvId).subscribe({
+        next: () => {
+          this.toastService.success(`Submission reopened for ${c.candidateName}.`);
+          this.loadCases();
+          if (this.selectedCase?.bgvId === c.bgvId) this.openCase(c);
+        },
+        error: () => {},
+      });
+    });
   }
 
   quickTransition(c: BackgroundVerification, status: BgvStatus): void {

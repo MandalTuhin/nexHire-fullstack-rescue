@@ -143,6 +143,7 @@ export const API_ENDPOINTS = {
       `${BASE}/api/bgv/application/${applicationId}`,
     INITIATE: (applicationId: number) => `${BASE}/api/bgv/${applicationId}`,
     UPDATE_STATUS: (id: number) => `${BASE}/api/bgv/${id}/status`,
+    REOPEN: (id: number) => `${BASE}/api/bgv/${id}/reopen`,
     DETAIL: (id: number) => `${BASE}/api/bgv/${id}/detail`,
     UPLOAD_DOCUMENT: (applicationId: number) =>
       `${BASE}/api/bgv/${applicationId}/documents`,

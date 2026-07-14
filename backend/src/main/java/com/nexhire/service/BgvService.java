@@ -27,9 +27,12 @@ import java.util.Set;
 public class BgvService {
 
     /** Mirrors the frontend's candidate-background-check.component.ts requiredDocTypes list —
-     *  a submission must cover all of these before it can be locked for HR review. */
+     *  a submission must cover all of these before it can be locked for HR review, and every one
+     *  of them must be ACCEPTED before HR can clear the case (see applyStatus's CLEARED guard,
+     *  issue #45). Optional types (previous employment proof, experience letter, salary slips,
+     *  other supporting documents) may remain empty and never block submission or clearance. */
     private static final Set<String> REQUIRED_DOCUMENT_TYPES = Set.of(
-            "GOVT_ID", "ADDRESS_PROOF", "EDUCATION_CERTIFICATE", "PREVIOUS_EMPLOYMENT_PROOF", "PHOTO");
+            "GOVT_ID", "ADDRESS_PROOF", "EDUCATION_CERTIFICATE", "PHOTO");
 
     private final BackgroundVerificationRepository bgvRepository;
     private final JobApplicationRepository applicationRepository;
@@ -151,8 +154,14 @@ public class BgvService {
     }
 
     /** Shared by the individual status update and the Excel bulk path. Mutates both the BGC
-     *  case and its JobApplication; on CLEARED, transactionally creates Employee+SelectedUser. */
+     *  case and its JobApplication; on CLEARED, transactionally creates Employee+SelectedUser.
+     *  Validating CLEARED here (rather than only in the controller) is what makes the guard
+     *  unbypassable — BgcExcelService.commit() calls this exact method for its bulk CLEARED
+     *  rows too, so a single check point covers both paths (issue #45). */
     void applyStatus(BackgroundVerification bgv, BgvStatus newStatus, String remarks, Long actingUserId) {
+        if (newStatus == BgvStatus.CLEARED) {
+            requireAllRequiredDocumentsApproved(bgv);
+        }
         bgv.setStatus(newStatus);
         if (remarks != null) {
             bgv.setRemarks(remarks);
@@ -177,6 +186,50 @@ public class BgvService {
                         + (remarks != null && !remarks.isBlank() ? " (" + remarks + ")" : ""));
     }
 
+    /** Issue #45: a case can never be marked CLEARED while any required document is still
+     *  Rejected, Re-upload Required, Pending Upload, Submitted, or Under Review — every required
+     *  type must have its latest upload ACCEPTED. */
+    private void requireAllRequiredDocumentsApproved(BackgroundVerification bgv) {
+        List<BgcDocument> docs = documentRepository.findByBgcCaseIdOrderByUploadedAtDesc(bgv.getId());
+        java.util.Map<String, BgcDocumentStatus> latestStatusByType = new java.util.HashMap<>();
+        for (BgcDocument doc : docs) {
+            // Ordered newest-first — the first entry seen per type is its current/latest status.
+            latestStatusByType.putIfAbsent(doc.getDocumentType(), doc.getStatus());
+        }
+        for (String requiredType : REQUIRED_DOCUMENT_TYPES) {
+            if (latestStatusByType.get(requiredType) != BgcDocumentStatus.ACCEPTED) {
+                throw new BusinessRuleException(
+                        "Background verification cannot be cleared because one or more required documents are still pending approval.");
+            }
+        }
+    }
+
+    /** HR: reopens a locked submission so the candidate can upload missing or corrected
+     *  documents again — the only way out of DOCUMENTS_SUBMITTED/VERIFICATION_IN_PROGRESS/
+     *  RECHECK_REQUIRED besides the terminal CLEARED/FAILED outcomes (issue #44). Existing
+     *  documents and their review status are untouched; the candidate re-submits via
+     *  submitDocuments() once corrections are made, which re-locks the case the same way. */
+    @Transactional
+    public BgvResponse reopenSubmission(Long id, Long actingUserId) {
+        BackgroundVerification bgv = bgvRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("BGC case not found with id: " + id));
+
+        if (bgv.getStatus() != BgvStatus.DOCUMENTS_SUBMITTED
+                && bgv.getStatus() != BgvStatus.VERIFICATION_IN_PROGRESS
+                && bgv.getStatus() != BgvStatus.RECHECK_REQUIRED) {
+            throw new InvalidStateTransitionException(
+                    "Can only reopen a case that is submitted or under verification (current status: " + bgv.getStatus() + ")");
+        }
+
+        applyStatus(bgv, BgvStatus.DOCUMENTS_PENDING, "Reopened by HR for document corrections", actingUserId);
+        bgvRepository.save(bgv);
+
+        auditLogService.log(actingUserId, "BGC_REOPENED", "APPLICATION", bgv.getApplication().getId(),
+                "BGC case #" + bgv.getId() + " (" + bgv.getApplication().getUser().getEmail() + ") reopened for document corrections");
+
+        return toResponse(bgv);
+    }
+
     private ApplicationStatus mapToApplicationStatus(BgvStatus status) {
         return switch (status) {
             case DOCUMENTS_PENDING -> ApplicationStatus.BGC_DOCUMENTS_PENDING;
@@ -197,6 +250,7 @@ public class BgvService {
             throw new InvalidStateTransitionException(
                     "Background check documents have already been submitted and cannot be modified.");
         }
+        requirePdf(file);
 
         Long fileId = fileStorageService.store(file, FileCategory.BGC_DOCUMENT, uploaderUserId);
         BgcDocument doc = documentRepository.save(BgcDocument.builder()
@@ -293,6 +347,19 @@ public class BgvService {
             throw new InvalidStateTransitionException("You can only view your own documents");
         }
         return fileStorageService.retrieve(doc.getStoredFile().getId());
+    }
+
+    /** Issue #44: only PDF documents are accepted for background verification uploads. Checks
+     *  both the declared content type and the filename extension since browsers don't always
+     *  send an accurate content type for every file picker interaction. */
+    private void requirePdf(MultipartFile file) {
+        String contentType = file.getContentType();
+        String fileName = file.getOriginalFilename();
+        boolean pdfContentType = "application/pdf".equalsIgnoreCase(contentType);
+        boolean pdfExtension = fileName != null && fileName.toLowerCase().endsWith(".pdf");
+        if (!pdfContentType && !pdfExtension) {
+            throw new BusinessRuleException("Only PDF files are accepted for background verification documents.");
+        }
     }
 
     // ─── Mapping ──────────────────────────────────────────────────────────────

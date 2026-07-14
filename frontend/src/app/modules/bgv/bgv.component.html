@@ -186,7 +186,7 @@
             <app-empty-state *ngIf="detail.documents.length === 0" icon="description" title="No documents uploaded yet"></app-empty-state>
             <div class="doc-row" *ngFor="let doc of detail.documents">
               <div class="doc-info">
-                <span class="doc-type">{{ doc.documentType }}</span>
+                <span class="doc-type">{{ docTypeLabel(doc.documentType) }}</span>
                 <span class="doc-file">{{ doc.fileName }}</span>
                 <app-status-badge [status]="doc.status"></app-status-badge>
               </div>
@@ -218,13 +218,25 @@
               >
                 <mat-icon>autorenew</mat-icon> Start Verification
               </button>
-              <button mat-raised-button color="primary" (click)="quickTransition(selectedCase!, 'CLEARED')">
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="!canClearBgc(detail)"
+                [matTooltip]="!canClearBgc(detail) ? 'All required documents must be approved before this case can be cleared' : ''"
+                (click)="quickTransition(selectedCase!, 'CLEARED')"
+              >
                 <mat-icon>check_circle</mat-icon> Mark Cleared
               </button>
               <button mat-stroked-button color="warn" (click)="quickTransition(selectedCase!, 'FAILED')">
                 <mat-icon>cancel</mat-icon> Mark Failed
               </button>
+              <button mat-stroked-button (click)="reopenSubmission(selectedCase!)">
+                <mat-icon>lock_open</mat-icon> Reopen Submission
+              </button>
             </div>
+            <p class="clear-blocked-hint" *ngIf="!canClearBgc(detail)">
+              Background verification cannot be cleared because one or more required documents are still pending approval.
+            </p>
           </div>
 
           <mat-divider></mat-divider>
