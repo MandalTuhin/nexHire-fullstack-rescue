@@ -55,8 +55,12 @@ table {
 }
 
 .cutoff-field {
-  max-width: 280px;
-  margin-bottom: var(--space-2);
+  max-width: 360px;
+  width: 100%;
+  // The hint text ("Used only when a row's Result column is blank") wraps onto a second line at
+  // narrower widths — margin-bottom needs enough clearance for that wrapped line, or it visually
+  // collides with the action buttons row directly below.
+  margin-bottom: var(--space-5);
 }
 .excel-actions-row {
   display: flex;

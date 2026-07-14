@@ -66,7 +66,7 @@ interface RequiredDocType {
           </mat-card-header>
           <mat-card-content>
             <div class="checklist">
-              <div class="checklist-row" *ngFor="let req of allDocTypes; let last = last">
+              <div class="checklist-row" *ngFor="let req of allDocTypes; trackBy: trackByType; let last = last">
                 <div class="checklist-marker">
                   <div class="checklist-dot" [ngClass]="checklistDotClass(req.type)">
                     <mat-icon>{{ checklistIcon(req.type) }}</mat-icon>
@@ -105,7 +105,7 @@ interface RequiredDocType {
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Document Type</mat-label>
               <mat-select [(ngModel)]="documentType">
-                <mat-option *ngFor="let req of uploadableDocTypes()" [value]="req.type">
+                <mat-option *ngFor="let req of uploadableTypes; trackBy: trackByType" [value]="req.type">
                   {{ req.label }}<span *ngIf="!req.required"> (Optional)</span>
                 </mat-option>
               </mat-select>
@@ -156,7 +156,7 @@ interface RequiredDocType {
           </mat-card-header>
           <mat-card-content>
             <app-empty-state *ngIf="documents.length === 0" icon="description" title="No documents uploaded yet"></app-empty-state>
-            <div class="doc-row" *ngFor="let doc of documents" [ngClass]="docAccentClass(doc)">
+            <div class="doc-row" *ngFor="let doc of documents; trackBy: trackByDocId" [ngClass]="docAccentClass(doc)">
               <mat-icon class="doc-icon">{{ docTypeIcon(doc.documentType) }}</mat-icon>
               <div class="doc-info">
                 <span class="doc-type">{{ docTypeLabel(doc.documentType) }}</span>
@@ -516,12 +516,28 @@ export class CandidateBackgroundCheckComponent implements OnInit {
     { type: 'OTHER', label: 'Other Supporting Documents', icon: 'attach_file' },
   ];
 
-  get allDocTypes(): (RequiredDocType & { required: boolean })[] {
-    return [
-      ...this.requiredDocTypes.map((d) => ({ ...d, required: true })),
-      ...this.optionalDocTypes.map((d) => ({ ...d, required: false })),
-    ];
+  /** Computed once (requiredDocTypes/optionalDocTypes are readonly and never change) rather than
+   *  as a template-bound getter — a getter re-runs and returns a brand-new array on every change
+   *  detection cycle, which forces the *ngFor rows (and, worse, the <mat-select> options bound to
+   *  uploadableDocTypes below) to be torn down and rebuilt every cycle instead of just when the
+   *  underlying document list actually changes. */
+  readonly allDocTypes: (RequiredDocType & { required: boolean })[] = [
+    ...this.requiredDocTypes.map((d) => ({ ...d, required: true })),
+    ...this.optionalDocTypes.map((d) => ({ ...d, required: false })),
+  ];
+
+  trackByType(_index: number, req: RequiredDocType): string {
+    return req.type;
   }
+
+  trackByDocId(_index: number, doc: BgcDocument): number {
+    return doc.id;
+  }
+
+  /** Cached result of uploadableDocTypes(), recomputed only when `documents` changes — see the
+   *  comment on allDocTypes above; the <mat-select>'s *ngFor binds to this field instead of
+   *  calling a method directly, so it doesn't rebuild the CDK-backed option list every cycle. */
+  uploadableTypes: (RequiredDocType & { required: boolean })[] = this.allDocTypes;
 
   constructor(
     private appService: ApplicationService,
@@ -580,7 +596,10 @@ export class CandidateBackgroundCheckComponent implements OnInit {
   private loadDocuments(): void {
     if (!this.applicationId) return;
     this.bgvService.getMyDocuments(this.applicationId).subscribe({
-      next: (docs) => (this.documents = docs),
+      next: (docs) => {
+        this.documents = docs;
+        this.uploadableTypes = this.computeUploadableDocTypes();
+      },
       error: () => {
         this.loadError = true;
       },
@@ -601,8 +620,11 @@ export class CandidateBackgroundCheckComponent implements OnInit {
 
   /** Document types still available to (re-)upload — an approved (ACCEPTED) document is not
    *  offered again, so an already-approved required document stays locked even while the case
-   *  as a whole is reopened for a different document's correction (issue #44). */
-  uploadableDocTypes(): (RequiredDocType & { required: boolean })[] {
+   *  as a whole is reopened for a different document's correction (issue #44). Computed once
+   *  per documents-list change (see loadDocuments) and cached in uploadableTypes rather than
+   *  called from the template, which would otherwise re-run — and rebuild the <mat-select>'s
+   *  CDK-backed option list — on every single change-detection cycle. */
+  private computeUploadableDocTypes(): (RequiredDocType & { required: boolean })[] {
     return this.allDocTypes.filter((d) => this.documentFor(d.type)?.status !== 'ACCEPTED');
   }
 
