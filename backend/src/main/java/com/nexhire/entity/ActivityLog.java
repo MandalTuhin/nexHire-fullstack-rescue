@@ -18,8 +18,10 @@ public class ActivityLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Nullable — system/scheduled actions with no acting HR user (e.g. joining-letter
+     *  auto-expiry, batch auto-completion) log with a null actor; see AuditLogService.log(). */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false)
