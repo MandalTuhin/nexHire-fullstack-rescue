@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { forkJoin } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 import { JoiningBatchService, ActivityLogEntry } from '../../services/joining-batch.service';
 import { TrainingBatchService } from '../../services/training-batch.service';
 import { CityAdminService } from '../../services/city-admin.service';
@@ -427,6 +427,28 @@ export class JoiningBatchesComponent implements OnInit {
     return this.trainees.filter((t) => !t.released && !!t.flagReason).length;
   }
 
+  isFlagged(trainee: TraineeDetail): boolean {
+    return !!trainee.flagReason?.trim();
+  }
+
+  canMoveToLap(trainee: TraineeDetail): boolean {
+    return !trainee.released && !this.isFlagged(trainee) && !trainee.lapEnabled;
+  }
+
+  canRemoveFromLap(trainee: TraineeDetail): boolean {
+    return !trainee.released && !this.isFlagged(trainee) && trainee.lapEnabled;
+  }
+
+  canRelease(trainee: TraineeDetail): boolean {
+    return !trainee.released && !this.isFlagged(trainee)
+      && (trainee.finalResult === 'PASSED' || trainee.finalResult === 'COMPLETED');
+  }
+
+  canFlag(trainee: TraineeDetail): boolean {
+    return !trainee.released && !this.isFlagged(trainee)
+      && (trainee.lapEnabled || trainee.finalResult === 'FAILED' || trainee.finalResult === 'LAP');
+  }
+
   /** Batch is fully done — read-only, no further HR action applies. */
   get isTerminal(): boolean {
     return !!this.selectedBatch && TERMINAL_BATCH_STATUSES.has(this.selectedBatch.status);
@@ -435,7 +457,17 @@ export class JoiningBatchesComponent implements OnInit {
   /** Once Complete Batch has run (COMPLETED/RELEASE_PENDING_LAP/CLOSED), uploading more results
    *  against this batch no longer makes sense — training itself is over. */
   get assessmentUploadAvailable(): boolean {
-    return !!this.selectedBatch && this.selectedBatch.status === 'TRAINING_IN_PROGRESS';
+    return !!this.selectedBatch && ['TRAINING_IN_PROGRESS', 'RELEASE_PENDING_LAP', 'COMPLETED_WITH_EXCEPTIONS']
+      .includes(this.selectedBatch.status);
+  }
+
+  get isLapReassessmentUpload(): boolean {
+    return !!this.selectedBatch && ['RELEASE_PENDING_LAP', 'COMPLETED_WITH_EXCEPTIONS']
+      .includes(this.selectedBatch.status);
+  }
+
+  get missingResultCount(): number {
+    return this.trainees.filter((t) => !t.released && !this.isFlagged(t) && t.finalResult === 'PENDING').length;
   }
 
   // ─── Joining Letters (unified generate + send) ───────────────────────────────
@@ -774,24 +806,28 @@ export class JoiningBatchesComponent implements OnInit {
   }
 
   confirmFlag(): void {
+    const reason = this.flagReason.trim();
+    if (!reason) return;
     if (this.flagBulkIds) {
       this.bulkActing = true;
-      this.trainingBatchService.bulkFlag(this.flagBulkIds, this.flagReason).subscribe({
+      this.trainingBatchService.bulkFlag(this.flagBulkIds, reason).pipe(
+        finalize(() => (this.bulkActing = false)),
+      ).subscribe({
         next: (r) => {
-          this.bulkActing = false;
           this.toastService.success(`Flagged ${r.successCount}/${r.totalRequested} trainee(s).`);
           this.closeFlagDialog();
           this.clearTraineeSelection();
           this.refreshDetail();
         },
-        error: () => {
-          this.bulkActing = false;
-        },
+        error: () => {},
       });
       return;
     }
     if (!this.flagDialogTrainee) return;
-    this.trainingBatchService.flagTrainee(this.flagDialogTrainee.traineeId, this.flagReason).subscribe({
+    this.bulkActing = true;
+    this.trainingBatchService.flagTrainee(this.flagDialogTrainee.traineeId, reason).pipe(
+      finalize(() => (this.bulkActing = false)),
+    ).subscribe({
       next: () => {
         this.toastService.success('Trainee flagged as unsuccessful.');
         this.closeFlagDialog();
@@ -805,6 +841,18 @@ export class JoiningBatchesComponent implements OnInit {
 
   completeBatch(): void {
     if (!this.selectedBatch) return;
+    if (this.missingResultCount > 0) {
+      this.dialog.open(ConfirmationDialogComponent, {
+        data: {
+          title: 'Upload Results Required',
+          message: `Upload assessment results for all trainees before completing this batch. ${this.missingResultCount} trainee result(s) are still missing.`,
+          type: 'info',
+          confirmText: 'OK',
+          hideCancel: true,
+        },
+      });
+      return;
+    }
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
         title: 'Complete Batch',
@@ -816,9 +864,10 @@ export class JoiningBatchesComponent implements OnInit {
     dialogRef.afterClosed().subscribe((confirm) => {
       if (!confirm || !this.selectedBatch) return;
       this.completing = true;
-      this.trainingBatchService.completeBatch(this.selectedBatch.id).subscribe({
+      this.trainingBatchService.completeBatch(this.selectedBatch.id).pipe(
+        finalize(() => (this.completing = false)),
+      ).subscribe({
         next: (d) => {
-          this.completing = false;
           this.selectedBatch = d.batch;
           this.trainees = d.trainees;
           const releasedCount = d.trainees.filter((t) => t.released).length;
@@ -826,9 +875,7 @@ export class JoiningBatchesComponent implements OnInit {
           this.toastService.success(`Batch completed — ${releasedCount}/${d.trainees.length} released, ${lapCount} still on LAP.`);
           this.loadBatches();
         },
-        error: () => {
-          this.completing = false;
-        },
+        error: () => {},
       });
     });
   }

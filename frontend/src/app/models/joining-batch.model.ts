@@ -8,6 +8,8 @@ export type JoiningBatchStatus =
   | 'ASSIGNED_TO_TRAINING'
   | 'TRAINING_IN_PROGRESS'
   | 'COMPLETED'
+  /** Legacy persisted name; new backend transitions use RELEASE_PENDING_LAP. */
+  | 'COMPLETED_WITH_EXCEPTIONS'
   | 'RELEASE_PENDING_LAP'
   | 'CLOSED'
   | 'CANCELLED';

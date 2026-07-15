@@ -532,10 +532,10 @@
                 <th mat-header-cell *matHeaderCellDef align="end">Actions</th>
                 <td mat-cell *matCellDef="let t" align="end">
                   <ng-container *ngIf="!t.released">
-                    <button mat-button *ngIf="!t.lapEnabled" (click)="openLapDialog(t)">Move to LAP</button>
-                    <button mat-button *ngIf="t.lapEnabled" color="primary" (click)="removeFromLap(t)">Remove from LAP</button>
-                    <button mat-button color="primary" (click)="releaseTrainee(t)">Release</button>
-                    <button mat-button color="warn" (click)="openFlagDialog(t)">Flag</button>
+                    <button mat-button *ngIf="canMoveToLap(t)" (click)="openLapDialog(t)">Move to LAP</button>
+                    <button mat-button *ngIf="canRemoveFromLap(t)" color="primary" (click)="removeFromLap(t)">Remove from LAP</button>
+                    <button mat-button *ngIf="canRelease(t)" color="primary" (click)="releaseTrainee(t)">Release</button>
+                    <button mat-button *ngIf="canFlag(t)" color="warn" (click)="openFlagDialog(t)">Flag</button>
                   </ng-container>
                 </td>
               </ng-container>
@@ -552,8 +552,9 @@
            result uploads. -->
       <mat-card class="excel-card" *ngIf="trainees.length > 0 && assessmentUploadAvailable">
         <mat-card-header>
-          <mat-card-title>Trainee Result Upload (Excel)</mat-card-title>
-          <mat-card-subtitle>Bulk-upload score, attendance and final result for this batch — export the trainee list above first if you need Trainee IDs</mat-card-subtitle>
+          <mat-card-title>{{ isLapReassessmentUpload ? 'LAP Reassessment Result Upload (Excel)' : 'Training Marks / Result Upload (Excel)' }}</mat-card-title>
+          <mat-card-subtitle *ngIf="!isLapReassessmentUpload">Bulk-upload score, attendance and final result for this batch — export the trainee list above first if you need Trainee IDs</mat-card-subtitle>
+          <mat-card-subtitle *ngIf="isLapReassessmentUpload">Upload reassessment results for unresolved LAP trainees. Passed trainees become ready for Release; failed trainees remain in LAP and can be Flagged.</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <div class="excel-actions-row">
@@ -672,7 +673,7 @@
       </mat-form-field>
       <div class="modal-actions">
         <button mat-button [disabled]="bulkActing" (click)="closeFlagDialog()">Cancel</button>
-        <button mat-raised-button color="warn" [disabled]="bulkActing" (click)="confirmFlag()">Flag</button>
+        <button mat-raised-button color="warn" [disabled]="bulkActing || !flagReason.trim()" (click)="confirmFlag()">Flag</button>
       </div>
     </div>
   </div>

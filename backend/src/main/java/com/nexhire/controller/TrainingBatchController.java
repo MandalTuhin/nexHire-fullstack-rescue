@@ -138,10 +138,9 @@ public class TrainingBatchController {
      *  excluding them from project allocation. */
     @PostMapping("/trainees/{traineeId}/flag")
     public ResponseEntity<TraineeDetailResponse> flagTrainee(
-            @PathVariable Long traineeId, @RequestBody(required = false) LapUpdateRequest request, Authentication authentication) {
+            @PathVariable Long traineeId, @Valid @RequestBody FlagTraineeRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
-        String reason = request != null ? request.getRemarks() : null;
-        return ResponseEntity.ok(trainingBatchService.flagTrainee(traineeId, reason, userId));
+        return ResponseEntity.ok(trainingBatchService.flagTrainee(traineeId, request.getReason(), userId));
     }
 
     /** Bulk flag — e.g. flagging every trainee who failed again after LAP in one action. */

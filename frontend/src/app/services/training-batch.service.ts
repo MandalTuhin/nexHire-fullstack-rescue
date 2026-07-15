@@ -80,7 +80,7 @@ export class TrainingBatchService extends BaseService {
 
   /** "Flag Candidate" — permanently marks a trainee unsuccessful (failed even after LAP). */
   flagTrainee(traineeId: number, reason?: string): Observable<TraineeDetail> {
-    return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.FLAG(traineeId), { remarks: reason });
+    return this.http.post<TraineeDetail>(API_ENDPOINTS.TRAINING_BATCHES.FLAG(traineeId), { reason });
   }
 
   bulkFlag(traineeIds: number[], reason?: string): Observable<TraineeBulkActionResult> {

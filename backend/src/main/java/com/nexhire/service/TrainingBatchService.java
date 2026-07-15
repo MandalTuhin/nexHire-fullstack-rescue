@@ -318,6 +318,9 @@ public class TrainingBatchService {
         if (trainee.getReleased()) {
             throw new BusinessRuleException("Trainee " + trainee.getUser().getEmail() + " is already released");
         }
+        if (!hasPassingResult(trainee)) {
+            throw new BusinessRuleException("Upload a passing LAP reassessment result before releasing this trainee");
+        }
         User actingUser = userRepository.findById(actingUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -339,6 +342,9 @@ public class TrainingBatchService {
                         .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
                 if (trainee.getReleased()) {
                     throw new BusinessRuleException("Already released");
+                }
+                if (!hasPassingResult(trainee)) {
+                    throw new BusinessRuleException("A passing assessment result is required before release");
                 }
                 doRelease(trainee, actingUser);
                 success++;
@@ -376,7 +382,7 @@ public class TrainingBatchService {
         auditLogService.log(releasedBy.getId(), "TRAINEE_RELEASED", "APPLICATION", application.getId(),
                 "Trainee " + trainee.getUser().getEmail() + " released");
 
-        checkBatchFullyResolved(trainee.getBatch());
+        checkBatchFullyResolved(trainee.getBatch(), releasedBy.getId());
     }
 
     /** HR: "Flag Candidate" — a trainee who failed even after a LAP attempt is permanently
@@ -385,18 +391,20 @@ public class TrainingBatchService {
      *  this is the terminal outcome for someone who isn't. */
     @Transactional
     public TraineeDetailResponse flagTrainee(Long traineeId, String reason, Long actingUserId) {
+        String normalizedReason = requireFlagReason(reason);
         Trainee trainee = traineeRepository.findById(traineeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trainee not found with id: " + traineeId));
         if (trainee.getReleased()) {
             throw new BusinessRuleException("Cannot flag " + trainee.getUser().getEmail() + " — already released");
         }
-        doFlag(trainee, reason, actingUserId);
+        doFlag(trainee, normalizedReason, actingUserId);
         return toTraineeDetail(trainee);
     }
 
     /** HR: bulk flag — e.g. flagging the 2 of 20 LAP trainees who failed again together. */
     @Transactional
     public BulkActionResult bulkFlag(List<Long> traineeIds, String reason, Long actingUserId) {
+        String normalizedReason = requireFlagReason(reason);
         int success = 0;
         List<BulkActionResult.Failure> failures = new ArrayList<>();
         for (Long traineeId : traineeIds) {
@@ -406,7 +414,7 @@ public class TrainingBatchService {
                 if (trainee.getReleased()) {
                     throw new BusinessRuleException("Already released");
                 }
-                doFlag(trainee, reason, actingUserId);
+                doFlag(trainee, normalizedReason, actingUserId);
                 success++;
             } catch (Exception e) {
                 failures.add(BulkActionResult.Failure.builder().id(traineeId).reason(e.getMessage()).build());
@@ -436,15 +444,28 @@ public class TrainingBatchService {
                         + (reason != null && !reason.isBlank() ? " (" + reason + ")" : ""));
         logLapHistory(trainee, "FLAGGED", reason, actingUserId);
 
-        checkBatchFullyResolved(trainee.getBatch());
+        checkBatchFullyResolved(trainee.getBatch(), actingUserId);
+    }
+
+    private boolean hasPassingResult(Trainee trainee) {
+        return trainee.getFinalResult() == TraineeFinalResult.PASSED
+                || trainee.getFinalResult() == TraineeFinalResult.COMPLETED;
+    }
+
+    private String requireFlagReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessRuleException("A reason is required when flagging a trainee");
+        }
+        return reason.trim();
     }
 
     /** Once a batch is RELEASE_PENDING_LAP (training done, Block already released, but at least
      *  one trainee unresolved), each individual release/flag can be the one that finally clears
      *  the last straggler — check after every such action and auto-complete the batch the moment
      *  none remain, rather than requiring a separate HR "recheck" action. */
-    private void checkBatchFullyResolved(JoiningBatch batch) {
-        if (batch == null || batch.getStatus() != JoiningBatchStatus.RELEASE_PENDING_LAP) return;
+    private void checkBatchFullyResolved(JoiningBatch batch, Long actingUserId) {
+        if (batch == null || (batch.getStatus() != JoiningBatchStatus.RELEASE_PENDING_LAP
+                && batch.getStatus() != JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS)) return;
 
         List<Trainee> trainees = traineeRepository.findAll().stream()
                 .filter(t -> t.getBatch() != null && t.getBatch().getId().equals(batch.getId()))
@@ -455,12 +476,13 @@ public class TrainingBatchService {
         batch.setStatus(JoiningBatchStatus.COMPLETED);
         joiningBatchRepository.save(batch);
 
-        auditLogService.log(null, "JOINING_BATCH_COMPLETED", "JOINING_BATCH", batch.getId(),
+        auditLogService.log(actingUserId, "JOINING_BATCH_COMPLETED", "JOINING_BATCH", batch.getId(),
                 "Batch " + batch.getBatchCode() + " fully resolved — every trainee reached a final outcome");
     }
 
     private boolean isResolved(Trainee trainee) {
-        return trainee.getReleased() || (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank());
+        return Boolean.TRUE.equals(trainee.getReleased())
+                || (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank());
     }
 
     // ─── Completion / Release ───────────────────────────────────────────────────
@@ -488,11 +510,24 @@ public class TrainingBatchService {
                 .filter(t -> t.getBatch() != null && t.getBatch().getId().equals(batchId))
                 .toList();
 
+        if (trainees.isEmpty()) {
+            throw new BusinessRuleException("Cannot complete this batch because it has no trainees");
+        }
+        long missingResults = trainees.stream()
+                .filter(t -> !Boolean.TRUE.equals(t.getReleased()))
+                .filter(t -> t.getFlagReason() == null || t.getFlagReason().isBlank())
+                .filter(t -> t.getFinalResult() == null || t.getFinalResult() == TraineeFinalResult.PENDING)
+                .count();
+        if (missingResults > 0) {
+            throw new BusinessRuleException("Upload assessment results for all trainees before completing the batch ("
+                    + missingResults + " result" + (missingResults == 1 ? " is" : "s are") + " still missing)");
+        }
+
         int releasedCount = 0;
         int flaggedCount = 0;
         int lapCount = 0;
         for (Trainee trainee : trainees) {
-            if (trainee.getReleased()) {
+            if (Boolean.TRUE.equals(trainee.getReleased())) {
                 releasedCount++;
                 continue;
             }

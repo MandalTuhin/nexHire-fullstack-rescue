@@ -31,6 +31,13 @@ public enum JoiningBatchStatus {
     READY_FOR_TRAINING,
     TRAINING_IN_PROGRESS,
     COMPLETED,
+    /**
+     * Legacy persisted name for a completed batch with unresolved trainees. Keep this value
+     * readable because existing installations may contain it; new transitions use
+     * RELEASE_PENDING_LAP. Removing it makes Hibernate fail the entire batch-list query while
+     * converting the database string to this enum.
+     */
+    COMPLETED_WITH_EXCEPTIONS,
     /** Training finished and the Block was already released, but at least one trainee (LAP or
      *  still without an uploaded result) hasn't reached a final outcome yet. */
     RELEASE_PENDING_LAP,

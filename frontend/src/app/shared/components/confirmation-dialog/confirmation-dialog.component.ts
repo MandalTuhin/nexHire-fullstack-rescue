@@ -6,6 +6,7 @@ export interface ConfirmationDialogData {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  hideCancel?: boolean;
   type?: 'danger' | 'warning' | 'info';
 }
 
@@ -24,7 +25,7 @@ export interface ConfirmationDialogData {
         <p>{{ data.message }}</p>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-stroked-button (click)="cancel()">{{ data.cancelText || 'Cancel' }}</button>
+        <button mat-stroked-button *ngIf="!data.hideCancel" (click)="cancel()">{{ data.cancelText || 'Cancel' }}</button>
         <button mat-raised-button
                 [color]="data.type === 'danger' ? 'warn' : 'primary'"
                 (click)="confirm()">

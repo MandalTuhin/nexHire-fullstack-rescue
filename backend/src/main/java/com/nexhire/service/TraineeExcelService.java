@@ -8,6 +8,7 @@ import com.nexhire.entity.JoiningBatch;
 import com.nexhire.entity.Trainee;
 import com.nexhire.entity.User;
 import com.nexhire.enums.ApplicationStatus;
+import com.nexhire.enums.JoiningBatchStatus;
 import com.nexhire.enums.TraineeFinalResult;
 import com.nexhire.enums.UploadStatus;
 import com.nexhire.enums.UploadType;
@@ -63,6 +64,7 @@ public class TraineeExcelService {
     }
 
     public UploadSummaryResponse validate(Long batchId, MultipartFile file) {
+        requireResultUploadOpen(batchId);
         ParseResult result = parseAndValidate(batchId, file);
         return UploadSummaryResponse.builder()
                 .uploadLogId(null)
@@ -80,6 +82,7 @@ public class TraineeExcelService {
 
     @Transactional
     public UploadSummaryResponse commit(Long batchId, MultipartFile file, Long actingUserId) {
+        requireResultUploadOpen(batchId);
         ParseResult result = parseAndValidate(batchId, file);
         User actor = userRepository.findById(actingUserId).orElseThrow();
 
@@ -101,6 +104,11 @@ public class TraineeExcelService {
             if (row.finalResult == TraineeFinalResult.FAILED) {
                 trainingBatchService.doMoveToLap(row.trainee,
                         "Auto-moved to LAP after assessment result upload (FAILED)", actingUserId);
+            } else if (Boolean.TRUE.equals(row.trainee.getLapEnabled())) {
+                row.trainee.setLapEnabled(false);
+                traineeRepository.save(row.trainee);
+                auditLogService.log(actingUserId, "LAP_REASSESSMENT_PASSED", "APPLICATION", application.getId(),
+                        "Trainee " + row.trainee.getUser().getEmail() + " passed LAP reassessment and is ready for release");
             }
         }
 
@@ -257,6 +265,15 @@ public class TraineeExcelService {
                 continue;
             }
 
+            if (Boolean.TRUE.equals(trainee.getReleased())) {
+                errors.add(err(row.rowNumber(), identifier, "Trainee is already released"));
+                continue;
+            }
+            if (trainee.getFlagReason() != null && !trainee.getFlagReason().isBlank()) {
+                errors.add(err(row.rowNumber(), identifier, "Trainee is already flagged"));
+                continue;
+            }
+
             Double score;
             try {
                 score = Double.parseDouble(rawScore == null ? "" : rawScore.trim());
@@ -295,6 +312,19 @@ public class TraineeExcelService {
         result.validRows = validRows;
         result.errors = errors;
         return result;
+    }
+
+    private JoiningBatch requireResultUploadOpen(Long batchId) {
+        JoiningBatch batch = joiningBatchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Joining batch not found with id: " + batchId));
+        JoiningBatchStatus status = batch.getStatus();
+        if (status != JoiningBatchStatus.TRAINING_IN_PROGRESS
+                && status != JoiningBatchStatus.RELEASE_PENDING_LAP
+                && status != JoiningBatchStatus.COMPLETED_WITH_EXCEPTIONS) {
+            throw new com.nexhire.exception.BusinessRuleException(
+                    "Assessment result upload is only available during training or while LAP results are pending");
+        }
+        return batch;
     }
 
     private TraineeFinalResult parseFinalResult(String raw) {
