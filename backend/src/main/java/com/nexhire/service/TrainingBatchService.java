@@ -10,6 +10,7 @@ import com.nexhire.exception.InvalidStateTransitionException;
 import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * context.md "TRAINING ASSIGNMENT" / "TRAINING BATCH DASHBOARD" / "LAP FLOW" / "TRAINING
@@ -31,6 +33,7 @@ import java.util.List;
  * User's id — HR users aren't modeled as Employee rows in this build (Employee is created only
  * via the BGC-clear pipeline), so a literal employeeId lookup isn't meaningful.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TrainingBatchService {
@@ -186,7 +189,23 @@ public class TrainingBatchService {
 
     @Transactional(readOnly = true)
     public List<TrainingBatchDashboardResponse> getDashboard() {
-        return joiningBatchRepository.findAll().stream().map(this::toDashboardResponse).toList();
+        // Map each batch defensively: a single un-mappable row (e.g. a legacy record left in an
+        // unexpected state by an earlier schema/enum change) must not turn this whole fetch-all
+        // endpoint into a 500 — that would hide every valid batch behind one bad one. A failed
+        // row is logged in full (batch id + stack trace) so the exact offending record and cause
+        // are diagnosable from the server log, then skipped, and the rest of the list is returned.
+        return joiningBatchRepository.findAll().stream()
+                .map(batch -> {
+                    try {
+                        return toDashboardResponse(batch);
+                    } catch (RuntimeException ex) {
+                        log.error("Failed to map joining batch id={} for /api/training-batches dashboard; "
+                                + "skipping this row so the rest of the list still loads", batch.getId(), ex);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     @Transactional(readOnly = true)

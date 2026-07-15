@@ -9,6 +9,7 @@ import com.nexhire.exception.BusinessRuleException;
 import com.nexhire.exception.ResourceNotFoundException;
 import com.nexhire.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * context.md "JOINING BATCH MANAGEMENT" / "JOINING LETTER MANAGEMENT": joining (and later
@@ -26,6 +28,7 @@ import java.util.List;
  * batch — that status itself is the "not already assigned" guard, since batch assignment
  * moves the application out of SELECTED_USER_CREATED.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class JoiningBatchService {
@@ -235,7 +238,21 @@ public class JoiningBatchService {
 
     @Transactional(readOnly = true)
     public List<JoiningBatchResponse> getAll() {
-        return joiningBatchRepository.findAll().stream().map(b -> toResponse(b, false)).toList();
+        // Defensive per-row mapping — one un-mappable batch (e.g. a legacy record in an unexpected
+        // state) must not 500 the whole HR Joining Batches list. A failed row is logged in full
+        // (batch id + stack trace) for diagnosis, then skipped; the rest still loads.
+        return joiningBatchRepository.findAll().stream()
+                .map(b -> {
+                    try {
+                        return toResponse(b, false);
+                    } catch (RuntimeException ex) {
+                        log.error("Failed to map joining batch id={} for /api/joining-batches; "
+                                + "skipping this row so the rest of the list still loads", b.getId(), ex);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     @Transactional(readOnly = true)
